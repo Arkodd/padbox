@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PadBox Calibrator</title>
+  <meta name="description" content="Set up and calibrate your Arkodd PadBox GS - HOJA2, GP2040-CE and PhobGCC.">
+  <meta name="theme-color" content="#0a0e14">
+  <link rel="icon" href="assets/app.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div id="app">
+    <header class="bar">
+      <img class="logo" src="assets/logo.png" alt="Arkodd">
+      <div class="divider"></div>
+      <div class="titles"><div class="title" id="title">PadBox Calibrator</div><div class="sub" id="sub">HOJA2  &bull;  GP2040-CE  &bull;  PhobGCC</div></div>
+      <div class="spacer"></div>
+      <div class="status off hidden" id="status"><span class="dot"></span><span class="st">Not connected</span></div>
+      <div class="actions" id="actions"></div>
+    </header>
+    <nav class="tabs hidden" id="tabs"></nav>
+    <main id="main"></main>
+    <footer class="strip" id="footer"></footer>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
