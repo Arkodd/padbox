@@ -14,6 +14,7 @@ const HOJA_FILTERS = [
 // PhobGCC's USB tool mode (the pico-sdk serial port)
 const PHOB_FILTERS = [{ usbVendorId: 0x2e8a, usbProductId: 0x000a }];
 
+const APP_VERSION = 5;   // shown on the connect screen, so it's easy to tell which version a phone has (see VERSION in sw.js)
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 let current = null;   // { app, dev }
@@ -55,7 +56,7 @@ async function disconnect(message) {
 function showConnect(problem) {
   shell.header('PadBox Calibrator', 'HOJA2  •  GP2040-CE  •  PhobGCC');
   shell.actions([]); shell.tabs(null); $('status').classList.add('hidden');
-  shell.footer('Plug your PadBox into this computer with a USB data cable.');
+  shell.footer('Plug your PadBox into this computer with a USB data cable.   •   web app version ' + APP_VERSION);
   const hasUsb = 'usb' in navigator, hasSerial = 'serial' in navigator;
   const box = el('div.box');
   box.append(el('h1', { text: 'Connect your PadBox' }));
