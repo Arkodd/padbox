@@ -4,6 +4,7 @@
 // Calls are queued: one at a time, in order.
 
 export const GP_FILTERS = [{ vendorId: 0xcafe }];   // GP2040-CE's web-config mode (TinyUSB's VID)
+const BODY_PIECE = 512;
 
 export class GpUsb {
   constructor(device) { this.dev = device; this.itf = -1; this.chain = Promise.resolve(); }
@@ -22,23 +23,32 @@ export class GpUsb {
 
   setup(request, value) { return { requestType: 'vendor', recipient: 'interface', request, value: value || 0, index: this.itf }; }
 
+  // One USB transfer, given up on after a few seconds: a transfer that never finishes must show up as an error, not
+  // leave the app waiting forever (SAVE looking done when nothing was saved).
+  guard(p, what) {
+    let t;
+    return Promise.race([p, new Promise((_, rej) => { t = setTimeout(() => rej(new Error('USB: no answer to ' + what)), 5000); })]).finally(() => clearTimeout(t));
+  }
+
   async raw(path, body) {
     const d = this.dev, enc = new TextEncoder();
-    let r = await d.controlTransferOut(this.setup(1), enc.encode(path));
+    let r = await this.guard(d.controlTransferOut(this.setup(1), enc.encode(path)), path);
     if (r.status !== 'ok') throw new Error('USB: ' + r.status);
+    // The body (saves only) goes in small pieces: some Android phones' USB can't send large control transfers.
     const bytes = enc.encode(body == null ? '' : typeof body === 'string' ? body : JSON.stringify(body));
-    for (let o = 0; o < bytes.length; o += 4096) {
-      r = await d.controlTransferOut(this.setup(2), bytes.subarray(o, Math.min(bytes.length, o + 4096)));
+    for (let o = 0; o < bytes.length; o += BODY_PIECE) {
+      r = await this.guard(d.controlTransferOut(this.setup(2), bytes.subarray(o, Math.min(bytes.length, o + BODY_PIECE))), path);
       if (r.status !== 'ok') throw new Error('USB: ' + r.status);
     }
-    r = await d.controlTransferOut(this.setup(3));
+    r = await this.guard(d.controlTransferOut(this.setup(3)), path);
     if (r.status !== 'ok') throw new Error('USB: ' + r.status);
-    const st = await d.controlTransferIn(this.setup(4), 5);
+    const st = await this.guard(d.controlTransferIn(this.setup(4), 5), path);
+    if (st.status !== 'ok' || !st.data || st.data.byteLength < 5) throw new Error('USB: no status for ' + path);
     const sv = new DataView(st.data.buffer, st.data.byteOffset, st.data.byteLength);
     if (sv.getUint8(0) !== 1) throw new Error('The controller doesn\'t know ' + path + ' (older firmware?)');
     const n = sv.getUint32(1, true), out = new Uint8Array(n);
     for (let off = 0; off < n;) {
-      const got = await d.controlTransferIn(this.setup(5, off), Math.min(4096, n - off));
+      const got = await this.guard(d.controlTransferIn(this.setup(5, off), Math.min(4096, n - off)), path);
       const chunk = new Uint8Array(got.data.buffer, got.data.byteOffset, got.data.byteLength);
       if (chunk.length === 0) break;
       out.set(chunk, off); off += chunk.length;

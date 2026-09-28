@@ -49,7 +49,10 @@ export async function startGp(shell, dev, opts) {
     dirty[k] = true; btnSave.disabled = false;
     say('Unsaved changes - click SAVE to send them to the controller.', 'var(--warn)');
   }
-  function say(text, color) { status.textContent = text; status.style.color = color || 'var(--muted)'; }
+  function say(text, color) {
+    status.textContent = text; status.style.color = color || 'var(--muted)';
+    shell.footer(text); document.getElementById('footer').style.color = color || '';   // also in the bottom bar: easy to miss on a phone otherwise
+  }
 
   // ---------------------------------------------------------------- CONTROLLER page
   const topProfile = combo(['Profile 1', 'Profile 2', 'Profile 3', 'Profile 4'], i => { m.profileNumber = i + 1; m.editProfile = i + 1; markDirty('settings'); refreshSide(); }, 200);
@@ -455,7 +458,17 @@ export async function startGp(shell, dev, opts) {
       }
       if (d.settings) { await dev.post('/api/setGamepadOptions', m.gamepadBody()); await dev.post('/api/setAddonsOptions', m.addonBody()); }
       if (d.cal) { m.loadCal(await dev.post('/api/setCalibration', m.calMiscBody())); sticks.forEach(s => s.sync && s.sync()); }
-      say('Saved. Click RESTART AS CONTROLLER to use the new buttons, or RESTART TO PREVIEW LEDS to see the LEDs.', 'var(--good)');
+      // read the button map back: the save only counts if the controller really has it
+      if (d.pins) {
+        const back = await dev.get('/api/getPinMappings'), want = m.pinsBody();
+        const off = Object.keys(want).filter(k => want[k] && typeof want[k] === 'object' && back[k] && back[k].action !== want[k].action);
+        if (off.length) throw new Error('the controller still has the old setting for ' + off.map(k => m.nameOfPin(+k.slice(3))).join(', '));
+      }
+      if (d.led) {
+        const back = await dev.get('/api/getPadboxLed');
+        if (back.mode !== m.mode || back.brightness !== m.brightness) throw new Error('the controller still has the old LED effect');
+      }
+      say('Saved and checked. Click RESTART AS CONTROLLER to use the new buttons, or RESTART TO PREVIEW LEDS to see the LEDs.', 'var(--good)');
     } catch (e) {
       for (const k in d) if (d[k]) dirty[k] = true;
       btnSave.disabled = false; say('Saving failed: ' + e.message, 'var(--bad)');

@@ -1,6 +1,6 @@
 // Keeps a copy of the whole app (and the bundled firmware) so it opens and works with no internet after the first
 // visit. Bump VERSION when publishing a new version: the old copy is then replaced on the next visit.
-const VERSION = 'padbox-web-3';
+const VERSION = 'padbox-web-4';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/main.js', 'js/ui.js', 'js/update.js',
