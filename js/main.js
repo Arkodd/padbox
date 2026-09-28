@@ -14,7 +14,7 @@ const HOJA_FILTERS = [
 // PhobGCC's USB tool mode (the pico-sdk serial port)
 const PHOB_FILTERS = [{ usbVendorId: 0x2e8a, usbProductId: 0x000a }];
 
-const APP_VERSION = 5;   // shown on the connect screen, so it's easy to tell which version a phone has (see VERSION in sw.js)
+const APP_VERSION = 6;   // shown on the connect screen, so it's easy to tell which version a phone has (see VERSION in sw.js)
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 let current = null;   // { app, dev }
