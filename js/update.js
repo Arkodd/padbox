@@ -3,6 +3,10 @@
 // The first time, Chrome asks once which device to allow ("RP2 Boot" / "RP2350 Boot"); after that it's automatic.
 // Where the browser can't reach the bootloader (no WebUSB, or Windows without a driver for the RP2040 one), it falls
 // back to downloading the file for the user to drag onto the RPI-RP2 drive.
+// Once this browser has installed firmware that way on a chip, later updates ask the firmware for the bootloader
+// WITHOUT its drive (enter(true)), so no RPI-RP2 / RP2350 window opens each time. Not for the RP2040 on Windows: without
+// its drive that bootloader is a different USB device (no "&MI_01"), which has no WinUSB driver, so Chrome can't reach
+// it (the driver people install for "RP2 Boot" - Zadig, picotool - is for the two-part one only).
 // The bundled firmware is in firmware/ as "PadBox <board> - <family>.uf2".
 
 import { el, icon, button, dialog, esc, sleep, setButtonText } from './ui.js';
@@ -26,6 +30,18 @@ export function uf2Chip(data) {
 }
 
 const bootChip = dev => dev.productId === 0x0003 ? 'RP2040' : 'RP2350';
+// whether this browser has already written firmware straight into this chip's bootloader (so it doesn't need the drive)
+const PICOBOOT_KEY = chip => 'padbox-picoboot-ok-' + chip;
+const NODRIVE_BAD_KEY = chip => 'padbox-nodrive-failed-' + chip;
+const onWindows = () => /Windows/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.userAgent);
+const picobootWorked = chip => { try { return localStorage.getItem(PICOBOOT_KEY(chip)) === '1'; } catch (e) { return false; } };
+const rememberPicoboot = chip => { try { localStorage.setItem(PICOBOOT_KEY(chip), '1'); } catch (e) { } };
+// the drive-less bootloader: only where it can be reached, and never again on a computer where it once wasn't
+function useNoDrive(chip) {
+  if (!navigator.usb || !picobootWorked(chip)) return false;
+  if (chip === 'RP2040' && onWindows()) return false;
+  try { return localStorage.getItem(NODRIVE_BAD_KEY(chip)) !== '1'; } catch (e) { return false; }
+}
 const isBoot = dev => BOOT_IDS.some(f => f.vendorId === dev.vendorId && f.productId === dev.productId);
 
 // The bootloader, if this site was already allowed to use it; waits up to ms for it to show up.
@@ -131,7 +147,7 @@ export function firmwareUpdate({ board, current, enter }) {
   const progress = p => { meter.classList.remove('hidden'); meter.firstChild.style.width = p + '%'; };
   const reconnect = 'Then reconnect: plug it in (hold Start for GP2040-CE or PhobGCC) and click CONNECT.';
 
-  let data = null, name = '', stage = 'start';
+  let data = null, name = '', stage = 'start', noDrive = false;
   go.addEventListener('click', async () => {
     if (stage === 'pick') return pickAndInstall();
     if (stage === 'download') return download();
@@ -141,7 +157,7 @@ export function firmwareUpdate({ board, current, enter }) {
         if (!other) return say('Choose a .uf2 file first.', 'var(--warn)');
         data = new Uint8Array(await other.arrayBuffer()); name = other.name;
       } else {
-        const r = await fetch('firmware/PadBox ' + board + ' - ' + choice.value + '.uf2');
+        const r = await fetch(new URL('../firmware/PadBox ' + board + ' - ' + choice.value + '.uf2', import.meta.url));   // next to js/, whichever page opened this
         if (!r.ok) throw new Error('not found');
         data = new Uint8Array(await r.arrayBuffer()); name = choice.value;
       }
@@ -149,12 +165,22 @@ export function firmwareUpdate({ board, current, enter }) {
     if (!uf2Chip(data)) { data = null; return say('That file isn\'t PadBox firmware (not a valid RP2040 / RP2350 .uf2). Nothing was changed.', 'var(--bad)'); }
     stage = 'busy'; choice.disabled = true; close.disabled = true; go.disabled = true;
     progress(5); say('Restarting the PadBox into update mode...');
-    try { if (enter) await enter(); } catch (e) { }
+    // the bootloader without its drive when this browser already knows it can reach it directly
+    noDrive = useNoDrive(uf2Chip(data));
+    try { if (enter) await enter(noDrive); } catch (e) { }
     await sleep(1500);
     progress(10);
     if (!navigator.usb) return offerDownload('This browser can\'t install firmware by itself.');
     const dev = await findBoot(6000);
     if (dev) return install(dev);
+    if (noDrive) {
+      // the drive-less bootloader didn't show up (older firmware, or this computer can't reach it): from now on this
+      // browser uses the normal one, with its drive
+      try { localStorage.setItem(NODRIVE_BAD_KEY(uf2Chip(data)), '1'); } catch (e) { }
+      stage = 'pick'; go.disabled = false; close.disabled = false;
+      setButtonText(go, 'INSTALL', 'download');
+      return say('The PadBox didn\'t show up in update mode.\nUnplug it, hold Start + Select while plugging it back in, then click INSTALL. (Next time the update won\'t need this.)', 'var(--warn)');
+    }
     // first time on this computer: the browser needs one click to allow the bootloader
     stage = 'pick'; go.disabled = false; close.disabled = false;
     setButtonText(go, 'INSTALL', 'download');
@@ -182,6 +208,7 @@ export function firmwareUpdate({ board, current, enter }) {
       // most likely Windows has no driver for this bootloader (the RP2040 one): copy the file instead
       return offerDownload('The browser couldn\'t reach the PadBox\'s bootloader (' + e.message + ').');
     }
+    rememberPicoboot(devChip);   // next time: no drive, no window
     progress(100);
     say('Done: the PadBox restarts on ' + name + ' by itself.\n' + reconnect, 'var(--good)');
     stage = 'done'; go.classList.add('hidden');
@@ -196,7 +223,8 @@ export function firmwareUpdate({ board, current, enter }) {
     }
     stage = 'download'; go.disabled = false; close.disabled = false;
     setButtonText(go, 'DOWNLOAD FIRMWARE', 'download');
-    say(why + '\nClick DOWNLOAD FIRMWARE, then drag the downloaded file onto the update drive that appeared (RPI-RP2 or RP2350): the PadBox restarts on the new firmware by itself.', 'var(--warn)');
+    try { localStorage.removeItem(PICOBOOT_KEY(uf2Chip(data))); } catch (e) { }   // it didn't work here: use the drive next time
+    say(why + '\nClick DOWNLOAD FIRMWARE, then drag the downloaded file onto the update drive' + (noDrive ? ' (to get it: unplug the PadBox, hold Start + Select while plugging it back in)' : ' that appeared') + ' (RPI-RP2 or RP2350): the PadBox restarts on the new firmware by itself.', 'var(--warn)');
   }
 
   function download() {

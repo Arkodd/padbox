@@ -65,8 +65,9 @@ class HojaProtocol {
   }
   reportMode(mode) { this.send(this.pkt(Rpt.INPUT_COMMAND, 0, mode)).catch(() => { }); }
   focus(input) { this.send(this.pkt(Rpt.INPUT_COMMAND, 1, input)).catch(() => { }); }
-  // "Update firmware": WEBUSB_LEGACY_SET_BOOTLOADER (15) with the key "UPD" - restarts into the USB bootloader.
-  bootloader() { return this.send(this.pkt(15, 0x55, 0x50, 0x44)).catch(() => { }); }
+  // "Update firmware": WEBUSB_LEGACY_SET_BOOTLOADER (15) with the key "UPD" - restarts into the USB bootloader;
+  // "UPN": the same without its drive (no Windows window; the web app writes the firmware over PICOBOOT)
+  bootloader(noDrive) { return this.send(this.pkt(15, 0x55, 0x50, noDrive ? 0x4e : 0x44)).catch(() => { }); }
 }
 
 export class HojaUsb extends HojaProtocol {
@@ -167,7 +168,13 @@ export class HojaDemo extends HojaProtocol {
       if (p[1] < Blk.MAX && p[3] !== 0xff && p[2] > 0) this.blocks[p[1]].set(p.subarray(4, 4 + p[2]), p[3] * 32);
     } else if (id === Rpt.CONFIG_COMMAND) {
       const r = new Uint8Array(64); r[0] = Rpt.CONFIG_COMMAND; r[1] = p[1]; r[2] = p[2]; r[3] = 1;
-      if (p[1] === Blk.ANALOG && p[2] === 2) this.blocks[Blk.ANALOG][1] = 1;
+      // calibration: 1 both / 5 left / 6 right, ended by 2 (the result is 1 both, 2 left only, 4 right only)
+      if (p[1] === Blk.ANALOG && [1, 5, 6].includes(p[2])) this.calSticks = p[2] === 5 ? 1 : p[2] === 6 ? 2 : 3;
+      if (p[1] === Blk.ANALOG && p[2] === 2) {
+        const a = this.blocks[Blk.ANALOG], v = a[1];
+        const done = (v === 1 ? 3 : v === 0xff ? 0 : ((v & 2) ? 1 : 0) | ((v & 4) ? 2 : 0)) | (this.calSticks || 3) | (this.platform ? 2 : 0);
+        a[1] = (done & 3) === 3 ? 1 : (done & 1) ? 2 : 4;
+      }
       if (p[1] === Blk.ANALOG && (p[2] === 3 || p[2] === 4)) { const dv = new DataView(r.buffer); dv.setFloat32(4, (this.t * 0.5 * 180 / Math.PI) % 360, true); dv.setFloat32(8, 2000, true); }
       if (p[1] === Blk.INPUT && p[2] >= 2 && p[2] <= 7) { const { demoDefaults } = await import('./model.js'); demoDefaults(this.blocks[Blk.INPUT], p[2] - 2, this.platform, this.gs); }
       setTimeout(() => this.dispatch(r), 30);

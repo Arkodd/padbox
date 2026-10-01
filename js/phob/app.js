@@ -66,7 +66,7 @@ export async function startPhob(shell, dev, opts) {
   say('Waiting for the controller...');
 
   const btnSave = button('SAVE', { primary: true, disabled: true, onclick: saveAll });
-  const btnUpdate = button('UPDATE FIRMWARE', { onclick: () => firmwareUpdate({ board: boardName, current: 'PhobGCC', enter: async () => { await saveAll(); await sleep(300); alive = false; await dev.send('BOOTSEL'); await sleep(3500); } }) });
+  const btnUpdate = button('UPDATE FIRMWARE', { onclick: () => firmwareUpdate({ board: boardName, current: 'PhobGCC', enter: async noDrive => { await saveAll(); await sleep(300); alive = false; await dev.send(noDrive ? 'BOOTSEL NODRIVE' : 'BOOTSEL'); await sleep(3500); } }) });
   shell.actions([btnUpdate, btnSave]);
   function staged() { btnSave.disabled = false; say('Unsaved changes - click SAVE to send them to the controller.', 'var(--warn)'); }
   async function saveAll() {

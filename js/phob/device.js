@@ -61,7 +61,7 @@ export class PhobDemo {
     this.timer = setInterval(() => {
       this.t += 0.02;
       const a = this.t * 0.5, rx = Math.sin(a) * 0.3, ry = Math.cos(a) * 0.3;
-      const ax = 127 + Math.round(Math.sin(a) * 80), ay = 127 + Math.round(Math.cos(a) * 80);
+      const ax = 127 + Math.round(Math.sin(a) * 80) * (this.inv & 1 ? -1 : 1), ay = 127 + Math.round(Math.cos(a) * 80) * (this.inv & 2 ? -1 : 1);   // the flips act on the output, as in the firmware
       const cx = 127, cy = 127;
       const T = this.trig, raw = this.gs ? 0 : Math.round(600 + (0.5 + 0.5 * Math.sin(this.t * 1.1)) * 2800);
       if (T.tracking) T.max = Math.max(T.max, raw);
@@ -84,15 +84,18 @@ export class PhobDemo {
   }
   // a rough copy of the button-combo wizard, enough to make the buttons do something
   buttons(mask) {
+    // like the firmware, a combo counts once it's let go (held at least 150 ms): robust to the page's timers slowing down
     const now = performance.now();
-    if (mask !== this.mask) { this.mask = mask; this.since = now; this.fired = false; return; }
-    if (!mask || this.fired || now - this.since < 150) return;
-    this.fired = true;
     const A = 1, B = 2, X = 4, Y = 8, Z = 16, L = 32, R = 64, S = 128;
-    if (mask === (A | X | Y | S)) this.locked = now - this.since > 1000 ? 0 : 1;
-    else if (!this.locked && (mask === (A | X | Y | L))) this.step = 0;
-    else if (this.step >= 0 && mask === A) this.step = this.step >= 43 ? -1 : this.step + 1;
-    else if (this.step > 0 && mask === Z) this.step--;
-    else if (this.step >= 0 && mask === S) this.step = 32;
+    if (mask === this.mask) return;
+    const held = this.mask, dur = now - this.since;
+    this.mask = mask; this.since = now;
+    if (!held || dur < 150) return;
+    if (held === (A | X | Y | S)) this.locked = dur > 1000 ? 0 : 1;   // held over a second unlocks, a short press locks
+    else if (!this.locked && held === (A | X | Y | L)) this.step = 0;
+    else if (this.step >= 0 && held === A) this.step = this.step >= 43 ? -1 : this.step + 1;
+    else if (this.step > 0 && held === Z) this.step--;
+    else if (this.step >= 0 && held === S) this.step = 32;
   }
+
 }

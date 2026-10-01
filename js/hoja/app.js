@@ -62,7 +62,7 @@ export async function startHoja(shell, dev, opts) {
     refreshSave();
   }
 
-  const btnUpdate = button('UPDATE FIRMWARE', { onclick: () => firmwareUpdate({ board: lay.board, current: 'HOJA2', enter: async () => { alive = false; await dev.bootloader(); } }) });
+  const btnUpdate = button('UPDATE FIRMWARE', { onclick: () => firmwareUpdate({ board: lay.board, current: 'HOJA2', enter: async noDrive => { alive = false; await dev.bootloader(noDrive); } }) });
   const btnDisc = button('DISCONNECT', { onclick: async () => { if (dirty.size && !await confirmBox('Unsaved changes', 'Your changes work now but aren\'t saved: they\'ll be lost when the PadBox is unplugged. Disconnect anyway?', 'DISCONNECT')) return; shell.lost(null); } });
   const btnSave = button('SAVE', { primary: true, disabled: true, onclick: save });
   shell.actions([btnUpdate, btnDisc, btnSave]);

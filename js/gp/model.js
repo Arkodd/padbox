@@ -220,6 +220,9 @@ export class Model {
     Object.assign(d, { TurboInputEnabled: this.turboEnabled, turboShotCount: this.turboShotCount,
       inner_deadzone: this.innerDeadzone, outer_deadzone: this.outerDeadzone, forced_circularity: this.circularity,
       inner_deadzone2: this.innerDeadzone2, outer_deadzone2: this.outerDeadzone2, forced_circularity2: this.circularity2 });
+    // the sticks' centres belong to the calibration (/api/setCalibration): sending back the values read at connect
+    // would put the old ones back - 0 on a new calibration, which leaves a calibrated stick stuck in the middle
+    for (const k of ['joystickCenterX', 'joystickCenterY', 'joystickCenterX2', 'joystickCenterY2']) delete d[k];
     return d;
   }
   pinsBody() {

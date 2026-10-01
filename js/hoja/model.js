@@ -20,7 +20,9 @@ export const Haptic = { strength: b => b[1], setStrength: (b, v) => { b[1] = v; 
 
 // analogConfig_s (1024 bytes)
 export const Analog = {
-  calibrationSet: b => b[1],
+  // [1]: 1 = both sticks calibrated, 2 = only the left one, 4 = only the right one (one-stick calibration)
+  calibrationSet: b => b[1] === 1,
+  stickCalibrated: (b, right) => b[1] === 1 || (b[1] !== 0xff && (b[1] & (right ? 4 : 2)) !== 0),
   slotOff: (right, i) => (right ? 10 + 16 * 21 : 10) + i * 21,
   slotOutAngle: (b, right, i) => f32(b, Analog.slotOff(right, i) + 4),
   slotEnabled: (b, right, i) => b[Analog.slotOff(right, i) + 20],

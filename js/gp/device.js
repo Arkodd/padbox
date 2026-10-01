@@ -82,7 +82,7 @@ export class GpDemo {
     order.forEach((k, i) => { this.led.ledButtonMap[k] = i; this.theme[k] = { u: 0x0000ff, d: 0xffffff }; });
     this.padLed = { mode: 0, brightness: 5, brightnessSteps: 5 };
     this.gamepad = { socdMode: 1, fourWayMode: false, debounceDelay: 5, profileNumber: 1 };
-    this.addons = { TurboInputEnabled: false, turboShotCount: 5, inner_deadzone: 0, outer_deadzone: 100, forced_circularity: false, inner_deadzone2: 0, outer_deadzone2: 100, forced_circularity2: false };
+    this.addons = { TurboInputEnabled: false, turboShotCount: 5, inner_deadzone: 0, outer_deadzone: 100, forced_circularity: true, inner_deadzone2: 0, outer_deadzone2: 100, forced_circularity2: true };   // round gates, like the GS firmware's defaults
     this.t0 = performance.now();
   }
   async open() { }

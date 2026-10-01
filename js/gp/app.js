@@ -39,7 +39,7 @@ export async function startGp(shell, dev, opts) {
   shell.status(true);
 
   // ---------------------------------------------------------------- header buttons
-  const btnUpdate = button('UPDATE FIRMWARE', { onclick: () => firmwareUpdate({ board: L.board, current: 'GP2040-CE', enter: () => reboot(2, true) }) });
+  const btnUpdate = button('UPDATE FIRMWARE', { onclick: () => firmwareUpdate({ board: L.board, current: 'GP2040-CE', enter: noDrive => reboot(noDrive ? 3 : 2, true) }) });
   const btnSave = button('SAVE', { primary: true, disabled: true, onclick: () => flush() });
   const btnPreview = button('RESTART TO PREVIEW LEDS', { onclick: () => reboot(1) });
   const btnExit = button('RESTART AS CONTROLLER', { primary: true, onclick: () => reboot(0) });
