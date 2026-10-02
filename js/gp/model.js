@@ -258,7 +258,7 @@ export class Model {
     return { ledOpts, theme };
   }
   calMiscBody() {
-    return { s1inv: this.stick[0].inv, s2inv: this.stick[1].inv, s1en: this.stick1Enabled, s2en: this.stick2Enabled, rumbleEnabled: this.rumbleEnabled };
+    return { s1inv: this.stick[0].inv, s2inv: this.stick[1].inv, s1en: this.stick1Enabled, s2en: this.stick2Enabled, rumbleEnabled: this.rumbleEnabled, taction: this.taction };
   }
 }
 

@@ -1,13 +1,13 @@
 // Keeps a copy of the whole app (and the bundled firmware) so it opens and works with no internet after the first
 // visit. Bump VERSION when publishing a new version: the old copy is then replaced on the next visit.
-const VERSION = 'padbox-web-6';   // also APP_VERSION in js/main.js
+// The files are the published site's (tools/build-gs.js): the calibrator in the new design at the root, using the
+// device and model modules in js/.
+const VERSION = 'padbox-web-7';
 const FILES = [
-  './', 'index.html', 'manifest.webmanifest', 'css/app.css',
-  'js/main.js', 'js/ui.js', 'js/update.js',
-  'js/gp/app.js', 'js/gp/device.js', 'js/gp/model.js',
-  'js/phob/app.js', 'js/phob/device.js',
-  'assets/logo.png', 'assets/app.png', 'assets/gs_essential_trace.png', 'assets/gs_platform_trace.png',
-  'assets/Poppins-Regular.ttf', 'assets/Poppins-SemiBold.ttf',
+  './', 'index.html', 'manifest.webmanifest', 'css/app.css', 'v2.css',
+  'main.js', 'gp-app.js', 'hoja-app.js', 'phob-app.js', 'drawing.js', 'icons.js', 'gs-essential-shapes.js',
+  'js/ui.js', 'js/update.js', 'js/gp/device.js', 'js/gp/model.js', 'js/hoja/device.js', 'js/hoja/model.js', 'js/phob/device.js',
+  'assets/logo.png', 'assets/app.png', 'fonts/Poppins-Regular.ttf', 'fonts/Poppins-SemiBold.ttf', 'fonts/Xirod.otf',
   'firmware/PadBox GS Essential - HOJA2.uf2', 'firmware/PadBox GS Essential - GP2040-CE.uf2',
   'firmware/PadBox GS Platform - HOJA2.uf2', 'firmware/PadBox GS Platform - GP2040-CE.uf2', 'firmware/PadBox GS Platform - PhobGCC.uf2',
 ];

@@ -1,0 +1,266 @@
+/* The new design (Figma "PadBox Software", frames 1 and 2), laid out at the design's size - 1046 x 653 - and scaled
+   to the window (--zoom, set in main.js). Every position and color below is read off the design. */
+
+/* The design's fonts (FOR NEW UI): Xirod for the techno titles, Poppins Regular and SemiBold for everything else.
+   Declared after ../css/app.css, so these Poppins files are the ones used. Xirod has one weight: declared for all of
+   them, so the browser never fakes a bold. */
+@font-face { font-family: "Poppins"; font-weight: 400; src: url("fonts/Poppins-Regular.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "Poppins"; font-weight: 600; src: url("fonts/Poppins-SemiBold.ttf") format("truetype"); font-display: swap; }
+@font-face { font-family: "Xirod"; font-weight: 100 900; src: url("fonts/Xirod.otf") format("opentype"); font-display: swap; }
+
+:root {
+  --bg: #2a2a2a; --card: #262626; --card-border: #6b6b6b; --border: #8a8a8a; --hairline: #3a3a3a; --field: #dddddd;
+  --track: #9f9f9f; --frame: #262626; --orange: #fe6805; --orange-hot: #ff8a3a; --orange-deep: #d75700;
+  --text: #e6e6e6; --soft: #c3c3c3; --muted: #8a8a8a; --good: #34de83; --warn: #ffc85a; --bad: #ff6e6e;
+  --techno: "Xirod", "Poppins", sans-serif;
+}
+html, body { height: 100%; }
+/* one background for the whole window (not only the design frame), so there is no seam at the frame's sides */
+body { background: radial-gradient(90% 80% at 50% 75%, #2e2e2e 0%, #2a2a2a 45%, #232323 100%) fixed #232323; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+
+#stage {
+  position: relative; width: 1046px; height: 653px; zoom: var(--zoom, 1); overflow: hidden; flex: none;
+  background: transparent;
+  font-family: "Poppins", sans-serif; color: var(--text);
+}
+.hidden { display: none !important; }
+.grow { flex: 1; }
+
+/* ---------------------------------------------------------------- header */
+#head { position: absolute; left: 0; right: 0; top: 0; height: 54px; display: flex; align-items: center; }
+#head .logo { position: absolute; left: 17px; top: 9px; width: 90px; height: auto; }
+#head .who { position: absolute; left: 132px; top: 8px; }
+#head .who .t { display: flex; align-items: center; gap: 7px; margin-left: 2px; font: 400 16.3px/19px var(--techno); letter-spacing: 0; color: #e8e8e8; }
+#head .who .dot { position: absolute; left: 1px; top: 3.5px; width: 9px; height: 9px; border-radius: 50%; background: var(--good); }
+#head .who .t span { margin-left: 16px; }
+#head .who .s { margin: -1px 0 0 18px; font-size: 9.6px; color: #9a9a9a; white-space: nowrap; }
+#head .who .s b { font-weight: 400; color: var(--good); }
+#head .who.off .dot { background: var(--bad); }
+#head .who.off .s b { color: var(--bad); }
+#head .acts { position: absolute; right: 12px; top: 11px; display: flex; gap: 10px; }
+.act { white-space: nowrap; height: 32px; min-width: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 2px; border: 0; cursor: pointer; padding: 0; font: 400 14px "Poppins", sans-serif; }
+.act svg { width: 19px; height: 19px; }
+.act.outline { background: transparent; border: 1px solid #e0e0e0; color: #f0f0f0; }
+.act.outline:hover { background: rgba(255, 255, 255, .08); }
+.act.save { background: var(--orange); color: #fff; }
+.act.save:disabled { background: #352316; color: #6b5040; cursor: default; }
+.act.light { background: #d9d9d9; color: #262626; }
+.act.light:hover { background: #ececec; }
+.act.primary { background: var(--orange); color: #fff; padding: 0 12px; min-width: 174px; justify-content: center; gap: 7px; font-size: 13px; }
+.act.primary svg { width: 18px; height: 18px; flex: none; }
+.act.primary:hover, .act.save:not(:disabled):hover { background: var(--orange-hot); }
+
+/* ---------------------------------------------------------------- side menu */
+#nav { position: absolute; left: 0; top: 193px; display: flex; flex-direction: column; gap: 20px; }
+#nav button { width: 52px; height: 52px; border: 0; border-radius: 0 2px 2px 0; background: #3d3d3d; color: #e0e0e0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+#nav button svg { width: 27px; height: 27px; }
+#nav button:hover { background: #4a4a4a; }
+#nav button.sel { background: var(--orange-deep); color: #fff; }
+
+/* ---------------------------------------------------------------- page title */
+#heading { position: absolute; left: 132px; top: 71px; }
+#heading h1 { margin: 0; font: 400 32.5px/36px var(--techno); letter-spacing: 0; color: #e0e0e0; }
+#heading p { margin: 5px 0 0; font: 400 23px/1.2 "Poppins", sans-serif; color: #a8a8a8; letter-spacing: -.005em; }
+
+#main { position: absolute; left: 0; right: 0; top: 150px; bottom: 0; }
+#msg { position: absolute; left: 132px; right: 240px; bottom: 7px; font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------------------------------------------------------------- CONTROLLER page */
+body[data-page="controller"] #main { top: 0; }
+#main .page.controller { overflow: visible; }
+.pad-drawing { position: absolute; left: 132.9px; top: 143.3px; width: 654.8px; height: 513.6px; overflow: visible; }
+.pad-drawing .pad-btn { cursor: pointer; transition: filter .12s; }
+.pad-drawing .pad-btn:hover { filter: brightness(1.35); }
+.pad-drawing .pad-btn.sel:hover { filter: none; }
+
+.side-col { position: absolute; left: 817px; width: 218px; top: 169px; display: flex; flex-direction: column; gap: 9px; }
+.side-col.selected { top: 108px; }
+.panel { border: 1px solid #c5c5c5; border-radius: 4px; padding: 11px 13px 12px; }
+.ptitle { font: 600 13px/16px "Poppins", sans-serif; color: #ececec; margin: 0 0 8px; letter-spacing: .01em; }
+.lbl { font-size: 10.5px; color: #cfcfcf; margin: 9px 0 4px; }
+.lbl.split { display: flex; justify-content: space-between; color: #cfcfcf; }
+.lbl.split span:last-child { color: #bdbdbd; }
+.field { width: 100%; height: 26px; border-radius: 2px; border: 0; background: var(--field); color: #2b2b2b; font: 400 10.5px "Poppins", sans-serif; padding: 0 22px 0 6px; outline: none; cursor: pointer; }
+select.field { appearance: none; background: var(--field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='4'%3E%3Cpath d='M0 0h6L3 4z' fill='%23333'/%3E%3C/svg%3E") no-repeat right 10px center; }
+select.field.mono { font-family: "Consolas", "Roboto Mono", ui-monospace, monospace; font-size: 10.5px; letter-spacing: .02em; }
+select.field:disabled { color: #8a8a8a; cursor: default; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field.color { display: flex; align-items: center; gap: 6px; text-align: left; font-family: "Poppins", sans-serif; }
+.field.color .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.two.caps { margin: 3px 0 0; font-size: 8.5px; color: #8a8a8a; }
+.pbtn { width: 100%; height: 26px; margin-top: 8px; border-radius: 2px; display: flex; align-items: center; justify-content: center; gap: 5px; font: 400 10.5px "Poppins", sans-serif; cursor: pointer; }
+.pbtn svg { width: 12px; height: 12px; }
+.pbtn.primary { margin-top: 9px; background: var(--orange); border: 0; color: #fff; }
+.pbtn.primary:hover { background: var(--orange-hot); }
+.pbtn.primary:disabled { background: #6a3a1a; color: #b58a6a; cursor: default; }
+.pbtn.outline { margin-top: 5px; background: transparent; border: 1px solid #c5c5c5; color: #f0f0f0; }
+.pbtn.outline:hover { background: rgba(255, 255, 255, .06); }
+.panel .hint { margin: 7px 0 0; font-size: 7.9px; color: #8a8a8a; white-space: nowrap; letter-spacing: -.01em; }
+.panel .hint b { color: #cfcfcf; font-weight: 600; }
+.hint2 { display: none; }
+
+.panel.empty { height: 166px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; padding-top: 25px; }
+.click-icon { width: 38px; height: 38px; color: #e8e8e8; }
+.click-icon svg { width: 100%; height: 100%; }
+.empty-t { margin-top: 14px; font: 600 12.5px "Poppins", sans-serif; color: #b8b8b8; }
+.empty-d { margin-top: 6px; font-size: 10px; line-height: 14.5px; color: #a5a5a5; }
+
+.colorrow { display: flex; gap: 10px; align-items: flex-start; }
+/* the rainbow ring is its own layer (masked to a ring), so nothing of it shows around the color in the middle */
+.wheel { position: relative; width: 80px; height: 80px; border-radius: 50%; flex: none; cursor: crosshair; }
+.wheel::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+  -webkit-mask: radial-gradient(circle, transparent 0 26px, #000 26.5px); mask: radial-gradient(circle, transparent 0 26px, #000 26.5px); }
+.wheel-in { position: absolute; left: 50%; top: 50%; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; cursor: pointer; }
+.wheel-knob { position: absolute; width: 11px; height: 11px; margin: -7px 0 0 -7px; background: rgba(255, 255, 255, .15); border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .5); }
+.readout { display: flex; justify-content: space-between; font-size: 7.5px; color: #8a8a8a; margin: 3px 0 11.5px; }
+.sw { display: flex; gap: 6px; align-items: center; }
+.sw button { width: 15px; height: 15px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; }
+.sw button:hover { outline: 1.5px solid #fff; outline-offset: 1.5px; }
+.sw .plus { background: transparent; border: 1px solid #9a9a9a; color: #9a9a9a; display: inline-flex; align-items: center; justify-content: center; }
+.sw .plus svg { width: 12px; height: 12px; }
+input.range { width: 100%; margin: 2px 0 2px; appearance: none; height: 12px; background: transparent; cursor: pointer; }
+input.range::-webkit-slider-runnable-track { height: 2px; background: linear-gradient(to right, #ec6b0d 0 var(--p, 0%), #9f9f9f var(--p, 0%) 100%); }
+input.range::-webkit-slider-thumb { appearance: none; width: 11px; height: 11px; margin-top: -4.5px; border-radius: 50%; background: #ff6500; border: 1.5px solid #2a2a2a; box-shadow: 0 0 0 .5px #ff6500; }
+input.range::-moz-range-track { height: 2px; background: #9f9f9f; }
+input.range::-moz-range-progress { height: 2px; background: #ec6b0d; }
+input.range::-moz-range-thumb { width: 9px; height: 9px; border-radius: 50%; background: #ff6500; border: 1.5px solid #2a2a2a; }
+
+/* ---------------------------------------------------------------- the other pages (the current app's, in the new colors) */
+body:not([data-page="controller"]) #main { left: 132px; right: 12px; top: 150px; bottom: 22px; }
+#main .page { position: absolute; inset: 0; overflow: auto; }
+#main .card { background: transparent; border: 1px solid #c5c5c5; border-radius: 4px; padding: 11px 13px 12px; }
+#main .card > h2 { font-size: 13px; }
+#main .card > h2 svg { color: var(--orange); width: 18px; height: 18px; }
+#main .btn { height: 28px; font-size: 10.5px; border-radius: 2px; text-transform: none; }
+#main .btn.primary { background: var(--orange); border-color: var(--orange); color: #fff; }
+#main .page { padding: 0 !important; }
+#main .toggle input:checked + .pill { background: var(--orange); border-color: var(--orange); }
+#main .slider input[type=range]::-webkit-slider-runnable-track { height: 2px; background: linear-gradient(to right, #ec6b0d 0 var(--p, 0%), #9f9f9f var(--p, 0%) 100%); }
+#main .slider input[type=range]::-webkit-slider-thumb { width: 11px; height: 11px; margin-top: -4.5px; background: #ff6500; border: 1.5px solid #2a2a2a; }
+#main select.combo { background-color: var(--field); color: #2b2b2b; border: 0; border-radius: 2px; height: 26px; font-size: 11px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='4'%3E%3Cpath d='M0 0h6L3 4z' fill='%23333'/%3E%3C/svg%3E"); background-position: right 10px center; }
+#main select.combo option { background: #eee; color: #222; }
+
+/* ---------------------------------------------------------------- connect screen */
+body[data-page="connect"] #main { top: 0; }
+.connect2 { position: absolute; left: 132px; top: 150px; width: 640px; }
+.connect2 h1 { margin: 0 0 10px; font: 400 32.5px/36px var(--techno); letter-spacing: 0; color: #e0e0e0; position: absolute; top: -80px; }
+.connect2 p { font-size: 15px; color: #a8a8a8; margin: 0 0 24px; }
+.connect2 .btn.big { background: var(--orange); border-color: var(--orange); color: #fff; }
+.connect2 .demo { margin-top: 18px; font-size: 12px; }
+.connect2 .demo a { color: var(--orange); }
+.connect2 .problem { color: var(--warn); font-size: 12px; white-space: pre-line; }
+
+dialog { background: #2a2a2a; }
+/* BUTTON SETTINGS: the rows where the design has them */
+.side-col .panel:nth-child(2) { padding-bottom: 8px; }
+.side-col .panel:nth-child(2) > div > .lbl:first-child { margin-top: 11px; }
+
+/* ---------------------------------------------------------------- STICKS, SETTINGS, BACKUP in the design's style: the same
+   panels, fields, buttons and sliders as the CONTROLLER page's side column, laid out over its drawing area (x 132..1035) */
+body:not([data-page="controller"]) #main { left: 132px; right: 11px; top: 158px; bottom: 26px; }
+#main .dpage { overflow: visible; }
+.dpage .panel .ptitle { display: flex; align-items: center; }
+.dpage .panel .ptitle .dtoggle { margin-left: auto; font-weight: 400; }
+.dpage .panel .hint { white-space: normal; }
+.dpage .panel .hint.wrap, .dpage p.hint { font-size: 9px; line-height: 13px; margin-top: 10px; color: #8a8a8a; white-space: normal; }
+.dpage .panel p.text { font-size: 10.5px; line-height: 16px; color: #cfcfcf; margin: 4px 0 12px; }
+
+.dtoggle { display: inline-flex; align-items: center; gap: 7px; font-size: 10.5px; color: #cfcfcf; cursor: pointer; user-select: none; }
+.dtoggle input { display: none; }
+.dtoggle i { position: relative; width: 20px; height: 11px; border-radius: 6px; background: #9f9f9f; flex: none; transition: background .15s; }
+.dtoggle i::after { content: ""; position: absolute; left: 1.5px; top: 1.5px; width: 8px; height: 8px; border-radius: 50%; background: #ced2d4; transition: left .15s; }
+.dtoggle input:checked + i { background: var(--orange); }
+.dtoggle input:checked + i::after { left: 10.5px; }
+.dslider { margin-top: 8px; }
+.dslider .lbl { margin: 0 0 2px; }
+.btnrow { display: flex; gap: 8px; margin-top: 10px; }
+.btnrow .pbtn { margin: 0; flex: 1; }
+
+/* STICKS: two panels, the gate on the left of each */
+.dpage.sticks { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; align-content: start; }
+.panel.stick { padding-bottom: 14px; }
+.stick-body { display: grid; grid-template-columns: 170px 1fr; gap: 16px; margin-top: 4px; }
+.gate-col { padding-top: 4px; }
+canvas.gate { display: block; width: 170px; height: 200px; }
+.step { font: 600 11.5px "Poppins", sans-serif; color: var(--orange); }
+.step.ok { color: var(--good); }
+.info { font-size: 9.5px; line-height: 13.5px; color: #bdbdbd; min-height: 41px; margin-top: 3px; }
+.ctl-col .two .dtoggle { margin-top: 2px; }
+
+/* SETTINGS: three panels side by side */
+.dpage.settings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; align-content: start; }
+
+/* BACKUP: one panel */
+.dpage.backup .panel { width: 440px; }
+.dpage.backup .btnrow .pbtn { max-width: 190px; }
+
+/* the header and the side menu stay clickable above the pages (the CONTROLLER page spans the whole frame) */
+#head, #nav { z-index: 3; }
+#main { z-index: 1; }
+body[data-page="controller"] #main { pointer-events: none; }
+body[data-page="controller"] #main .page > * { pointer-events: auto; }
+
+/* PROFILE dropdown on the Controller page, top right above the right-hand panels (as in the design's "Mon Profil 1") */
+.profile-sel { position: absolute; left: 817px; width: 218px; top: 74px; }
+
+/* the function written on each button of the drawing */
+.pad-label { font-family: "Poppins", sans-serif; font-weight: 600; user-select: none; }
+
+/* the right-hand boxes keep one size: a button without an LED keeps the LED rows' space, and "No button selected"
+   is as tall as BUTTON SETTINGS, so GLOBAL LED SETTINGS never moves */
+.led-block { position: relative; }
+.led-block .noled-note { display: none; }
+.led-block.noled .two { visibility: hidden; }
+.led-block.noled .noled-note { display: flex; align-items: center; justify-content: center; position: absolute; left: 0; right: 0; top: 19.3px; height: 26px; box-sizing: border-box;
+  border: 1px dashed #5a5a5a; border-radius: 2px; font-size: 10px; color: #8a8a8a; }
+.side-col, .side-col.selected { top: 108px; }
+.panel.empty { height: 246.6px; justify-content: center; padding-top: 0; }
+
+/* HOJA2: one LED color field per button (full width), Idle Glow on the "LED color" row, Animation time greyed out
+   with the effects that don't animate */
+.two.one { grid-template-columns: 1fr; }
+.idle-row { align-items: center; }
+.idle-row .dtoggle { font-size: 10.5px; }
+.dslider.off { opacity: .45; }
+.panel.hoja-led { padding-top: 9px; padding-bottom: 7px; }
+.panel.hoja-led .ptitle { margin-bottom: 4px; }
+.panel.hoja-led .lbl { margin: 6px 0 3px; }
+.panel.hoja-led .readout { margin-bottom: 9px; }
+.panel.hoja-led .dslider { margin-top: 3px; }
+
+/* ---------------------------------------------------------------- PhobGCC (GS Platform) */
+.connect-btns { display: flex; gap: 12px; }
+/* its BUTTON SETTINGS has one more row (the analog amount): "No button selected" matches that height, and the LED
+   panel under both stays put */
+.side-col.phob .panel.empty { height: 294.1px; }
+.side-col.phob .panel .dslider { margin-top: 6px; }
+/* CALIBRATION: the stick's gate on the left, the step-by-step controls on the right */
+.dpage.phobcal { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; align-content: start; }
+.phob-gate { display: flex; justify-content: center; }
+canvas.phob-canvas { display: block; width: 300px; height: 300px; }
+.phob-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.phob-row .pbtn { width: auto; padding: 0 12px; margin: 0; }
+.panel.phob-stick .two { margin-top: 6px; }
+.phob-prog { height: 4px; border-radius: 2px; background: #3d3d3d; margin: 6px 0 8px; overflow: hidden; }
+.phob-prog i { display: block; height: 100%; width: 0; background: var(--orange); transition: width .2s; }
+.phob-instr { min-height: 44px; color: #e6e6e6; font-size: 10.5px; line-height: 15px; }
+.phob-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.phob-grid .pbtn { margin: 0; }
+
+/* Tooltips in the design ("Backup idea.png"), see main.js: light grey box, dark Poppins text, arrow at the element */
+#tip { position: absolute; z-index: 1000; pointer-events: none; opacity: 0; transition: opacity .12s; max-width: 280px;
+  background: #d9d9d9; color: #262626; font: 400 10px/1.35 "Poppins", sans-serif; padding: 4px 7px; border-radius: 2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .35); white-space: normal; }
+#tip.show { opacity: 1; }
+#tip::after { content: ""; position: absolute; left: var(--ax, 50%); bottom: 100%; transform: translateX(-50%);
+  border: 4px solid transparent; border-top: 0; border-bottom: 4px solid #d9d9d9; }
+#tip.above::after { bottom: auto; top: 100%; border-bottom: 0; border-top: 4px solid #d9d9d9; border-width: 4px 4px 0; }
+
+/* HOJA2's analog amount (a button mapped to an analog output): one compact row whose space is always kept */
+.amount-row { display: flex; align-items: center; gap: 8px; height: 18px; margin-top: 6px; font-size: 10.5px; color: var(--text); }
+.amount-row input { flex: 1; margin: 0; }
+.amount-row .amt-val { min-width: 30px; text-align: right; }
+.amount-row.off { visibility: hidden; }
+
+.connect2 .problem.good { color: var(--good); }

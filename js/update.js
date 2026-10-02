@@ -210,9 +210,14 @@ export function firmwareUpdate({ board, current, enter }) {
     }
     rememberPicoboot(devChip);   // next time: no drive, no window
     progress(100);
-    say('Done: the PadBox restarts on ' + name + ' by itself.\n' + reconnect, 'var(--good)');
+    say('Done: the PadBox restarts on ' + name + ' by itself.', 'var(--good)');
     stage = 'done'; go.classList.add('hidden');
     setButtonText(close, 'CLOSE', ''); close.disabled = false;
+    // a moment later the window closes and the page goes back to its connect screen (main.js listens for this)
+    setTimeout(() => {
+      try { d.close(); } catch (e) { }
+      dispatchEvent(new CustomEvent('padbox-updated', { detail: { name, message: 'Updated to ' + name + '. The PadBox restarts by itself. ' + reconnect } }));
+    }, 2000);
   }
 
   function offerDownload(why) {

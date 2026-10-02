@@ -5,25 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PadBox Calibrator</title>
   <meta name="description" content="Set up and calibrate your Arkodd PadBox GS - HOJA2, GP2040-CE and PhobGCC.">
-  <meta name="theme-color" content="#0a0e14">
-  <link rel="icon" href="assets/app.png">
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="css/app.css">
+  <meta name="theme-color" content="#232323">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/app.png">
+  <link rel="stylesheet" href="./css/app.css">
+  <link rel="stylesheet" href="v2.css">
 </head>
 <body>
-  <div id="app">
-    <header class="bar">
-      <img class="logo" src="assets/logo.png" alt="Arkodd">
-      <div class="divider"></div>
-      <div class="titles"><div class="title" id="title">PadBox Calibrator</div><div class="sub" id="sub">HOJA2  &bull;  GP2040-CE  &bull;  PhobGCC</div></div>
-      <div class="spacer"></div>
-      <div class="status off hidden" id="status"><span class="dot"></span><span class="st">Not connected</span></div>
-      <div class="actions" id="actions"></div>
+  <div id="stage">
+    <header id="head">
+      <img class="logo" src="./assets/logo.png" alt="Arkodd">
+      <div class="who hidden" id="who">
+        <div class="t"><i class="dot"></i><span id="title">GP2040-CE</span></div>
+        <div class="s"><b id="state">Connected</b> • Board : <span id="board"></span></div>
+      </div>
+      <div class="grow"></div>
+      <div class="acts" id="actions"></div>
     </header>
-    <nav class="tabs hidden" id="tabs"></nav>
+    <nav id="nav" class="hidden"></nav>
+    <div id="heading" class="hidden"><h1 id="h1">CONTROLLER</h1><p id="h2"></p></div>
     <main id="main"></main>
-    <footer class="strip" id="footer"></footer>
+    <div id="msg"></div>
   </div>
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>

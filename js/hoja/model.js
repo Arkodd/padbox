@@ -63,6 +63,7 @@ export const Input = {
   code: (b, p, i) => { const v = b[off(p, i) + 4]; return v > 127 ? v - 256 : v; },
   setCode: (b, p, i, c) => { b[off(p, i) + 4] = c & 255; },
   stat: (b, p, i) => u16(b, off(p, i)) >> 3,
+  mode: (b, p, i) => u16(b, off(p, i)) & 7,
   setModeStatic: (b, p, i, mode, st) => set16(b, off(p, i), (mode & 7) | ((st & 0x1fff) << 3)),
   threshold: (b, p, i) => u16(b, off(p, i) + 2),
   setThreshold: (b, p, i, v) => set16(b, off(p, i) + 2, v),
@@ -129,9 +130,21 @@ const DEMO_MAPS = [
   [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 18, 8, 9, 9, 10, 10, 12, 11, 27, 14, 28, 15, 29, 16, 30, 17, 32, 18, 33, 19, 34, 20, 35, 21],
   null,
 ];
+// GameCube on a Platform (GS and M): the firmware's own defaults (board_config.h HOJA_INPUT_DEFAULTS_GAMECUBE), the same
+// layout as PhobGCC: 1P R, 2P Y, 3P R analog 10%, 4P R analog 50%, 1K B, 2K X, 3K Z, Bumper L, "A" button A, Start,
+// the D-pad, the stick and the C-stick. [input, output, analog amount (4096 = 100%)]
+const DEMO_GC_PLATFORM = [[2, 11], [3, 3], [9, 13, 410], [8, 13, 2048], [0, 1], [1, 2], [12, 9], [15, 10], [14, 0],
+  [4, 4], [5, 5], [6, 6], [7, 7], [18, 8], [27, 14], [28, 15], [29, 16], [30, 17], [32, 18], [33, 19], [34, 20], [35, 21]];
 export function demoDefaults(b, p, platform, gs = true) {
   const types = defaultInputTypes(platform, gs);
   for (let i = 0; i < INPUTS; i++) Input.setCode(b, p, i, -1);
+  if (p === 4 && platform) {
+    for (const [i, code, amt] of DEMO_GC_PLATFORM) if (types[i]) {
+      assign(b, p, i, types[i], code);
+      if (amt) Input.setModeStatic(b, p, i, Input.mode(b, p, i), amt);
+    }
+    return;
+  }
   const m = DEMO_MAPS[p];
   if (!m) { for (let i = 0; i < INPUTS; i++) if (types[i]) assign(b, p, i, types[i], i); return; }
   for (let k = 0; k < m.length; k += 2) if (types[m[k]]) assign(b, p, m[k], types[m[k]], m[k + 1]);
