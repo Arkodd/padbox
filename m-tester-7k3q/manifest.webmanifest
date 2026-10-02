@@ -1,0 +1,10 @@
+{
+  "name": "PadBox Calibrator",
+  "short_name": "PadBox",
+  "description": "Set up and calibrate your Arkodd PadBox GS",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0d1219",
+  "theme_color": "#0a0e14",
+  "icons": [{ "src": "assets/app.png", "sizes": "256x256", "type": "image/png" }]
+}

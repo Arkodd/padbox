@@ -66,7 +66,8 @@ export async function startGp(shell, dev, opts) {
     const a = act(actOf(pin));
     return (pin === TRIG ? 'Analog trigger' : m.nameOfPin(pin)) + '  →  ' + (a && a.value !== -10 ? fnName(a) : 'nothing');
   }, pin => { const a = act(actOf(pin)); return !a || a.value === -10 ? '' : a.value === 32 ? 'Turbo' : a.value <= 4 ? a.key : a.short; },   // D-pad: Up/Down/Left/Right, drawn as arrows
-  { 'GS Platform': 'platform' }[L.board] || 'essential');
+  { 'GS Platform': 'platform', 'M Essential': 'm-essential', 'M Platform': 'm-platform' }[L.board] || 'essential');   // @M
+  // @GS { 'GS Platform': 'platform' }[L.board] || 'essential');
 
   // the right-hand column: BUTTON SETTINGS (or "No button selected"), then GLOBAL LED SETTINGS
   const status = el('p.hint2');
@@ -358,11 +359,70 @@ export async function startGp(shell, dev, opts) {
     panel('INPUT BEHAVIOR', [el('div.lbl', { text: 'SOCD cleaning mode' }), socd, el('div', { style: { height: '12px' } }), fourWay.el, el('div', { style: { height: '8px' } }), debounce.el]),
     panel('TURBO', [turbo.el, el('div', { style: { height: '8px' } }), shots.el, el('p.hint', { text: 'Give a button the Turbo function on the Controller page to use it.' })]),
   ]);
+  // the PadBox M's rumble motor (the GS has none)   // @M
+  if (L.m) page2.append(panel('RUMBLE', [rumble.el, el('p.hint', { text: 'Turns the vibration motor off completely.' })]));   // @M
   function syncSettings() {
     socd.value = String(clamp(m.socdMode, 0, 4)); fourWay.checked = m.fourWayMode; debounce.value = m.debounceDelay;
     turbo.checked = m.turboEnabled; shots.value = m.turboShotCount; rumble.checked = m.rumbleEnabled;
   }
 
+  // @M{
+  // ---------------------------------------------------------------- TRIGGER page (the PadBox M): released and fully pulled,
+  // stored in the controller (/api/setCalibration tcal / tidle / tpressed), as in the desktop Suite and the previous app
+  const tr = { state: 0, hist: [], wIdle: 0, wExt: 0 };
+  const tFill = el('i'), tPct = el('span.tpct', { text: '0%' }), tRaw = el('p.hint');
+  const tStep = el('div.step'), tInfo = el('div.info');
+  const tCal = pbtn('Calibrate', '', true, () => trBegin()), tNext = pbtn('Next', '', true, () => trNextStep());
+  const tCancel = pbtn('Cancel', '', false, () => trEnd('Calibration cancelled.'));
+  const tReset = pbtn('Reset', '', false, () => trPost({ tcal: false }, 'Calibration removed: the released position is measured at power-up again.'));
+  const pageTrig = el('div.page.hidden.dpage.mtrig', {}, [
+    panel('TRIGGER CALIBRATION', [
+      el('p.text', { text: 'Stores the trigger\'s two ends in the controller: released = 0%, pulled all the way = 100%.' }),
+      el('div.tbar-row', {}, [el('div.tbar', {}, [tFill]), tPct]), tRaw,
+      tStep, tInfo, el('div.btnrow', {}, [tCal, tNext, tCancel, tReset]),
+    ]),
+  ]);
+  const spread = q => q.length ? Math.max(...q) - Math.min(...q) : 0, meanOf = q => q.reduce((a, b) => a + b, 0) / Math.max(1, q.length);
+  function trRefresh(msg, color) {
+    for (const [b, show] of [[tCal, tr.state === 0], [tReset, tr.state === 0 && m.tcal], [tNext, tr.state !== 0], [tCancel, tr.state !== 0]]) b.classList.toggle('hidden', !show);
+    tInfo.style.color = color || '';
+    if (tr.state !== 0) return;
+    tStep.classList.toggle('ok', !!m.tcal);
+    tStep.textContent = m.tcal ? 'Calibrated' : 'Not calibrated';
+    tInfo.textContent = msg || (m.tcal ? 'Released = ' + m.tidle + ', fully pulled = ' + m.tpressed + ' (raw sensor counts, 0 to 4095).'
+      : 'The released position is read at power-up (don\'t touch the trigger while plugging in) and the full pull is learned as you play. Calibrate to store both.');
+  }
+  function trBegin() { tr.state = 1; tr.hist = []; tStep.classList.remove('ok'); tStep.textContent = 'Step 1 of 2: released'; tNext.querySelector('span').textContent = 'Next'; trRefresh(); tInfo.textContent = 'Let go of the trigger, then click Next.'; }
+  function trNextStep() {
+    if (tr.state === 1) {
+      if (tr.hist.length < 8) { tInfo.textContent = 'Not enough readings yet: wait a second and click Next again.'; return; }
+      if (spread(tr.hist) > 120) { tInfo.textContent = 'The trigger is still moving (' + spread(tr.hist) + ' counts). Let go of it and click Next again.'; return; }
+      tr.wIdle = tr.wExt = meanOf(tr.hist); tr.state = 2;
+      tStep.textContent = 'Step 2 of 2: fully pulled'; tInfo.textContent = 'Pull the trigger all the way and hold it there for a moment, then click Finish.';
+      tNext.querySelector('span').textContent = 'Finish';
+    } else if (tr.state === 2) {
+      const moved = Math.abs(tr.wExt - tr.wIdle);
+      if (moved < 200) { tInfo.textContent = 'The trigger only moved ' + (moved | 0) + ' counts; at least 200 are needed. Pull it all the way and try again.'; return; }
+      trPost({ tcal: true, tidle: Math.round(tr.wIdle), tpressed: Math.round(tr.wExt) }, 'Saved to the controller. Click Restart as controller to use it.');
+    }
+  }
+  function trEnd(msg, color) { tr.state = 0; trRefresh(msg, color); }
+  async function trPost(body, msg) {
+    try { m.loadCal(await dev.post('/api/setCalibration', body)); trEnd(msg, 'var(--good)'); }
+    catch (e) { tInfo.textContent = 'Couldn\'t save: ' + e.message; tInfo.style.color = 'var(--bad)'; }
+  }
+  // each live reading (adc[4]): the bar shows the trigger as the firmware sees it (trigLevel), the calibration collects
+  function trFeed(v) {
+    if (v == null || v < 0) { tRaw.textContent = 'No analog trigger reading.'; return; }
+    tr.hist.push(v); if (tr.hist.length > 30) tr.hist.shift();
+    const inv = m.tinvert !== 0;
+    if (tr.state === 2 && (inv ? v < tr.wExt : v > tr.wExt)) tr.wExt = v;
+    let lv = trigLevel(v) || 0;
+    if (tr.state === 2) { const span = inv ? tr.wIdle - tr.wExt : tr.wExt - tr.wIdle, travel = inv ? tr.wIdle - v : v - tr.wIdle; lv = span > 1 ? clamp(travel / span, 0, 1) : 0; }
+    tFill.style.width = (lv * 100) + '%'; tPct.textContent = Math.round(lv * 100) + '%';
+    tRaw.textContent = 'raw ' + v + (tr.state === 2 ? '   released ' + (tr.wIdle | 0) + '   pulled so far ' + (tr.wExt | 0) : m.tcal ? '   stored calibration' : '   automatic');
+  }
+  // @M}
 
   // ---------------------------------------------------------------- BACKUP page
   const bStatus = el('p.hint.wrap');
@@ -382,9 +442,11 @@ export async function startGp(shell, dev, opts) {
 
   // ---------------------------------------------------------------- the side menu
   const tabNames = ['CONTROLLER', 'STICKS', 'SETTINGS', 'BACKUP'], pages = [page0, page1, page2, page3];
+  if (L.m) { tabNames.splice(2, 0, 'TRIGGER'); pages.splice(2, 0, pageTrig); }   // the PadBox M's analog trigger   // @M
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   shell.tabs(tabNames, i => pages.forEach((p, k) => p.classList.toggle('hidden', k !== i)));
   refreshSide(); syncSettings(); sticks.forEach(s => s.sync && s.sync());
+  if (L.m) trRefresh();   // @M
   say('Changes are sent to the PadBox when you click Save.');
 
   // ---------------------------------------------------------------- save / restart
@@ -456,6 +518,7 @@ export async function startGp(shell, dev, opts) {
         sticks[0].feed(adc[0] ?? -1, adc[1] ?? -1);
         if (!L.noRightStick) sticks[1].feed(adc[2] ?? -1, adc[3] ?? -1);
         sticks.forEach(s => s.paint());
+        if (L.m) trFeed(adc[4]);   // @M
         if (L.m) {   // 0..100% only as the left / right analog trigger; as any other button it's pressed past half
           const ta = actOf(TRIG), lv = trigLevel(adc[4]), analog = ta === 11 || ta === 12;
           drawing.setTrigger(ta === -10 ? 0 : analog ? lv : (lv >= 0.5 ? 1 : 0), analog);

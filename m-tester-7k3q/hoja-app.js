@@ -6,7 +6,8 @@
 
 import { el, pickColor, hex, clamp, confirmBox, download, openFile } from './js/ui.js';
 import { Blk, Rpt, DeviceInfo } from './js/hoja/device.js';
-import { Analog, Rgb, Gamepad, Input, IN, IN_TRIGGER, INPUTS, PROFILES, MODES, profileOfMode, RGB_MODES, OUTPUTS, assign, defaultInputTypes, gsEssential, gsPlatform, VERSIONS } from './js/hoja/model.js';
+import { Analog, Rgb, Gamepad, Imu, Haptic, Input, IN, IN_TRIGGER, INPUTS, PROFILES, MODES, profileOfMode, RGB_MODES, OUTPUTS, assign, defaultInputTypes, gsEssential, gsPlatform, mEssential, mPlatform, VERSIONS } from './js/hoja/model.js';   // @M
+// @GS import { Analog, Rgb, Gamepad, Input, IN, IN_TRIGGER, INPUTS, PROFILES, MODES, profileOfMode, RGB_MODES, OUTPUTS, assign, defaultInputTypes, gsEssential, gsPlatform, VERSIONS } from './js/hoja/model.js';
 import { firmwareUpdate } from './js/update.js';
 import { buildDrawing } from './drawing.js';
 import { dicon } from './icons.js';
@@ -23,6 +24,17 @@ const PLATFORM = {
   led: { ...COMMON_LED, 27: 9, 19: 12, 26: 11, 18: 10, 15: 8 },
   name: { ...COMMON_NAME, 27: 'C-stick up', 19: 'C-stick right', 26: 'C-stick left', 18: 'C-stick down', 15: 'A button' },
 };
+// @M{
+// the PadBox M (js/hoja/model.js mEssential / mPlatform): the same slots for the shared buttons; the Essential's
+// Thumb button on RP2, the Platform's C-stick on the right-stick codes and its A button on LP1
+const M_ESSENTIAL = { input: { ...COMMON_IN, 18: 26, 19: 31, 15: 17, 44: 11 }, led: COMMON_LED,
+  name: { ...COMMON_NAME, 44: 'Analog trigger', 18: 'Left stick click (L3)', 19: 'Right stick click (R3)', 15: 'Thumb', 21: 'Capture' } };
+const M_PLATFORM = {
+  input: { ...COMMON_IN, 18: 26, 32: 34, 30: 32, 31: 33, 33: 35, 19: 14, 44: 11 },   // 44: the analog trigger (IN_TRIGGER)
+  led: { ...COMMON_LED, 32: 9, 30: 12, 31: 11, 33: 10, 19: 8 },
+  name: { ...COMMON_NAME, 44: 'Analog trigger', 18: 'Left stick click (L3)', 32: 'C-stick up', 30: 'C-stick right', 31: 'C-stick left', 33: 'C-stick down', 19: 'A button', 21: 'Capture' },
+};
+// @M}
 const ARROWS = { Up: 'Up', Dn: 'Down', Lt: 'Left', Rt: 'Right' };   // the D-pad's outputs are drawn as arrows
 
 export async function startHoja(shell, dev, opts) {
@@ -41,12 +53,17 @@ export async function startHoja(shell, dev, opts) {
   const name = info ? new TextDecoder().decode(info.subarray(0, 16)).replace(/\0.*$/, '').trim() : '';
   const fw = info ? (info[704] | (info[705] << 8) | (info[706] << 16) | (info[707] << 24)) >>> 0 : 0;
   // which board, from its product name ("PadBox GS Essent", "PadBox GS Platfo"), or from whether it has a right stick
-  if (name && !name.startsWith('PadBox GS ')) throw new Error('This PadBox ("' + name + '") isn\'t supported by this app.');
+  const isM = name.startsWith('PadBox M ');   // @M
+  if (name && !name.startsWith('PadBox GS ') && !isM) throw new Error('This PadBox ("' + name + '") isn\'t supported by this app.');   // @M
+  // @GS if (name && !name.startsWith('PadBox GS ')) throw new Error('This PadBox ("' + name + '") isn\'t supported by this app.');
   const platform = /platf/i.test(name) || (!/essen/i.test(name) && !!ins && ins[32 * 10] === IN.Unused);
-  const types = ins ? Array.from({ length: INPUTS }, (_, i) => ins[i * 10]) : defaultInputTypes(platform, true);
-  const lay = platform ? gsPlatform() : gsEssential();
+  const types = ins ? Array.from({ length: INPUTS }, (_, i) => ins[i * 10]) : defaultInputTypes(platform, !isM);   // @M
+  // @GS const types = ins ? Array.from({ length: INPUTS }, (_, i) => ins[i * 10]) : defaultInputTypes(platform, true);
+  const lay = isM ? (platform ? mPlatform() : mEssential()) : platform ? gsPlatform() : gsEssential();   // @M
+  // @GS const lay = platform ? gsPlatform() : gsEssential();
   const hasRight = !platform;
-  const BOARD = platform ? PLATFORM : ESSENTIAL;
+  const BOARD = isM ? (platform ? M_PLATFORM : M_ESSENTIAL) : platform ? PLATFORM : ESSENTIAL;   // @M
+  // @GS const BOARD = platform ? PLATFORM : ESSENTIAL;
   const mismatch = B[Blk.ANALOG][0] !== VERSIONS.analog || B[Blk.GAMEPAD][0] !== VERSIONS.gamepad || B[Blk.RGB][0] !== VERSIONS.rgb || B[Blk.INPUT][0] !== VERSIONS.input;
 
   shell.header('HOJA2', 'PadBox ' + lay.name + (fw ? '  •  firmware ' + fw.toString(16).toUpperCase() : '') + (opts.demo ? '  •  demo' : ''));
@@ -108,7 +125,8 @@ export async function startHoja(shell, dev, opts) {
     if (/^D-pad /.test(o.name)) return ARROWS[o.short] || o.short;
     const amt = amountOf(i);
     return amt != null && amt < 100 ? o.short.replace('~', '') + ' ' + amt + '%' : o.short;
-  }, platform ? 'platform' : 'essential');
+  }, (isM ? 'm-' : '') + (platform ? 'platform' : 'essential'));   // @M
+  // @GS }, platform ? 'platform' : 'essential');
 
   // the mode, top right (where the GP2040-CE copy has its profile): which console the PadBox talks to; each mode
   // has its own button mapping
@@ -477,15 +495,148 @@ export async function startHoja(shell, dev, opts) {
     ]),
   ]);
 
+  // @M{
+  // ---------------------------------------------------------------- TRIGGER, GYRO and RUMBLE pages (the PadBox M only)
+  // The same pages as the desktop Suite and the previous app, in this design: the analog trigger's range, the motion
+  // sensor (live 3D view, sensitivity, gyro calibration) and the rumble.
+  const hov = isM ? await dev.readBlock(Blk.HOVER) : null;   // hoverConfig_s: [1] = the analog trigger has been calibrated
+  if (hov) { B[Blk.HOVER] = hov; BACKUP_BLOCKS.hover = Blk.HOVER; }   // the trigger calibration goes into backups too
+  const pctF = v => v + '%';
+  const offSlider = (s, off) => { s.el.classList.toggle('off', off); s.el.querySelector('input').disabled = off; };
+
+  // TRIGGER: released = 0 %, pressed all the way = 100 % (the firmware learns the range while calibrating)
+  let trigValue = 0, trigCalibrating = false, trigCalibrated = !!(hov && hov[1]);
+  const tFill = el('i'), tPct = el('span.tpct', { text: '0%' });
+  const tStep = el('div.step'), tInfo = el('div.info');
+  const tBtn = pbtn('Calibrate', '', true, () => trigCalibrating ? trigDone() : trigStart());
+  const mTrigPage = el('div.page.hidden.dpage.mtrig', {}, [
+    panel('TRIGGER CALIBRATION', [
+      el('p.text', { text: 'Sets the two ends of the analog trigger: released = 0%, pressed all the way = 100%.' }),
+      el('div.tbar-row', {}, [el('div.tbar', {}, [tFill]), tPct]),
+      tStep, tInfo, el('div.btnrow', {}, [tBtn]),
+    ]),
+  ]);
+  function refreshTrig(msg, color) {
+    tBtn.querySelector('span').textContent = trigCalibrating ? 'Done' : 'Calibrate';
+    tStep.textContent = trigCalibrating ? 'Calibrating' : trigCalibrated ? 'Calibrated' : 'Not calibrated';
+    tStep.classList.toggle('ok', !trigCalibrating && trigCalibrated);
+    tInfo.style.color = color || '';
+    tInfo.textContent = msg || (trigCalibrating
+      ? '1. Let go of the trigger completely.\n2. Press it all the way down, hold it a moment, and let go. Do it two or three times.\n3. Click Done.'
+      : trigCalibrated ? 'A full press reaches 100%. Calibrate again if it doesn\'t.' : 'A full press may not reach 100%. Click Calibrate, then follow the steps shown here. Don\'t touch the trigger while you click it.');
+  }
+  async function trigStart() {
+    tBtn.disabled = true;
+    const r = await dev.command(Blk.HOVER, 0x40 | IN_TRIGGER, 2000);   // start learning the trigger
+    tBtn.disabled = false;
+    if (r.ok) { trigCalibrating = true; refreshTrig(); } else refreshTrig('The PadBox didn\'t start the trigger calibration. Try again.', 'var(--bad)');
+  }
+  async function trigDone() {
+    tBtn.disabled = true;
+    const r = await dev.command(Blk.HOVER, 0x00, 2000);   // stop and apply the new range
+    tBtn.disabled = false;
+    if (r.ok) { trigCalibrating = false; trigCalibrated = true; if (B[Blk.HOVER]) B[Blk.HOVER][1] = 1; markUnsaved(Blk.HOVER); refreshTrig('Trigger calibrated. Click Save to keep it after unplugging.', 'var(--good)'); }
+    else refreshTrig('The PadBox didn\'t confirm the end of the calibration. Click Done again.', 'var(--bad)');
+  }
+
+  // GYRO: the orientation is worked out here from the raw IMU readings in every live report (js/hoja/gyro.js)
+  let gyro = null, fusion = null, ImuFusion = null, lastImuT = -1, autoCentreIn = 0, imuCalibrating = false, imuTextCount = 0;
+  const gyroCanvas = el('canvas'), gyroMsg = el('div.gyro-msg', { text: 'Loading 3D model...' });
+  const gyroInfo = el('p.hint', { text: 'Tilt the PadBox to see it move.' });
+  const imuOn = dtoggle('On', v => { Imu.setDisabled(B[Blk.IMU], !v); enableImu(); changed(Blk.IMU); });
+  imuOn.el.title = 'Gyro and accelerometer on';
+  const gyroSens = ['X', 'Y', 'Z'].map((a, k) => dslider('Gyro ' + a + ' axis', 50, 200, pctF, v => { Imu.setGyroSens(B[Blk.IMU], k, v); changed(Blk.IMU); }));
+  const accSens = ['X', 'Y', 'Z'].map((a, k) => dslider('Accelerometer ' + a + ' axis', 50, 200, pctF, v => { Imu.setAccelSens(B[Blk.IMU], k, v); changed(Blk.IMU); }));
+  const imuCal = pbtn('Calibrate gyro', '', true, calibrateGyro);
+  const imuStatus = el('p.hint.wrap', { text: 'If the view slowly drifts: put the PadBox on a flat table, don\'t touch it, and click Calibrate gyro.' });
+  const viewPanel = panel('LIVE ORIENTATION', [el('div.gyro-view', {}, [gyroCanvas, gyroMsg]),
+    el('div.btnrow', {}, [pbtn('Centre view', '', false, () => gyro && gyro.centre())]), gyroInfo]);
+  const motionPanel = panel('MOTION CONTROLS', [
+    el('div.lbl', { text: 'Gyro sensitivity (default 120%)' }), ...gyroSens.map(s => s.el),
+    el('div.lbl', { text: 'Accelerometer sensitivity (default 100%)', style: { marginTop: '10px' } }), ...accSens.map(s => s.el),
+    el('div.btnrow', { style: { marginTop: '12px' } }, [imuCal]), imuStatus]);
+  motionPanel.firstChild.append(imuOn.el);   // "On" on the title row, like "Stick enabled"
+  const mGyroPage = el('div.page.hidden.dpage.mgyro', {}, [viewPanel, motionPanel]);
+  function enableImu() { const off = !imuOn.checked; for (const s of [...gyroSens, ...accSens]) offSlider(s, off); imuCal.disabled = off; }
+  function loadGyro() {
+    imuOn.checked = !Imu.disabled(B[Blk.IMU]);
+    gyroSens.forEach((s, k) => s.value = clamp(Imu.gyroSens(B[Blk.IMU], k), 50, 200));
+    accSens.forEach((s, k) => s.value = clamp(Imu.accelSens(B[Blk.IMU], k), 50, 200));
+    enableImu();
+  }
+  async function openGyro() {
+    if (gyro) return;
+    const G = await import('./js/hoja/gyro.js');
+    ImuFusion = G.ImuFusion; gyro = new G.GyroView(gyroCanvas); fusion = new ImuFusion();
+    if (!gyro.ok) { gyroMsg.textContent = 'This browser can\'t draw the 3D view (WebGL 2 is off).'; return; }
+    try {
+      const r = await fetch('./assets/padbox.stl'); if (!r.ok) throw new Error();
+      const mesh = G.loadStl(await r.arrayBuffer()); if (!mesh) throw new Error();
+      gyro.setMesh(mesh); gyroMsg.classList.add('hidden');
+    } catch (e) { gyroMsg.textContent = 'Could not read the 3D model.'; }
+  }
+  async function calibrateGyro() {
+    clearTimeout(liveTimer); await pushLive();
+    imuCal.disabled = true; imuCalibrating = true;
+    imuStatus.textContent = 'Calibrating: keep the PadBox completely still...'; imuStatus.style.color = 'var(--warn)';
+    // IMU_CMD_CALIBRATE_START only answers once it has finished; the new offsets are in the RAM copy, so read them back
+    const r = await dev.command(Blk.IMU, 1, 15000);
+    const fresh = r.ok ? await dev.readBlock(Blk.IMU) : null;
+    imuCalibrating = false; if (fusion) fusion.reset(); lastImuT = -1;
+    if (fresh) { B[Blk.IMU] = fresh; loadGyro(); markUnsaved(Blk.IMU); imuStatus.textContent = 'Gyro calibrated. Click Save to keep it after unplugging.'; imuStatus.style.color = 'var(--good)'; }
+    else { enableImu(); imuStatus.textContent = 'The PadBox didn\'t report back. Make sure it\'s still, then try again.'; imuStatus.style.color = 'var(--bad)'; }
+  }
+  // every live report: bytes 3-14 are the accelerometer and gyro, straight from the firmware's standard IMU mode
+  function onImu(p) {
+    if (curName !== 'GYRO' || !fusion || imuCalibrating) { lastImuT = -1; return; }
+    const now = performance.now() / 1000;
+    if (lastImuT < 0) autoCentreIn = 50;   // page just opened: centre once the estimate has settled
+    const dt = lastImuT < 0 ? 0 : Math.min(0.05, now - lastImuT); lastImuT = now;
+    const s16 = o => { const v = p[o] | (p[o + 1] << 8); return v > 32767 ? v - 65536 : v; };
+    const I = B[Blk.IMU], gs3 = k => clamp(Imu.gyroSens(I, k), 50, 200), as3 = k => clamp(Imu.accelSens(I, k), 50, 200);
+    // undo the sensitivity %, so the model turns exactly as far as the PadBox does
+    const gx = s16(9) * 100 / gs3(0), gy = s16(11) * 100 / gs3(1), gz = s16(13) * 100 / gs3(2);
+    const ax = s16(3) * 100 / as3(0), ay = s16(5) * 100 / as3(1), az = s16(7) * 100 / as3(2);
+    fusion.update(ImuFusion.toModel(ax, ay, az), ImuFusion.toModel(gx, gy, gz), 4096 /* +-8 g */, dt);
+    gyro.setOrientation(fusion.q);
+    if (autoCentreIn > 0 && --autoCentreIn === 0) gyro.centre();
+    if (++imuTextCount % 12 === 0) gyroInfo.textContent = 'accelerometer ' + (Math.hypot(ax, ay, az) / 4096).toFixed(2) + ' g     gyro ' + Math.round(gx * 0.061) + ' / ' + Math.round(gy * 0.061) + ' / ' + Math.round(gz * 0.061) + ' °/s';
+  }
+
+  // RUMBLE: on / off and its strength (for all rumble, games included), with a one-second test
+  const pctToStrength = pct => clamp(Math.round(pct * 255 / 100), 1, 255);
+  const hapOn = dtoggle('On', v => { offSlider(hapStrength, !v); hapTest.disabled = !v; Haptic.setStrength(B[Blk.HAPTIC], v ? pctToStrength(hapStrength.value) : 0); changed(Blk.HAPTIC); });
+  hapOn.el.title = 'Rumble on';
+  const hapStrength = dslider('Strength', 1, 100, pctF, v => { if (!hapOn.checked) return; Haptic.setStrength(B[Blk.HAPTIC], pctToStrength(v)); changed(Blk.HAPTIC); });
+  const hapTest = pbtn('Test', '', true, async () => {
+    clearTimeout(liveTimer); await pushLive();   // test at the strength shown, not the last one sent
+    hapTest.disabled = true; hapTest.querySelector('span').textContent = 'Buzzing...';
+    await dev.command(Blk.HAPTIC, 1, 2500);   // HAPTIC_CMD_TEST_STRENGTH
+    hapTest.querySelector('span').textContent = 'Test'; hapTest.disabled = !hapOn.checked;
+  });
+  const rumblePanel = panel('RUMBLE', [hapStrength.el, el('div.btnrow', { style: { marginTop: '12px' } }, [hapTest]),
+    el('p.hint.wrap', { text: 'Test buzzes for one second at the strength above. This strength applies to all rumble, including in games.' })]);
+  rumblePanel.firstChild.append(hapOn.el);
+  const mRumblePage = el('div.page.hidden.dpage.mtrig', {}, [rumblePanel]);
+  function loadRumble() {
+    const st = Haptic.strength(B[Blk.HAPTIC]);
+    hapOn.checked = st > 0; hapStrength.value = st > 0 ? clamp(Math.round(st * 100 / 255), 1, 100) : 100;
+    offSlider(hapStrength, !hapOn.checked); hapTest.disabled = !hapOn.checked;
+  }
+  function mLoad() { refreshTrig(); loadGyro(); loadRumble(); }
+  // @M}
 
   // ---------------------------------------------------------------- the side menu, load, live reports
   const tabNames = ['CONTROLLER', 'STICKS', 'BACKUP'], pages = [page0, page1, page2];
+  if (isM) { tabNames.splice(2, 0, 'TRIGGER', 'GYRO', 'RUMBLE'); pages.splice(2, 0, mTrigPage, mGyroPage, mRumblePage); }   // @M
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   let curTab = 0, curName = 'CONTROLLER';
   shell.tabs(tabNames, i => {
     curTab = i; curName = tabNames[i]; pages.forEach((p, k) => p.classList.toggle('hidden', k !== i));
     // the live report the open page needs: raw buttons for CONTROLLER (and the trigger), the sticks otherwise
     dev.reportMode(curName === 'CONTROLLER' || curName === 'TRIGGER' ? Rpt.INPUT_RAW : Rpt.INPUT_JOYSTICKS);
+    if (curName === 'TRIGGER') dev.focus(IN_TRIGGER);   // its full value in bytes 15-16   // @M
+    if (curName === 'GYRO') openGyro();   // @M
     pressed.fill(false);
   });
   // shows the settings in B on every page (at start, and after a backup is imported)
@@ -498,15 +649,33 @@ export async function startHoja(shell, dev, opts) {
     showAllColor(Rgb.color(B[Blk.RGB], BOARD.led[10]));
     sticks.forEach(s => s.load());
     refreshSide(); refreshCal();
+    if (isM) mLoad();   // @M
   }
   loadUi();
   say(mismatch ? 'This firmware doesn\'t match this app. Update it (the download button, top right) before changing anything.' : 'Changes apply to the PadBox right away. Click Save to keep them after unplugging.', mismatch ? 'var(--bad)' : '');
 
+  // @M{
+  if (isM) dev.onFrame = onImu;
+  // @M}
   dev.onRaw = p => {
+    // @M{
+    if (curName === 'TRIGGER') {   // the focused trigger: its full value (0..4095, after the firmware's calibration) in bytes 15-16
+      let tv = ((p[15] << 8) | p[16]) & 0x0fff;
+      if (tv === 0 && (p[17 + IN_TRIGGER] & 0x7f)) tv = (p[17 + IN_TRIGGER] & 0x7f) << 5;   // focus not taken yet
+      trigValue = tv;
+    }
+    // @M}
     let fresh = -1;
     for (let i = 0; i < INPUTS; i++) { const d = (p[17 + i] & 0x80) !== 0; if (d && !pressed[i] && fresh < 0) fresh = i; pressed[i] = d; }
     const v = i => ((p[17 + i] & 0x7f) << 5) / 2048;
     stickXY[0] = [v(27) - v(28), v(29) - v(30)]; stickXY[1] = [v(32) - v(33), v(34) - v(35)];
+    // @M{
+    // the PadBox M's analog trigger (a hover input, already scaled by its calibration in the firmware)
+    if (isM && types[IN_TRIGGER] === IN.Hover) {   // 0..100% only when its function is an analog output, else pressed or not
+      const o = OUTPUTS[editProfile][Input.code(B[Blk.INPUT], editProfile, IN_TRIGGER)], analog = !!o && ANALOG_OUT(o.type);
+      drawing.setTrigger(!o ? 0 : analog ? (p[17 + IN_TRIGGER] & 0x7f) / 127 : (p[17 + IN_TRIGGER] & 0x80 ? 1 : 0), analog);
+    }
+    // @M}
     if (fresh >= 0 && types[fresh] !== IN.Joystick && types[fresh] !== IN.Hover && curTab === 0) select(fresh);
   };
   dev.onSticks = (lxR, lyR, rxR, ryR, lxS, lyS, rxS, ryS) => {
@@ -516,6 +685,10 @@ export async function startHoja(shell, dev, opts) {
   const frame = () => {
     if (!alive) return;
     sticks.forEach(s => s.paint());
+    // @M{
+    if (curName === 'TRIGGER') { const v = clamp(trigValue / 4095, 0, 1); tFill.style.width = (v * 100) + '%'; tPct.textContent = Math.round(v * 100) + '%'; }
+    if (curName === 'GYRO' && gyro) gyro.frame();
+    // @M}
   };
   const loop = () => { if (!alive) return; frame(); requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
