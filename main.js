@@ -114,7 +114,7 @@ function showConnect(problem) {
     el('h1', { text: 'CONNECT' }),
     el('p', { text: 'Plug the PadBox GS in with a USB data cable (for GP2040-CE, hold Start while plugging it in), then click CONNECT and choose it in the list. PhobGCC (GS Platform): hold Start while plugging it in, then click CONNECT PHOBGCC and choose "PadBox GS Calibrator".' }),
     el('div.connect-btns', {}, [btn, serBtn]),
-    el('p.demo', { html: 'No controller at hand? Try the demo: GP2040-CE on the <a href="?demo=gp">GS Essential</a> or <a href="?demo=gp-platform">GS Platform</a>, HOJA2 on the <a href="?demo=hoja">GS Essential</a> or <a href="?demo=hoja-platform">GS Platform</a>, PhobGCC on the <a href="?demo=phob">GS Platform</a>' }),
+    el('p.demo', { html: 'No controller at hand? Try the demo: GP2040-CE on the <a href="?demo=gp">GS Essential</a> or <a href="?demo=gp-platform">GS Platform</a>, HOJA2 on the <a href="?demo=hoja-platform">GS Platform</a>, PhobGCC on the <a href="?demo=phob">GS Platform</a>' }),
     problem ? el('p.problem' + (/^Updated to /.test(problem) ? '.good' : ''), { text: problem }) : null,   // after an update: in green
   ]));
 }
@@ -166,7 +166,7 @@ addEventListener('beforeunload', e => { if (current && current.app && current.ap
 (async () => {
   const demo = params.get('demo');   // ?demo=gp, gp-platform, hoja, hoja-platform or phob
   if (demo && demo.startsWith('phob')) { const d = new PhobDemo('GS Platform'); await d.open(); return run(d, startPhob, { demo: true }); }
-  if (demo && demo.startsWith('hoja')) { const d = new HojaDemo(demo.includes('platform'), true); await d.open(); return run(d, startHoja, { demo: true }); }
+  if (demo && demo.startsWith('hoja')) { const d = new HojaDemo(true, true); await d.open(); return run(d, startHoja, { demo: true }); }
   if (demo) return run(new GpDemo(demo.includes('platform'), true), startGp, { demo: true });
   showConnect();
   try { const list = navigator.usb ? await navigator.usb.getDevices() : []; const d = list.find(x => isGp(x) || isHoja(x)); if (d) open(d); } catch (e) { }

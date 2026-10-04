@@ -180,8 +180,17 @@ export const ACTS = [
   [17, 'L3  (left stick click)', 'L3', 'L3'], [18, 'R3  (right stick click)', 'R3', 'R3'],
   [19, 'Fn  (hotkey button)', 'Fn', null],
   [32, 'Turbo  (hold for rapid-fire)', 'Trb', null],
+  [40, 'Custom combo  (several buttons at once)', 'Combo', null],   // CUSTOM_BUTTON_COMBO: see COMBO_PARTS
 ].map(([value, long, short, key]) => ({ value, long, short, key }));
 export const act = v => ACTS.find(a => a.value === v) || null;
+// What a "Custom combo" button can press, as in GP2040-CE's web config: D-pad directions (customDpadMask) and buttons
+// (customButtonMask), with their bits (GamepadState.h GAMEPAD_MASK_*)
+export const COMBO_PARTS = [
+  ['d', 1, 'Up'], ['d', 2, 'Down'], ['d', 4, 'Left'], ['d', 8, 'Right'],
+  ['b', 1, 'B1'], ['b', 2, 'B2'], ['b', 4, 'B3'], ['b', 8, 'B4'], ['b', 16, 'L1'], ['b', 32, 'R1'], ['b', 64, 'L2'], ['b', 128, 'R2'],
+  ['b', 256, 'S1'], ['b', 512, 'S2'], ['b', 1024, 'L3'], ['b', 2048, 'R3'], ['b', 4096, 'A1'], ['b', 8192, 'A2'],
+].map(([kind, bit, name]) => ({ kind, bit, name }));
+export const comboName = c => COMBO_PARTS.filter(p => ((p.kind === 'd' ? c.d : c.b) & p.bit) !== 0).map(p => p.name).join('+');
 
 const pinKey = p => 'pin' + String(p).padStart(2, '0');
 const copy = o => JSON.parse(JSON.stringify(o == null ? {} : o));
@@ -193,6 +202,7 @@ export class Model {
   constructor() {
     this.board = ''; this.version = ''; this.layout = null;
     this.pinDoc = {}; this.profileActions = [{}, {}, {}, {}]; this.editProfile = 1; this.altDocs = [];
+    this.profileCombos = [{}, {}, {}, {}];   // pin -> { b: customButtonMask, d: customDpadMask }, per profile
     this.theme = {}; this.ledOpts = {};
     this.ledU = new Array(13).fill(0x0000ff); this.ledD = new Array(13).fill(0xffffff);
     this.mode = 0; this.brightness = 5; this.steps = 5;
@@ -206,6 +216,9 @@ export class Model {
   }
   get action() { return this.profileActions[Math.max(1, Math.min(4, this.editProfile)) - 1]; }
   actionOf(pin) { const a = this.action[pin]; return a == null ? -10 : a; }
+  // a "Custom combo" button's buttons and directions, in the profile being edited
+  comboOf(pin) { const c = this.profileCombos[Math.max(1, Math.min(4, this.editProfile)) - 1][pin]; return c ? { ...c } : { b: 0, d: 0 }; }
+  setCombo(pin, c) { this.profileCombos[Math.max(1, Math.min(4, this.editProfile)) - 1][pin] = { b: c.b >>> 0, d: c.d >>> 0 }; }
   phys(pin) { return this.layout ? this.layout.phys.find(p => p.pin === pin) || null : null; }
   nameOfPin(pin) { const p = this.phys(pin); return p ? p.name : 'GPIO ' + pin; }
 
@@ -213,11 +226,12 @@ export class Model {
     this.board = s.ver.boardConfigLabel || ''; this.version = s.ver.version || '';
     this.layout = layoutFor(this.board);
     this.pinDoc = s.pins;
-    readActions(s.pins, this.profileActions[0]);
+    readActions(s.pins, this.profileActions[0]); readCombos(s.pins, this.profileCombos[0]);
     this.altDocs = (s.profiles && s.profiles.alternativePinMappings) || [];
     for (let i = 1; i < 4; i++) {
       const alt = this.altDocs[i - 1];
-      if (alt) readActions(alt, this.profileActions[i]); else this.profileActions[i] = { ...this.profileActions[0] };
+      if (alt) { readActions(alt, this.profileActions[i]); readCombos(alt, this.profileCombos[i]); }
+      else { this.profileActions[i] = { ...this.profileActions[0] }; this.profileCombos[i] = JSON.parse(JSON.stringify(this.profileCombos[0])); }
     }
     this.theme = s.theme || {}; this.ledOpts = s.led || {};
     this.mode = I(s.padLed, 'mode', 0); this.brightness = I(s.padLed, 'brightness', 5); this.steps = Math.max(1, I(s.padLed, 'brightnessSteps', 5));
@@ -289,6 +303,7 @@ export class Model {
   pinsBody() {
     const d = copy(this.pinDoc);
     for (const k in this.profileActions[0]) { const e = d[pinKey(k)]; if (e) e.action = this.profileActions[0][k]; }
+    writeCombos(d, this.profileCombos[0]);
     return d;
   }
   // Profiles 2-4: all three sent and enabled (the firmware only uses profile N if the first N-1 exist).
@@ -297,6 +312,7 @@ export class Model {
     for (let i = 1; i < 4; i++) {
       const d = copy(this.altDocs[i - 1] || this.pinDoc);
       for (const k in this.profileActions[i]) { const e = d[pinKey(k)]; if (e) e.action = this.profileActions[i][k]; }
+      writeCombos(d, this.profileCombos[i]);
       if (d.profileLabel == null) d.profileLabel = '';
       d.enabled = true;
       alts.push(d);
@@ -323,6 +339,13 @@ export class Model {
   }
 }
 
+function readCombos(pins, into) {
+  for (const k in into) delete into[k];
+  for (let p = 0; p < 48; p++) { const e = pins && pins[pinKey(p)]; if (e) into[p] = { b: I(e, 'customButtonMask', 0) >>> 0, d: I(e, 'customDpadMask', 0) >>> 0 }; }
+}
+function writeCombos(d, combos) {
+  for (const k in combos) { const e = d[pinKey(k)]; if (e) { e.customButtonMask = combos[k].b; e.customDpadMask = combos[k].d; } }
+}
 function readActions(pins, into) {
   for (const k in into) delete into[k];
   for (let p = 0; p < 48; p++) { const e = pins && pins[pinKey(p)]; if (e) into[p] = I(e, 'action', -10); }

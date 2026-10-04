@@ -2,8 +2,8 @@
 // with the redesigned CONTROLLER page and frame (header, side menu). STICKS, SETTINGS and BACKUP are the current app's pages,
 // and saving works exactly as in the app (js/gp/app.js), which this is a copy of.
 
-import { el, icon, button, card, toggle, slider, combo, setItems, swatchRow, pickColor, hex, readable, image, clamp, sleep, download, openFile, confirmBox, setButtonText } from './js/ui.js';
-import { Model, ACTS, act } from './js/gp/model.js';
+import { el, icon, button, card, toggle, slider, combo, setItems, swatchRow, pickColor, hex, readable, image, clamp, sleep, download, openFile, confirmBox, setButtonText, dialog } from './js/ui.js';
+import { Model, ACTS, act, COMBO_PARTS, comboName } from './js/gp/model.js';
 import { firmwareUpdate } from './js/update.js';
 import { buildDrawing } from './drawing.js';
 import { dicon } from './icons.js';
@@ -64,8 +64,8 @@ export async function startGp(shell, dev, opts) {
   const fnName = a => (a ? a.long : '').replace(/\s*\/\s*/g, '/').replace(/\s+\(/, ' (');
   const drawing = buildDrawing(pin => select(pin), pin => {
     const a = act(actOf(pin));
-    return (pin === TRIG ? 'Analog trigger' : m.nameOfPin(pin)) + '  →  ' + (a && a.value !== -10 ? fnName(a) : 'nothing');
-  }, pin => { const a = act(actOf(pin)); return !a || a.value === -10 ? '' : a.value === 32 ? 'Turbo' : a.value <= 4 ? a.key : a.short; },   // D-pad: Up/Down/Left/Right, drawn as arrows
+    return (pin === TRIG ? 'Analog trigger' : m.nameOfPin(pin)) + '  →  ' + (a && a.value === 40 ? 'Custom combo: ' + (comboName(m.comboOf(pin)) || 'nothing yet') : a && a.value !== -10 ? fnName(a) : 'nothing');
+  }, pin => { const a = act(actOf(pin)); return !a || a.value === -10 ? '' : a.value === 32 ? 'Turbo' : a.value === 40 ? (comboName(m.comboOf(pin)) || 'Combo') : a.value <= 4 ? a.key : a.short; },   // D-pad: Up/Down/Left/Right, drawn as arrows
   { 'GS Platform': 'platform' }[L.board] || 'essential');
 
   // the right-hand column: BUTTON SETTINGS (or "No button selected"), then GLOBAL LED SETTINGS
@@ -77,7 +77,48 @@ export async function startGp(shell, dev, opts) {
   ]);
   const fn = el('select.field.mono');
   for (const a of ACTS) fn.append(el('option', { value: a.value, text: fnName(a) }));
-  fn.addEventListener('change', () => { if (selPin >= 0) setAction(selPin, +fn.value); });
+  fn.addEventListener('change', () => {
+    if (selPin < 0) return;
+    const a = +fn.value, was = actOf(selPin);
+    setAction(selPin, a);
+    if (a === 40 && was !== 40) {   // a new combo: start from the button it was, then choose the rest
+      const c = m.comboOf(selPin);
+      if (!c.b && !c.d) { const p = COMBO_PARTS.find(x => x.name === (act(was) || {}).key); if (p) { if (p.kind === 'd') c.d = p.bit; else c.b = p.bit; m.setCombo(selPin, c); } }
+      editCombo();
+    }
+  });
+  // "Custom combo": one physical button presses several controller buttons at once (GP2040-CE's customButtonMask /
+  // customDpadMask), chosen in a small window; the row under Function shows them and reopens it
+  const comboTxt = el('span.combo-txt');
+  const comboEdit = el('button.combo-edit', { type: 'button', text: '+ Add', title: 'Make this button press more than one button at once' });
+  comboEdit.addEventListener('click', () => {
+    if (selPin < 0) return;
+    if (actOf(selPin) !== 40) {   // one function so far: turn it into a combo that starts with it
+      const was = actOf(selPin), c = m.comboOf(selPin), p = COMBO_PARTS.find(x => x.name === (act(was) || {}).key);
+      c.b = 0; c.d = 0; if (p) { if (p.kind === 'd') c.d = p.bit; else c.b = p.bit; }
+      m.setCombo(selPin, c); setAction(selPin, 40);
+    }
+    editCombo();
+  });
+  const comboRow = el('div.amount-row.combo-row', {}, [el('span', { text: 'Presses' }), comboTxt, comboEdit]);
+  function editCombo() {
+    const pin = selPin; if (pin < 0) return;
+    const c = m.comboOf(pin), boxes = [];
+    const grid = el('div.combo-grid', {}, COMBO_PARTS.map(p => {
+      const input = el('input', { type: 'checkbox' }); input.checked = ((p.kind === 'd' ? c.d : c.b) & p.bit) !== 0;
+      boxes.push([p, input]);
+      return el('label.combo-chip', {}, [input, el('span', { text: p.name })]);
+    }));
+    let d;
+    const ok = button('OK', { primary: true, icon: '', onclick: () => {
+      const n = { b: 0, d: 0 };
+      for (const [p, input] of boxes) if (input.checked) { if (p.kind === 'd') n.d |= p.bit; else n.b |= p.bit; }
+      m.setCombo(pin, n); markDirty('pins'); d.close(); refreshSide();
+    } });
+    const cancel = button('CANCEL', { icon: '', onclick: () => d.close() });
+    d = dialog('Custom combo', m.nameOfPin(pin) + ': the buttons it presses, all at once', 'gamepad',
+      [el('p', { text: 'Tick every button and direction this button should press together.', style: { margin: '0 0 12px', color: 'var(--soft)' } }), grid], [ok, cancel]);
+  }
   const ledField = pressedColor => {
     const dot = el('i.dot'), txt = el('span');
     const f = el('button.field.color', { type: 'button' }, [dot, txt]);
@@ -97,7 +138,7 @@ export async function startGp(shell, dev, opts) {
   btnResetAll.addEventListener('click', () => { for (const k in L.defaults) m.action[k] = L.defaults[k]; if (L.m && m.taction !== 11) { m.taction = 11; markDirty('cal'); } markDirty('pins'); markDirty('led'); refreshSide(); });
   const settingsPanel = el('div.panel.hidden', {}, [
     el('div.ptitle', { text: 'BUTTON SETTINGS' }),
-    el('div.lbl', { text: 'Function' }), fn,
+    el('div.lbl', { text: 'Function' }), fn, comboRow,
     ledBlock,
     btnResetOne, btnResetAll,
     el('p.hint', { html: 'Click <b>Save</b> to apply your changes to the controller' }),
@@ -161,6 +202,13 @@ export async function startGp(shell, dev, opts) {
       const ph = selPin === TRIG ? null : m.phys(selPin);
       for (const o of fn.options) o.disabled = selPin === TRIG && !TRIG_OK.has(+o.value);   // what the trigger can do
       fn.value = String(actOf(selPin)); fn.disabled = !!(ph && ph.fixed);
+      const isCombo = actOf(selPin) === 40, one = act(actOf(selPin));
+      // a combo can be any of the buttons and directions; not Turbo, Fn or the trigger
+      const canCombo = selPin !== TRIG && !(ph && ph.fixed) && (isCombo || actOf(selPin) === -10 || !!(one && one.key));
+      comboRow.classList.toggle('off', !canCombo);
+      comboTxt.textContent = isCombo ? (comboName(m.comboOf(selPin)) || 'nothing yet') : one && one.key ? one.key : 'nothing';
+      comboEdit.textContent = isCombo ? 'Edit' : '+ Add';
+      for (const o of fn.options) if (+o.value === 40) o.disabled = selPin === TRIG;   // the trigger can't be a combo
       const slot = selPin === TRIG ? -1 : m.ledSlot(ph);
       ledBlock.classList.toggle('noled', slot < 0);   // keeps its space, so the panels below don't move
       if (slot >= 0) { ledU.set(m.ledU[slot]); ledD.set(m.ledD[slot]); }
