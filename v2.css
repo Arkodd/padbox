@@ -466,3 +466,17 @@ canvas.phob-gate-cv { width: 252px; height: 252px; }
 /* HOJA2: the one-color-for-all wheel greyed out in the effects that don't use it (Fairy, Rainbow, Authentic) */
 .colorrow.off { opacity: .35; }
 .colorrow.off > * { pointer-events: none; }
+
+/* "Firmware update available": a red dot on the update button, and a notice at the top right until it's answered */
+.act.has-update { position: relative; border-color: var(--orange); color: var(--orange); }
+.act.has-update::after { content: ""; position: absolute; right: -4px; top: -4px; width: 9px; height: 9px; border-radius: 50%; background: #ff3b30; box-shadow: 0 0 0 2px #232323; animation: un-pulse 1.6s ease-in-out infinite; }
+@keyframes un-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+.update-note { position: absolute; right: 12px; top: 52px; z-index: 40; width: 300px; box-sizing: border-box; padding: 11px 13px 12px;
+  background: #2b2b2b; border: 1px solid var(--orange); border-radius: 4px; box-shadow: 0 6px 22px rgba(0, 0, 0, .55); }
+.update-note::before { content: ""; position: absolute; top: -6px; right: var(--un-ax, 214px); border: 6px solid transparent; border-top: 0; border-bottom-color: var(--orange); }
+.un-head { display: flex; align-items: center; gap: 7px; }
+.un-ic { width: 18px; height: 18px; border-radius: 50%; background: var(--orange); color: #fff; display: flex; align-items: center; justify-content: center; }
+.un-ic svg { width: 13px; height: 13px; }
+.un-t { font: 600 12px "Poppins", sans-serif; color: #f0f0f0; }
+.un-d { margin-top: 6px; font-size: 9.6px; line-height: 13.5px; color: #cfcfcf; }
+.update-note .btnrow .pbtn { height: 26px; }

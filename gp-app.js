@@ -6,7 +6,7 @@ import { el, icon, button, card, toggle, slider, combo, setItems, swatchRow, pic
 import { Model, ACTS, act, COMBO_PARTS, comboName } from './js/gp/model.js';
 import { firmwareUpdate } from './js/update.js';
 import { buildDrawing } from './drawing.js';
-import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, paintGate, readout, multiSelect, backupPage } from './parts.js';
+import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, paintGate, readout, multiSelect, backupPage, updateNotice } from './parts.js';
 import { dicon } from './icons.js';
 
 const SOCD = ['Up priority', 'Neutral (Opposite directions cancel out)', 'Second input priority', 'First input priority (Locking)', 'Bypass (No cleaning)'];
@@ -53,6 +53,8 @@ export async function startGp(shell, dev, opts) {
   });
   const btnExit = el('button.act.primary', { type: 'button', html: dicon('gamepad') + '<span>Restart as controller</span>' }); btnExit.addEventListener('click', () => reboot(0));
   shell.actions([btnUpdate, btnSave, btnPreview, btnPower, btnExit]);
+  // a newer firmware on the site: say so (the build is padboxBuild; firmware from before it had none)
+  if (!opts.demo || /[?&]update/.test(location.search)) updateNotice({ board: L.board, family: 'GP2040-CE', build: +(s.ver && s.ver.padboxBuild) || 0, button: btnUpdate, open: () => btnUpdate.click() });
 
   function markDirty(k) {
     dirty[k] = true; btnSave.disabled = false;

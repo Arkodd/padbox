@@ -222,3 +222,36 @@ export function toast(title, text, kind) {
   stage.append(t);
   setTimeout(() => t.remove(), 7000);
 }
+
+// ---------------------------------------------------------------- "a new firmware is available"
+// firmware/versions.json (tools/firmware-versions.js) has the build of each firmware file this site ships. When the
+// connected controller's build is older (or it has none: firmware from before builds were numbered), the update button
+// gets a red dot and a notice at the top right offers to update now. o: { board: 'GS Essential', family: 'HOJA2',
+// build: the controller's build (0 = unknown), button: the header's update button, open: () => opens the updater }
+export async function updateNotice(o) {
+  let latest = 0;
+  try {
+    const r = await fetch('./firmware/versions.json', { cache: 'no-store' });
+    if (r.ok) latest = +(await r.json())['PadBox ' + o.board + ' - ' + o.family] || 0;
+  } catch (e) { }
+  if (!latest || (o.build && o.build >= latest)) return false;
+  o.button.classList.add('has-update');
+  o.button.title = 'A firmware update is available - click to install it';
+  const stage = document.getElementById('stage');
+  for (const old of stage.querySelectorAll('.update-note')) old.remove();
+  const when = d => { const x = new Date(d * 1000); return x.getDate() + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][x.getMonth()] + ' ' + x.getFullYear(); };
+  const later = el('button.pbtn.outline', { type: 'button', html: '<span>Later</span>' });
+  const now = el('button.pbtn.primary', { type: 'button', html: dicon('download') + '<span>Update now</span>' });
+  const note = el('div.update-note', {}, [
+    el('div.un-head', {}, [el('i.un-ic', { html: dicon('download') }), el('div.un-t', { text: 'Firmware update available' })]),
+    el('div.un-d', { text: 'A newer ' + o.family + ' firmware (' + when(latest) + ') is available for your PadBox ' + o.board + '. Update it to get the latest fixes and features.' }),
+    el('div.btnrow', {}, [later, now]),
+  ]);
+  later.addEventListener('click', () => note.remove());
+  now.addEventListener('click', () => { note.remove(); o.open(); });
+  stage.append(note);
+  // the arrow at the top points at the update button
+  const z = parseFloat(getComputedStyle(stage).zoom) || 1, s = stage.getBoundingClientRect(), b = o.button.getBoundingClientRect();
+  note.style.setProperty('--un-ax', Math.max(8, (s.right - (b.left + b.width / 2)) / z - 12 - 6) + 'px');
+  return true;
+}

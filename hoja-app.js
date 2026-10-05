@@ -11,7 +11,7 @@ import { Analog, Rgb, Gamepad, Input, IN, IN_TRIGGER, INPUTS, PROFILES, MODES, p
 import { firmwareUpdate } from './js/update.js';
 import { buildDrawing } from './drawing.js';
 import { dicon } from './icons.js';
-import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, paintGate, readout, backupPage } from './parts.js';
+import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, paintGate, readout, backupPage, updateNotice } from './parts.js';
 
 // The drawing's buttons (named by their GP2040-CE GPIO, see drawing.js) -> HOJA2's input slots and LED numbers
 // (js/hoja/model.js gsEssential / gsPlatform)
@@ -90,6 +90,8 @@ export async function startHoja(shell, dev, opts) {
     shell.lost(null);
   });
   shell.actions([btnUpdate, btnSave, btnPower]);
+  // a newer firmware on the site: say so (HOJA2's fw_version is its build time)
+  if (!opts.demo || /[?&]update/.test(location.search)) updateNotice({ board: lay.board, family: 'HOJA2', build: fw, button: btnUpdate, open: () => btnUpdate.click() });
 
   // ---------------------------------------------------------------- CONTROLLER page
   let editProfile = 0, selInput = -1;
