@@ -113,7 +113,7 @@ export function multiSelect(placeholder, items, onchange) {
 // CONFIGURATION FILES: export (named, then downloaded) and import; BACKUP HISTORY: every export made in this browser
 // (kept in its storage, with the settings themselves), to restore, rename or delete. A backup only goes back onto the
 // same firmware and board it came from.
-// o: { controller: 'GP2040-CE' or 'HOJA2', board: 'GS Essential', firmware: 'v0.7.12', profiles: () => count,
+// o: { controller: 'GP2040-CE', 'HOJA2' or 'PhobGCC', board: 'GS Essential', firmware: 'v0.7.12', mode: () => the mode or profile in use,
 //      exportData: async () => object, fileName: name => file name, check: object => problem text or '',
 //      restore: async object => message (throws on failure) }
 const STORE = 'padbox-backup-history';
@@ -153,7 +153,7 @@ export function backupPage(o) {
       const ok = mine(e);
       const act = (ic, title, cls, fn, off) => { const b = el('button.ia.' + cls, { type: 'button', title, html: dicon(ic) }); b.disabled = !!off; b.addEventListener('click', fn); return b; };
       rows.append(el('tr', {}, [
-        el('td.nm', { text: e.name }), el('td', { text: String(e.profiles ?? '') }), el('td', { text: niceDate(e.created) }),
+        el('td.nm', { text: e.name }), el('td', { text: e.mode || (e.profiles != null ? e.profiles + (e.profiles === 1 ? ' profile' : ' profiles') : '') }), el('td', { text: niceDate(e.created) }),
         el('td', { text: (e.size / 1024).toFixed(2) + ' Kb' }), el('td', { text: e.controller }), el('td', { text: e.firmware || '' }),
         el('td.' + (ok ? 'valid' : 'other'), { text: ok ? 'Valid' : 'Other PadBox', title: ok ? '' : 'Made on a PadBox ' + e.board + ' with ' + e.controller + ': it can only go back onto that one.' }),
         el('td.acts', {}, [
@@ -173,7 +173,7 @@ export function backupPage(o) {
     download(o.fileName(name), text);
     const h = loadHistory();
     h.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, created: new Date().toISOString(), size: new Blob([text]).size,
-      controller: o.controller, board: o.board, firmware: o.firmware, profiles: o.profiles(), data: text });
+      controller: o.controller, board: o.board, firmware: o.firmware, mode: o.mode(), data: text });
     while (h.length > 30) h.shift();   // the browser keeps a few MB per site: the 30 newest
     const kept = saveHistory(h);
     paint();
@@ -203,11 +203,22 @@ export function backupPage(o) {
     if (!await confirmBox('Delete backup', 'Remove "' + e.name + '" from the backup history? A file you downloaded stays where it is.', 'DELETE')) return;
     saveHistory(loadHistory().filter(y => y.id !== e.id)); paint();
   }
-  const head = el('thead', {}, [el('tr', {}, ['Name', 'Profiles', 'Date', 'Size', 'Controller', 'Firmware', 'Status', ''].map(t => el('th', { text: t })))]);
+  const head = el('thead', {}, [el('tr', {}, ['Name', 'Mode', 'Date', 'Size', 'Controller', 'Firmware', 'Status', ''].map(t => el('th', { text: t })))]);
   const page = el('div.page.hidden.dpage.backup', {}, [
     panel('CONFIGURATION FILES', [last, el('div.btnrow', {}, [pbtn('Export configuration to file', 'download', false, exportNow), pbtn('Import configuration from file', 'upload', true, importNow)]), status]),
     panel('BACKUP HISTORY', [el('p.text', { text: 'View previously saved configurations and restore a previous setup' }), el('div.tbl', {}, [el('table.hist', {}, [head, rows])])]),
   ]);
   paint();
   return { page, say };
+}
+
+// A notice at the top right that goes away by itself ("Calibration complete" in the GS Platform design)
+export function toast(title, text, kind) {
+  const stage = document.getElementById('stage');
+  for (const old of stage.querySelectorAll('.toast')) old.remove();
+  const close = el('button.toast-x', { type: 'button', text: '×', title: 'Close' });
+  const t = el('div.toast.' + (kind || 'good'), {}, [el('i.toast-ic', { html: dicon('check') }), el('div', {}, [el('div.toast-t', { text: title }), el('div.toast-d', { text })]), close]);
+  close.addEventListener('click', () => t.remove());
+  stage.append(t);
+  setTimeout(() => t.remove(), 7000);
 }

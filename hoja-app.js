@@ -174,7 +174,7 @@ export async function startHoja(shell, dev, opts) {
     el('div.two.one', {}, [ledFieldBtn]),
     el('div.noled-note', { text: 'This button has no LED' }),
   ]);
-  ledFieldBtn.title = 'This button\x27s LED color (used by the Static, Reactive and Fairy effects)';
+  ledFieldBtn.title = 'This button\x27s LED color (used by the Static and Reactive effects)';
   const btnResetMode = el('button.pbtn.primary', { type: 'button', html: dicon('sync') + '<span>Reset this button</span>' });
   btnResetMode.addEventListener('click', () => resetButton());
   const btnResetAll = el('button.pbtn.outline', { type: 'button', html: dicon('sync') + '<span>Reset all buttons</span>' });
@@ -205,7 +205,7 @@ export async function startHoja(shell, dev, opts) {
     wheelKnob.style.left = (50 + 41.5 * Math.cos(a)) + '%'; wheelKnob.style.top = (50 + 41.5 * Math.sin(a)) + '%';
     rgbTxt.textContent = `R${(c >> 16) & 255} G${(c >> 8) & 255} B${c & 255}`; hexTxt.textContent = hex(c).toUpperCase();
   }
-  const setAll = c => { showAllColor(c); for (let i = 0; i < 32; i++) Rgb.setColor(B[Blk.RGB], i, c); changed(Blk.RGB); refreshSide(); };
+  const setAll = c => { if (colorRow.classList.contains('off')) return; showAllColor(c); for (let i = 0; i < 32; i++) Rgb.setColor(B[Blk.RGB], i, c); changed(Blk.RGB); refreshSide(); };
   wheel.addEventListener('click', e => {
     const r = wheel.getBoundingClientRect(), x = e.clientX - r.left - r.width / 2, y = e.clientY - r.top - r.height / 2;
     if (Math.hypot(x, y) < r.width * 0.3) return pickColor(allColor, setAll);   // the middle: any color
@@ -218,11 +218,15 @@ export async function startHoja(shell, dev, opts) {
   swatches.append(plus);
   const bright = dslider('Brightness', 0, 100, v => v + '%', v => { Rgb.setBrightness(B[Blk.RGB], Math.round(v * 4096 / 100)); changed(Blk.RGB); });
   const speed = dslider('Animation time', 300, 5000, v => (v / 1000).toFixed(2) + 's', v => { Rgb.setSpeed(B[Blk.RGB], v); changed(Blk.RGB); });
+  // One color for every button only means something in Static and Reactive: Fairy, Rainbow and Authentic use their own
+  // colors, so there the wheel is greyed out. (Fairy used to blend the first six buttons' colors, so painting them all
+  // one color flattened it; since the 2026-10-05 firmware it has its own palette.)
+  const colorRow = el('div.colorrow', {}, [wheel, el('div', {}, [el('div.readout', {}, [rgbTxt, hexTxt]), swatches])]);
   const ledPanel = el('div.panel.hoja-led', {}, [
     el('div.ptitle', { text: 'GLOBAL LED SETTINGS' }),
     el('div.lbl', { text: 'Lighting effect' }), effect,
     el('div.lbl.split.idle-row', {}, [el('span', { text: 'LED color' }), idle.el]),
-    el('div.colorrow', {}, [wheel, el('div', {}, [el('div.readout', {}, [rgbTxt, hexTxt]), swatches])]),
+    colorRow,
     bright.el, speed.el,
   ]);
   const column = el('div.side-col', {}, [empty, settingsPanel, ledPanel]);
@@ -232,6 +236,9 @@ export async function startHoja(shell, dev, opts) {
     const rb = B[Blk.RGB];
     effect.value = String(clamp(Rgb.mode(rb), 0, RGB_MODES.length - 1));
     speed.disabled = Rgb.mode(rb) < 2;   // only the animated effects use it
+    const md = Rgb.mode(rb), oneColor = md === 1 || md === 3;   // Static, Reactive
+    colorRow.classList.toggle('off', !oneColor);
+    colorRow.title = oneColor ? '' : 'This effect uses its own colors';
     const none = selInput < 0;
     empty.classList.toggle('hidden', !none); settingsPanel.classList.toggle('hidden', none);
     column.classList.toggle('selected', !none); page0.classList.toggle('selected', !none);
@@ -461,7 +468,7 @@ export async function startHoja(shell, dev, opts) {
     return 'Configuration restored and saved to the PadBox.';
   }
   const backup = backupPage({
-    controller: 'HOJA2', board: lay.name, firmware: fw ? fw.toString(16).toUpperCase() : '', profiles: () => PROFILES.length,
+    controller: 'HOJA2', board: lay.name, firmware: fw ? fw.toString(16).toUpperCase() : '', mode: () => (MODE_MENU.find(x => x[0] === curMode) || MODE_MENU[0])[1],
     exportData: async () => { clearTimeout(liveTimer); await pushLive(); return file(); },
     fileName: name => 'PadBox ' + lay.name + ' - HOJA2 - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
     check: checkFile, restore: restoreFile,

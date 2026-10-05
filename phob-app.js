@@ -1,24 +1,25 @@
-// The PhobGCC PadBox Calibrator in the new design (Figma "PadBox Software"), for the PadBox GS Platform - the same
-// frame, drawing and panels as the GP2040-CE and HOJA2 copies, with PhobGCC's settings (a copy of js/phob/app.js):
-// CONTROLLER (what each button does as a GameCube button, LED colors), CALIBRATION (PhobGCC's own step-by-step notch
-// calibration, driven through virtual button presses) and SETTINGS (stick response).
-// The button map, the settings and the axis flips wait for Save; LED colors apply (and save) right away.
+// The PhobGCC PadBox Calibrator in the new design, for the PadBox GS Platform (Figma "PadBox GS Platform", the PhobGCC
+// flow) - the same frame, drawing and panels as gp-app.js and hoja-app.js, with PhobGCC's settings (it started as a
+// copy of js/phob/app.js): CONTROLLER (what each button does as a GameCube button, LED colors), STICKS (PhobGCC's own
+// step-by-step notch calibration, driven through virtual button presses), SETTINGS (stick response) and BACKUP &
+// RESTORE. The button map, the settings and the axis flips wait for Save; LED colors apply (and save) right away.
+// Not in this firmware, so not here (the design has them): a port / mode menu, LED effects, idle glow, animation time,
+// a "when pressed" color, switching the stick off, and restarting as a controller.
 
 import { el, pickColor, hex, clamp, confirmBox } from './js/ui.js';
 import { firmwareUpdate } from './js/update.js';
 import { buildDrawing } from './drawing.js';
 import { dicon } from './icons.js';
+import { panel, dtoggle, dslider, pbtn, segmented, badge, readout, backupPage, toast } from './parts.js';
 
 const BA = 1, BB = 2, BX = 4, BY = 8, BZ = 16, BL = 32, BR = 64, BS = 128;
 const CAL_ORDER = [0, 1, 8, 9, 16, 17, 24, 25, 4, 5, 12, 13, 20, 21, 28, 29, 2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31];
 const ADJ_ORDER = [2, 6, 10, 14, 1, 3, 5, 7, 9, 11, 13, 15];
-const BTN_NAMES = ['A (1K)', 'B (2K)', 'X (1P)', 'Y (2P)', 'Z (3P)', 'L (4K)', 'R (3K)', 'Start', 'Up', 'Down', 'Left', 'Right'];
 const OUTPUTS = ['A', 'B', 'X', 'Y', 'Z', 'L', 'R', 'Start', 'D-pad Up', 'D-pad Down', 'D-pad Left', 'D-pad Right', '(nothing)'];
 const OUT_SHORT = ['A', 'B', 'X', 'Y', 'Z', 'L', 'R', 'Start', 'Up', 'Down', 'Left', 'Right'];   // Up..Right are drawn as arrows
 const C_UP = 100, C_DOWN = 101, C_LEFT = 102, C_RIGHT = 103;   // the C-stick buttons: not in the firmware's input table
 const C_NAME = { [C_UP]: 'C-stick up', [C_DOWN]: 'C-stick down', [C_LEFT]: 'C-stick left', [C_RIGHT]: 'C-stick right' };
-const C_SHORT = { [C_UP]: 'C-Up', [C_DOWN]: 'C-Dn', [C_LEFT]: 'C-Lt', [C_RIGHT]: 'C-Rt' };
-const TRIG = 20;   // the analog trigger's slot in the input table (the GS Platform has none)
+const C_SHORT = { [C_UP]: 'C-U', [C_DOWN]: 'C-D', [C_LEFT]: 'C-L', [C_RIGHT]: 'C-R' };
 
 // The PadBox GS Platform (the desktop app's PhobBoard)
 const INPUTS = ['1P', '2P', '3P (RB)', '4P (LB)', '1K', '2K', '3K (RT)', '4K (LT)', 'Start', 'Select', 'Home', 'Touchpad', 'A button', 'Bumper', '(not used)', '(not used)', 'D-pad Up', 'D-pad Down', 'D-pad Left', 'D-pad Right', '(no analog trigger)'];
@@ -31,7 +32,7 @@ const ledOf = b => b >= 0 && b < 8 ? [4, 5, 6, 7, 3, 2, 1, 0][b] : b === 12 ? 8 
 const BIT = { 10: 0, 11: 1, 12: 2, 13: 3, 6: 4, 7: 5, 8: 6, 9: 7, 17: 8, 16: 9, 20: 10, 21: 11, 15: 12, 22: 13, 2: 16, 3: 17, 5: 18, 4: 19, 27: C_UP, 19: C_RIGHT, 26: C_LEFT, 18: C_DOWN };
 
 export async function startPhob(shell, dev, opts) {
-  let alive = true, frame = null, map = null, led = null, settings = null;
+  let alive = true, frame = null, map = null, led = null, settings = null, settings0 = null;
   let macro = [], macroMask = 0, macroUntil = 0, holdMask = 0;
   const pending = { map: null, settings: null, inv: -1 };   // staged until Save
   const wanted = { map: null, settings: null, inv: -1, at: 0, tries: 0 };
@@ -48,12 +49,12 @@ export async function startPhob(shell, dev, opts) {
   const btnUpdate = iconBtn('outline', 'download', 'Update firmware', () => firmwareUpdate({ board: boardName, current: 'PhobGCC',
     enter: async noDrive => { await saveAll(); await new Promise(r => setTimeout(r, 300)); alive = false; await dev.send(noDrive ? 'BOOTSEL NODRIVE' : 'BOOTSEL'); await new Promise(r => setTimeout(r, 3500)); } }));
   const btnSave = iconBtn('save', 'save', 'Save to the controller', saveAll); btnSave.disabled = true;
-  const btnDone = el('button.act.primary', { type: 'button', html: dicon('gamepad') + '<span>Disconnect</span>' });
-  btnDone.addEventListener('click', async () => {
+  // Disconnect: the power button (PhobGCC works as a controller again once it's unplugged and plugged back in)
+  const btnPower = iconBtn('light', 'power', 'Disconnect', async () => {
     if (isDirty() && !await confirmBox('Unsaved changes', 'Your button map, settings or axis flips aren\'t saved yet: they\'ll be lost. Disconnect anyway?', 'DISCONNECT')) return;
     shell.lost(null);
   });
-  shell.actions([btnUpdate, btnSave, btnDone]);
+  shell.actions([btnUpdate, btnSave, btnPower]);
   const isDirty = () => !!(pending.map || pending.settings || pending.inv >= 0);
   function staged() { btnSave.disabled = false; say('Unsaved changes - click Save to send them to the controller.', 'var(--warn)'); }
   async function saveAll() {
@@ -64,28 +65,6 @@ export async function startPhob(shell, dev, opts) {
     if (pending.inv >= 0) { wanted.inv = pending.inv; pending.inv = -1; await dev.send('I ' + wanted.inv); }
     wanted.at = performance.now(); wanted.tries = 1;
     say('Saving...', 'var(--warn)');
-  }
-
-  // ---------------------------------------------------------------- the design's building blocks
-  function panel(title, kids, cls) { return el('div.panel' + (cls ? '.' + cls : ''), {}, [el('div.ptitle', { text: title }), ...kids]); }
-  function dtoggle(text, onchange) {
-    const input = el('input', { type: 'checkbox' });
-    const lab = el('label.dtoggle', {}, [input, el('i'), el('span', { text })]);
-    input.addEventListener('change', () => onchange(input.checked));
-    return { el: lab, get checked() { return input.checked; }, set checked(v) { input.checked = !!v; } };
-  }
-  function dslider(caption, min, max, fmt, onchange) {
-    const val = el('span'), input = el('input.range', { type: 'range', min, max, step: 1 });
-    const paint = () => { const v = +input.value; val.textContent = fmt ? fmt(v) : String(v); input.style.setProperty('--p', (max > min ? (v - min) / (max - min) * 100 : 0) + '%'); };
-    input.addEventListener('input', () => { paint(); onchange(+input.value); });
-    const wrap = el('div.dslider', {}, [el('div.lbl.split', {}, [el('span', { text: caption }), val]), input]);
-    return { el: wrap, get value() { return +input.value; }, set value(v) { input.value = v; paint(); },
-      set disabled(v) { input.disabled = !!v; wrap.classList.toggle('off', !!v); } };
-  }
-  function pbtn(text, primary, onclick) {
-    const b = el('button.pbtn.' + (primary ? 'primary' : 'outline'), { type: 'button', html: '<span>' + text + '</span>' });
-    if (onclick) b.addEventListener('click', onclick);
-    return b;
   }
   const zoomOf = () => parseFloat(getComputedStyle(document.getElementById('stage')).zoom) || 1;
 
@@ -103,6 +82,7 @@ export async function startPhob(shell, dev, opts) {
     if (b >= C_UP) return C_SHORT[b];
     const m = curMap(), o = m[b];
     if (!(o >= 0 && o < 12)) return '';
+    if ((b === 13 || (b >= 16 && b <= 19)) && o === DEF[b]) return '';   // the D-pad and the bumper doing what they're for: no label
     return (o === 5 || o === 6) && m[21 + b] < 100 ? OUT_SHORT[o] + ' ' + m[21 + b] + '%' : OUT_SHORT[o];
   }, 'platform');
 
@@ -122,12 +102,10 @@ export async function startPhob(shell, dev, opts) {
     const li = ledOf(sel); if (li < 0 || !led) return;
     pickColor(ledRgbRaw(li), c => { setLed(li, c); sendLed(); });
   });
-  const ledCap = el('span');
   const ledBlock = el('div.led-block', {}, [
     el('div.lbl', { text: 'LED color' }),
     el('div.two.one', {}, [ledFieldBtn]),
     el('div.noled-note', { text: 'This button has no LED' }),
-    el('div.two.caps.one', {}, [ledCap]),
   ]);
   const btnResetOne = el('button.pbtn.primary', { type: 'button', html: dicon('sync') + '<span>Reset this button</span>' });
   btnResetOne.addEventListener('click', () => { if (sel < 0 || sel >= C_UP || !map) return; const m = map.slice(); m[sel] = DEF[sel]; m[21 + sel] = DEF[21 + sel]; setMap(m); });
@@ -139,7 +117,7 @@ export async function startPhob(shell, dev, opts) {
     amount.el,
     ledBlock,
     btnResetOne, btnResetAll,
-    el('p.hint', { html: 'Click <b>Save</b> to send your changes to the controller' }),
+    el('p.hint', { html: 'Click <b>Save</b> to apply your changes to the controller' }),
   ]);
 
   // GLOBAL LED SETTINGS: one color for every button, and the brightness
@@ -175,7 +153,7 @@ export async function startPhob(shell, dev, opts) {
     bright.el,
     el('p.hint.wrap', { text: 'LED colors apply and save right away.' }),
   ]);
-  const column = el('div.side-col.phob', {}, [empty, settingsPanel, ledPanel]);
+  const column = el('div.side-col', {}, [empty, settingsPanel, ledPanel]);
   const page0 = el('div.page.controller', {}, [drawing.svg, column]);
 
   let ledTimer = 0, ledSentAt = 0;
@@ -185,7 +163,7 @@ export async function startPhob(shell, dev, opts) {
   function refreshSide() {
     const none = sel < 0;
     empty.classList.toggle('hidden', !none); settingsPanel.classList.toggle('hidden', none);
-    column.classList.toggle('selected', !none);
+    column.classList.toggle('selected', !none); page0.classList.toggle('selected', !none);
     if (!none) {
       const m = curMap(), isC = sel >= C_UP;
       if (isC) { if (!fnC.parentNode) fn.append(fnC); fn.value = '99'; }
@@ -195,7 +173,7 @@ export async function startPhob(shell, dev, opts) {
       amount.disabled = isC || !map || !(m[sel] === 5 || m[sel] === 6);   // the % only means something as L or R
       const li = ledOf(sel);
       ledBlock.classList.toggle('noled', li < 0);
-      if (li >= 0) { const c = ledRgbRaw(li); ledDot.style.background = hex(c); ledTxt.textContent = hex(c).toUpperCase(); ledCap.textContent = 'LED ' + (li + 1) + ' of the chain'; }
+      if (li >= 0) { const c = ledRgbRaw(li); ledDot.style.background = hex(c); ledTxt.textContent = hex(c).toUpperCase(); }
       btnResetOne.disabled = isC || !map;
     }
     btnResetAll.disabled = !map;
@@ -214,43 +192,50 @@ export async function startPhob(shell, dev, opts) {
     if (!alive) return clearInterval(drawTick);
     drawing.set(pinOf(sel), pin => lit(BIT[pin]));
     drawing.setLeds(pin => { const li = ledOf(BIT[pin]); return li >= 0 && led ? hex(ledRgbRaw(li)) : null; });
-    drawing.setSticks([frame ? [(frame.ax - 127) / 100, (frame.ay - 127) / 100] : [0, 0]]);
   }, 30);
 
-  // ---------------------------------------------------------------- CALIBRATION page
+  // ---------------------------------------------------------------- STICKS page
+  // The GS Platform design: one wide panel - the gate on the left (output, raw reading, PhobGCC's target as a yellow
+  // cross) with Set center under it; on the right the axes, the gate's shape, the calibration's current step (GETTING
+  // READY, CAPTURE THE CROSS, LINE THE NOTCH UP WITH YOUR GATE) with its buttons, and Calibrate.
   const view = makeView();
-  const oct = dtoggle('Octagonal gate', v => { view.octagon = v; });   // how the gate is drawn and which notches are aimed at
-  oct.checked = true; view.octagon = true;   // octagonal by default, like a GameCube stick's gate
+  view.octagon = true;   // octagonal by default, like a GameCube stick's gate
+  const gateSeg = segmented(['Round Gate', 'Octagonal Gate'], v => { view.octagon = v === 1; });
+  gateSeg.value = 1;
   // flips: bit 0 left X, 1 left Y ("I <mask>", saved in the controller, no need to recalibrate)
   const flips = [dtoggle('Flip X axis', flipChanged), dtoggle('Flip Y axis', flipChanged)];
   let invOther = 0;   // the C-stick's flip bits, kept as they are
   function flipChanged() { pending.inv = invOther | (flips[0].checked ? 1 : 0) | (flips[1].checked ? 2 : 0); staged(); }
-  const clearBtn = pbtn('Clear trace / set centre', false, () => view.reset(true));
-  const stickPanel = panel('LEFT STICK', [
-    el('div.phob-gate', {}, [view.canvas]),
-    el('div.two', {}, [flips[0].el, flips[1].el]),
-    el('div.phob-row', {}, [oct.el, clearBtn]),
-  ], 'phob-stick');
-
-  const stepLbl = el('div.step');
-  const prog = el('div.phob-prog', {}, [el('i')]);
-  const instr = el('div.info.phob-instr');
-  const macroBtn = (text, steps, primary) => pbtn(text, primary, () => { macro = steps.slice(); macroUntil = 0; });
-  const holdBtn = (text, m) => { const b = pbtn(text, false); b.addEventListener('pointerdown', () => { holdMask |= m; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { holdMask &= ~m; }); return b; };
-  const seen = el('div.info');
-  const calPanel = panel('CALIBRATION', [
-    stepLbl, prog, instr,
-    el('div.lbl', { text: 'Start / stop' }),
-    el('div.phob-grid', {}, [macroBtn('Unlock', [[BA | BX | BY | BS, 1300]]), macroBtn('Lock', [[BA | BX | BY | BS, 250]]), macroBtn('Calibrate the stick', [[BA | BX | BY | BL, 300]], true)]),
-    el('div.lbl', { text: 'During calibration' }),
-    el('div.phob-grid', {}, [macroBtn('Advance (A)', [[BA, 200]], true), macroBtn('Undo (Z)', [[BZ, 200]]), macroBtn('Skip (Start)', [[BS, 200]]),
-      holdBtn('Rotate CW (X)', BX), holdBtn('Rotate CCW (Y)', BY), macroBtn('Reset notch (B)', [[BB, 200]])]),
-    el('div.lbl', { text: 'What the controller sees' }), seen,
-  ], 'phob-cal');
-  const page1 = el('div.page.hidden.dpage.phobcal', {}, [stickPanel, calPanel]);
+  const tag = badge(); tag.el.classList.add('hidden');   // shown once a calibration starts here (the firmware doesn't say)
+  const rd1 = el('div.rd1');
+  const legend = el('div.rd2.legend', { html: '<i class="lg-dot"></i>Output<i class="lg-ring"></i>Raw<b class="lg-x">✕</b>Target' });
+  const setCenter = pbtn('Set center', 'target', true, () => view.reset(true));
+  setCenter.classList.add('angle');
+  // the current step: its title, what to do, how it's going, and its buttons
+  const macroBtn = (text, key, steps, primary) => { const b = pbtn(text, '', primary, () => { macro = steps.slice(); macroUntil = 0; }); if (key) b.prepend(el('i.key', { text: key })); return b; };
+  const holdBtn = (cls, title, m) => { const b = el('button.hold.' + cls, { type: 'button', title, html: dicon(cls === 'ccw' ? 'minus' : 'plus') }); b.addEventListener('pointerdown', () => { holdMask |= m; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { holdMask &= ~m; }); return b; };
+  const stepT = el('div.cal-t'), stepD = el('div.cal-d'), stepS = el('div.cal-s'), prog = el('div.phob-prog', {}, [el('i')]);
+  const bUndo = macroBtn('Undo', 'Z', [[BZ, 200]], false), bSkip = macroBtn('Skip', 'START', [[BS, 200]], false), bAdv = macroBtn('Advance', 'A', [[BA, 200]], true);
+  const angleRow = el('div.angle-off', {}, [holdBtn('ccw', 'Rotate counter-clockwise (hold)', BY), el('span', { text: 'Angle offset' }), holdBtn('cw', 'Rotate clockwise (hold)', BX)]);
+  const calBox = el('div.cal-box.hidden', {}, [el('div.cal-head', {}, [stepT, angleRow]), stepD, stepS, prog, el('div.btnrow.cal-btns', {}, [bUndo, bSkip, bAdv])]);
+  const bCal = pbtn('Calibrate', 'target', true, () => {
+    if (!frame || frame.step >= 0) return;
+    // a locked controller (PhobGCC's safe mode) is unlocked first: A+X+Y+Start held, then A+X+Y+L starts the calibration
+    macro = frame.locked ? [[BA | BX | BY | BS, 1300], [0, 2200], [BA | BX | BY | BL, 300]] : [[BA | BX | BY | BL, 300]];
+    macroUntil = 0; cal.starting = performance.now() + (frame.locked ? 3800 : 300);
+  });
+  bCal.title = 'PhobGCC\'s own step-by-step calibration: 16 notches, then fine-tuning each notch\'s angle';
+  const stickPanel = panel('STICK', [el('div.phob-body', {}, [
+    el('div.phob-left', {}, [el('div.gate-wrap', {}, [view.canvas]), el('div.rd', {}, [rd1, legend]), el('div.angle-row', {}, [setCenter]),
+      el('p.angle-hint', { text: 'Let go of the stick, then click Set center if the stick reads off-center or the plot is cluttered' })]),
+    el('div.phob-right', {}, [el('div.two.flips', {}, [flips[0].el, flips[1].el]), gateSeg.el, calBox, el('div.btnrow.cal-main', {}, [bCal])]),
+  ])], 'phob-wide');
+  stickPanel.firstChild.append(tag.el);
+  const page1 = el('div.page.hidden.dpage.phobsticks', {}, [stickPanel]);
+  const cal = { starting: 0, was: -1 };
 
   function makeView() {
-    const canvas = el('canvas.phob-canvas');
+    const canvas = el('canvas.gate.phob-gate-cv');
     const v = { canvas, octagon: false, active: false, outX: 0, outY: 0, hasTarget: false, tx: 0, ty: 0, aim: NaN, aimCenter: false, rawX: 0.5, rawY: 0.5, cx: NaN, cy: NaN, range: 0.05, trail: [], ang: 0, pct: 0 };
     v.setRaw = (x, y) => {
       if (isNaN(v.cx)) { v.cx = x; v.cy = y; }
@@ -262,87 +247,127 @@ export async function startPhob(shell, dev, opts) {
       if (m > 0.6 * v.range) { v.trail.push([dx, dy]); if (v.trail.length > 5000) v.trail.shift(); }
     };
     v.reset = recenter => { v.trail = []; v.range = 0.05; if (recenter) { v.cx = v.rawX; v.cy = v.rawY; } };
-    // the gate in the design's colors: dark field, grey outline, blue trace and raw dot, orange output dot, yellow aim
+    // the gate in the design's look: a grey ring, the gate's shape in orange, spokes, a soft orange middle; the trace in
+    // blue, the raw reading as a light ring, the output as an orange dot, PhobGCC's target as a yellow cross
     v.paint = () => {
       const r = canvas.getBoundingClientRect(), z = zoomOf(), dpr = (window.devicePixelRatio || 1) * z;
-      const W = r.width / z, H = r.height / z;
-      if (W < 10) return;
-      if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
-      const g = canvas.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-      const bottom = 30, cx = W / 2, cy = (H - bottom) / 2, R = Math.min(W, H - bottom) / 2 - 12;
-      const gate = () => { g.beginPath(); if (!v.octagon) g.arc(cx, cy, R, 0, Math.PI * 2); else { for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g[i ? 'lineTo' : 'moveTo'](cx + R * Math.cos(a), cy - R * Math.sin(a)); } g.closePath(); } };
-      gate(); g.fillStyle = '#232323'; g.fill();
-      g.lineWidth = 1; g.strokeStyle = '#353535';
-      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * R, cy - Math.sin(a) * R); g.stroke(); }
-      gate(); g.lineWidth = 1.5; g.lineJoin = 'round'; g.strokeStyle = v.active ? '#fe6805' : '#c5c5c5'; g.stroke();
-      // the notch ticks
-      g.lineWidth = 2; g.strokeStyle = '#8a8a8a';
-      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, ux = Math.cos(a), uy = -Math.sin(a); g.beginPath(); g.moveTo(cx + ux * R * 0.96, cy + uy * R * 0.96); g.lineTo(cx + ux * R * 1.07, cy + uy * R * 1.07); g.stroke(); }
-      if (v.active && !isNaN(v.aim)) { const a = v.aim * Math.PI / 180; g.setLineDash([5, 4]); g.lineWidth = 1.5; g.strokeStyle = '#ffd23c'; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * R * 1.08, cy - Math.sin(a) * R * 1.08); g.stroke(); g.setLineDash([]); }
+      const W = r.width / z; if (W < 10) return;
+      if (canvas.width !== Math.round(W * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(W * dpr); }
+      const g = canvas.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, W);
+      const c = W / 2, R = W / 2 - 10;
+      const shape = (rad, oct) => { g.beginPath(); if (!oct) g.arc(c, c, rad, 0, Math.PI * 2); else { for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g[i ? 'lineTo' : 'moveTo'](c + rad * Math.cos(a), c - rad * Math.sin(a)); } g.closePath(); } };
+      const grad = g.createRadialGradient(c, c, 0, c, c, R * 0.5);
+      grad.addColorStop(0, 'rgba(254,104,5,.2)'); grad.addColorStop(1, 'rgba(254,104,5,.04)');
+      g.fillStyle = grad; g.beginPath(); g.arc(c, c, R * 0.5, 0, Math.PI * 2); g.fill();
+      g.lineWidth = 1; g.strokeStyle = '#4f4f4f';
+      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); }
+      g.beginPath(); g.arc(c, c, R * 0.5, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = '#7a7a7a'; shape(R, false); g.stroke();
+      g.lineWidth = 1.3; g.lineJoin = 'round'; g.strokeStyle = '#fe6805'; shape(view.octagon ? R : R - 1.5, view.octagon); g.stroke();
+      if (v.active && !isNaN(v.aim)) { const a = v.aim * Math.PI / 180; g.setLineDash([4, 4]); g.lineWidth = 1; g.strokeStyle = 'rgba(255,210,60,.6)'; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); g.setLineDash([]); }
       g.fillStyle = 'rgba(40,166,255,.5)';
-      for (const [x, y] of v.trail) g.fillRect(cx + x / v.range * R - 1, cy - y / v.range * R - 1, 2, 2);
-      if (!isNaN(v.cx)) { g.beginPath(); g.arc(cx + (v.rawX - v.cx) / v.range * R, cy - (v.rawY - v.cy) / v.range * R, 5, 0, Math.PI * 2); g.fillStyle = '#28a6ff'; g.fill(); }
-      if (!v.active) { g.beginPath(); g.arc(cx + v.outX * R, cy - v.outY * R, 6.5, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = '#2a2a2a'; g.stroke(); }
+      for (const [x, y] of v.trail) g.fillRect(c + x / v.range * R - 1, c - y / v.range * R - 1, 2, 2);
+      if (!isNaN(v.cx)) { g.beginPath(); g.arc(c + (v.rawX - v.cx) / v.range * R, c - (v.rawY - v.cy) / v.range * R, 6, 0, Math.PI * 2); g.lineWidth = 1; g.strokeStyle = '#e6e6e6'; g.stroke(); }
+      g.beginPath(); g.arc(c + clamp(v.outX, -1.2, 1.2) * R, c - clamp(v.outY, -1.2, 1.2) * R, 4, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill();
       // the target: where PhobGCC wants the stick for this step (it shows it on the C-stick's output while calibrating)
       if (v.hasTarget) {
-        const tx = cx + v.tx * R, ty = cy - v.ty * R; g.lineWidth = 2.5; g.lineCap = 'round'; g.strokeStyle = '#ffd23c';
-        g.beginPath(); g.moveTo(tx - 8, ty - 8); g.lineTo(tx + 8, ty + 8); g.moveTo(tx - 8, ty + 8); g.lineTo(tx + 8, ty - 8); g.stroke(); g.lineCap = 'butt';
-        g.font = '600 9px Poppins'; g.fillStyle = '#ffd23c'; g.textAlign = tx > cx + R * 0.55 ? 'right' : 'left'; g.fillText('target', tx > cx + R * 0.55 ? tx - 11 : tx + 11, ty - 8);
+        const tx = c + v.tx * R, ty = c - v.ty * R; g.lineWidth = 1.8; g.lineCap = 'round'; g.strokeStyle = '#ffd23c';
+        g.beginPath(); g.moveTo(tx - 4.5, ty - 4.5); g.lineTo(tx + 4.5, ty + 4.5); g.moveTo(tx - 4.5, ty + 4.5); g.lineTo(tx + 4.5, ty - 4.5); g.stroke(); g.lineCap = 'butt';
       }
-      let txt = `stick now: ${Math.round(v.ang)}°   ${Math.round(v.pct)}% out`, col = '#cfcfcf';
-      if (v.active && !isNaN(v.aim)) {
-        let err = v.ang - v.aim; while (err > 180) err -= 360; while (err < -180) err += 360;
-        txt = `aim ${Math.round(v.aim)}°   now ${Math.round(v.ang)}°   (${err >= 0 ? '+' : ''}${Math.round(err)}°)   ${Math.round(v.pct)}% out`;
-        col = Math.abs(err) <= 3 && v.pct > 85 ? '#34de83' : Math.abs(err) <= 8 ? '#ffc85a' : '#ff6e6e';
-      } else if (v.active && v.aimCenter) { txt = `aim: centre   now ${Math.round(v.pct)}% out`; col = v.pct <= 4 ? '#34de83' : '#ffc85a'; }
-      g.textAlign = 'center';
-      g.font = '600 9.5px Poppins'; g.fillStyle = col; g.fillText(txt, cx, H - 17);
-      g.font = '8.5px Poppins'; g.fillStyle = '#8a8a8a'; g.fillText('blue = raw sensor   orange = output   ✕ = target', cx, H - 4);
     };
     return v;
   }
-  function notchName(n) { return { 0: 'right', 2: 'up-right', 4: 'up', 6: 'up-left', 8: 'left', 10: 'down-left', 12: 'down', 14: 'down-right' }[n] || 'in-between notch ' + n; }
-  function instruction(f) {
-    if (f.step < 0) return f.locked ? 'Locked. Click Unlock (hands off the stick), wait 2 seconds, then click Calibrate the stick.' : 'Ready. Click Calibrate the stick, wait 2 seconds and keep the stick centred.';
-    if (f.step < 32) {
-      const e = CAL_ORDER[f.step], notch = e >> 1;
-      if (!(e & 1)) return 'Let the stick rest in the centre and hold it still, then click Advance.';
-      if (notch % 2 === 0) return 'Push the stick firmly into the ' + notchName(notch) + ' notch and hold it still, then click Advance.' + (!view.octagon && notch % 4 ? ' Round gate: the edge at 45°.' : '');
-      return 'In-between notch #' + notch + ': if your gate has none here, leave the stick in the centre, then click Advance.';
-    }
-    const i = f.step - 32;
-    if (i < ADJ_ORDER.length) return 'Notch adjustment (' + notchName(ADJ_ORDER[i]) + '): hold Rotate CW / CCW to nudge it, Reset notch to undo, Advance to accept.';
-    return 'Finishing and saving...';
+  function notchName(n) { return { 0: 'right', 2: 'up-right', 4: 'up', 6: 'up-left', 8: 'left', 10: 'down-left', 12: 'down', 14: 'down-right' }[n] || 'in-between'; }
+  // the calibration box, from each frame: getting ready, the 32 capture steps (16 notches, each centre then edge), the
+  // 12 notch adjustments, saving
+  function showStep(f) {
+    const now = performance.now();
+    const ready = f.step < 0 && cal.starting && now < cal.starting + 4000;   // clicked Calibrate, the firmware hasn't started yet
+    const on = f.step >= 0 || ready;
+    calBox.classList.toggle('hidden', !on); bCal.disabled = on;
+    if (f.step >= 0) cal.starting = 0;
+    if (on) { tag.el.classList.remove('hidden'); tag.set('busy'); }
+    if (cal.was >= 0 && f.step < 0) { tag.set('ok'); toast('Calibration complete', 'Your stick is calibrated and saved in the controller.'); view.reset(true); }
+    cal.was = f.step;
+    if (!on) return;
+    let title, text, sub = '', p = 0, buttons = [bUndo, bAdv], angle = false;
+    if (ready) {
+      title = 'GETTING READY'; text = 'Let go of the stick';
+      sub = f.locked ? 'Unlocking the controller...' : 'Reading the resting center...';
+      buttons = [];
+    } else if (f.step < 32) {
+      const e = CAL_ORDER[f.step], notch = e >> 1, n = (f.step >> 1) + 1;
+      title = 'CAPTURE THE CROSS (' + n + '/16)'; p = f.step / 44;
+      if (!(e & 1)) text = 'Let go of the stick so it rests in the middle, then press Advance (A)';
+      else if (notch % 2 === 0) text = 'Push the stick to the yellow cross (the ' + notchName(notch) + ' notch) then press Advance (A)';
+      else text = 'In-between notch: if your gate has none here, leave the stick in the middle, then press Advance (A)';
+      if (view.active && !isNaN(view.aim)) { let err = view.ang - view.aim; while (err > 180) err -= 360; while (err < -180) err += 360; sub = `aim ${Math.round(view.aim)}°   now ${Math.round(view.ang)}° (${err >= 0 ? '+' : ''}${Math.round(err)}°)   ${Math.round(view.pct)}% out`; }
+      else if (view.active && view.aimCenter) sub = `now ${Math.round(view.pct)}% out of the middle`;
+    } else if (f.step - 32 < ADJ_ORDER.length) {
+      const i = f.step - 32;
+      title = 'LINE THE NOTCH UP WITH YOUR GATE (' + (i + 1) + '/' + ADJ_ORDER.length + ')'; p = f.step / 44;
+      text = 'Rotate the ' + notchName(ADJ_ORDER[i]) + ' notch\'s angle with the − / + buttons (hold), then press Advance (A)';
+      buttons = [bUndo, bSkip, bAdv]; angle = true;
+    } else { title = 'SAVING'; text = 'Finishing and saving the calibration...'; buttons = []; p = 1; }
+    stepT.textContent = title; stepD.textContent = text; stepS.textContent = sub;
+    prog.firstChild.style.width = (p * 100) + '%'; prog.classList.toggle('hidden', ready);
+    angleRow.classList.toggle('hidden', !angle);
+    for (const b of [bUndo, bSkip, bAdv]) b.classList.toggle('hidden', !buttons.includes(b));
   }
 
   // ---------------------------------------------------------------- SETTINGS page (the left stick's: the C-stick is buttons)
-  // the 19 values of the "S" command, in setStickSettingsFromText's order (see the desktop app's SettingsPanel)
+  // the 19 values of the "S" command, in setStickSettingsFromText's order (see the desktop app's SettingsPanel); two
+  // cards in the design's style, each with Reset (back to the values read when connecting) and Save
   const vals = new Array(19).fill(0);
   let setTimer = 0;
   const sChanged = () => { clearTimeout(setTimer); setTimer = setTimeout(() => { pending.settings = vals.slice(); staged(); }, 200); };
   const signed = x => x > 0 ? '+' + x : String(x), plain = x => String(x), pctF = x => x + '%';
-  const SL = (cap, min, max, f, idx) => { const s = dslider(cap, min, max, f, v => { vals[idx] = v; sChanged(); }); s.idx = idx; return s; };
+  const SL = (cap, min, max, f, idx, tip) => { const s = dslider(cap, min, max, f, v => { vals[idx] = v; sChanged(); }); s.idx = idx; if (tip) s.el.title = tip; return s; };
   const sliders = [
-    SL('Snapback X', -10, 10, signed, 4), SL('Snapback Y', -10, 10, signed, 5),
-    SL('Smoothing X', 0, 18, plain, 6), SL('Smoothing Y', 0, 18, plain, 7),
-    SL('Waveshaping X', -24, 24, signed, 10), SL('Waveshaping Y', -24, 24, signed, 11),
-    SL('Cardinal snapping', -2, 6, signed, 0), SL('Analog scaler', 90, 110, pctF, 2),
+    SL('Snapback X', -10, 10, signed, 4, 'Less snapback when you let the stick go'), SL('Snapback Y', -10, 10, signed, 5, 'Less snapback when you let the stick go'),
+    SL('Smoothing X', 0, 18, plain, 6, 'Higher = smoother but slower'), SL('Smoothing Y', 0, 18, plain, 7, 'Higher = smoother but slower'),
+    SL('Waveshaping X', -24, 24, signed, 10, 'The stick\'s response during fast movement'), SL('Waveshaping Y', -24, 24, signed, 11, 'The stick\'s response during fast movement'),
+    SL('Cardinal snapping', -2, 6, signed, 0, 'Snaps near-cardinal inputs to true up / down / left / right'), SL('Analog scaler', 90, 110, pctF, 2, 'The output at the gate edge, as a percent of the calibrated size'),
   ];
-  const note = t => el('p.hint.wrap', { text: t });
+  const resetSet = list => { if (!settings0) return; for (const s of list) { vals[s.idx] = settings0[s.idx]; s.value = vals[s.idx]; } sChanged(); };
+  const card = (title, list, note) => panel(title, [...list.map(s => s.el), el('p.hint.wrap', { text: note }),
+    el('div.btnrow.bottom', {}, [pbtn('Reset', 'sync', false, () => resetSet(list)), pbtn('Save', 'check', true, () => { clearTimeout(setTimer); pending.settings = vals.slice(); saveAll(); })])], 'stretch');
   const page2 = el('div.page.hidden.dpage.settings', {}, [
-    panel('SNAPBACK FILTERING', [sliders[0].el, sliders[1].el, note('Less snapback when you let the stick go (both sticks).')]),
-    panel('STICK SMOOTHING', [sliders[2].el, sliders[3].el, note('Smooths the stick\'s output; higher = smoother but slower.')]),
-    panel('WAVESHAPING', [sliders[4].el, sliders[5].el, note('The stick\'s response during fast movement.')]),
-    panel('CARDINAL SNAPPING', [sliders[6].el, note('Snaps near-cardinal inputs to true up / down / left / right.')]),
-    panel('ANALOG SCALER', [sliders[7].el, note('The output at the gate edge, as a percent of the calibrated size.')]),
+    card('STICK RESPONSE', sliders.slice(0, 4), 'Snapback: less bounce when you let the stick go. Smoothing: higher is smoother but slower.'),
+    card('STICK SHAPING', sliders.slice(4), 'Waveshaping: the response during fast movement. Cardinal snapping: near-cardinal inputs snap to the axis.'),
   ]);
   function showSettings(v) { for (let i = 0; i < 19; i++) vals[i] = v[i]; for (const s of sliders) s.value = vals[s.idx]; }
 
+  // ---------------------------------------------------------------- BACKUP & RESTORE (parts.js): the button map, the LED colors,
+  // the stick settings and the axis flips. The stick calibration stays in the controller: PhobGCC doesn't send it.
+  const backup = backupPage({
+    controller: 'PhobGCC', board: boardName, firmware: '', mode: () => 'GameCube',
+    exportData: async () => {
+      if (!map || !led || !settings || !frame) throw new Error('the controller hasn\'t sent all its settings yet. Wait a second and try again');
+      return { format: 'padbox-phob-backup', version: 1, board: boardName, created: new Date().toISOString(),
+        map: (pending.map || map).slice(), led: led.slice(), settings: (pending.settings || vals).slice(), inv: pending.inv >= 0 ? pending.inv : frame.inv & 15 };
+    },
+    fileName: name => 'PadBox GS Platform - PhobGCC - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
+    check: d => !d || d.format !== 'padbox-phob-backup' ? 'This file isn\'t a PhobGCC configuration file. GP2040-CE and HOJA2 files only go back onto those firmwares.'
+      : d.board !== boardName ? 'This configuration is from a PadBox ' + d.board + ', not a PadBox ' + boardName + '.'
+      : !Array.isArray(d.map) || d.map.length !== 42 || !Array.isArray(d.led) || d.led.length !== N_LEDS * 3 + 1 || !Array.isArray(d.settings) || d.settings.length !== 19 ? 'This configuration is incomplete or damaged.'
+      : frame && frame.step >= 0 ? 'Finish the stick calibration first.' : '',
+    restore: async d => {
+      led = d.led.slice(); sendLed(); showAllColor(ledRgbRaw(4));
+      map = d.map.slice(); pending.map = map.slice();
+      showSettings(d.settings); pending.settings = d.settings.slice();
+      pending.inv = (invOther & 12) | (d.inv & 3);
+      refreshSide(); await saveAll();
+      return 'Restored and saved in the controller. The stick calibration isn\'t part of a backup: it stays as it is.';
+    },
+  });
+  const page3 = backup.page;
+
   // ---------------------------------------------------------------- the side menu, lines from the controller, timers
-  const pages = [page0, page1, page2];
+  const pages = [page0, page1, page2, page3];
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   let curPage = page0;
-  shell.tabs(['CONTROLLER', 'CALIBRATION', 'SETTINGS'], i => { curPage = pages[i]; pages.forEach((p, k) => p.classList.toggle('hidden', k !== i)); },
+  shell.tabs(['CONTROLLER', 'STICKS', 'SETTINGS', 'BACKUP & RESTORE'], i => { curPage = pages[i]; pages.forEach((p, k) => p.classList.toggle('hidden', k !== i)); },
     { SETTINGS: 'Fine-tune how the stick responds' });
   refreshSide(); showAllColor(allColor);
 
@@ -368,6 +393,7 @@ export async function startPhob(shell, dev, opts) {
     } else if (line.startsWith('S,')) {
       const s = ints(line, 19); if (!s) return;
       if (wanted.settings) { if (s.join() !== wanted.settings.join()) return; wanted.settings = null; say('Settings saved in the controller.', 'var(--good)'); }
+      if (!settings0) settings0 = s.slice();
       if (!pending.settings) { settings = s; showSettings(s); }
     }
   };
@@ -382,11 +408,8 @@ export async function startPhob(shell, dev, opts) {
     view.outX = (f.ax - 127) / 100; view.outY = (f.ay - 127) / 100;
     // while calibrating, the C-stick's output is the target
     view.hasTarget = view.active; view.tx = (f.cx - 127) / 100; view.ty = (f.cy - 127) / 100;
-    if (f.step < 0) { stepLbl.textContent = f.locked ? 'Locked' : 'Ready'; stepLbl.classList.toggle('ok', !f.locked); prog.firstChild.style.width = '0%'; }
-    else { stepLbl.textContent = 'Step ' + (f.step + 1) + ' of 44' + (f.step >= 32 ? ': notch adjustment' : ''); stepLbl.classList.remove('ok'); prog.firstChild.style.width = (Math.min(f.step, 44) / 44 * 100) + '%'; }
-    instr.textContent = instruction(f);
-    const names = BTN_NAMES.filter((_, i) => f.buttons & (1 << i));
-    seen.textContent = 'Buttons: ' + (names.length ? names.join(', ') : '-');
+    if (curPage === page1) { const r = readout(view.outX, view.outY); rd1.textContent = r.xy + (r.angle ? '     ' + r.angle : ''); }
+    showStep(f);
     invOther = f.inv & 12;
     if (wanted.inv >= 0 && f.inv === wanted.inv) { wanted.inv = -1; say('Axis flip saved in the controller. No need to recalibrate.', 'var(--good)'); view.reset(true); }
     else if (wanted.inv < 0 && pending.inv < 0) { flips[0].checked = (f.inv & 1) !== 0; flips[1].checked = (f.inv & 2) !== 0; }

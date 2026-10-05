@@ -414,7 +414,7 @@ export async function startGp(shell, dev, opts) {
   // (GP2040-CE's /api/getConfig), to a file and the backup history; restoring sends it back (/api/setConfig)
   const backup = backupPage({
     controller: 'GP2040-CE', board: L.board, firmware: s.ver && s.ver.version ? String(s.ver.version) : '',
-    profiles: () => 1 + m.altDocs.filter(d => d && d.enabled !== false).length,
+    mode: () => profileName(clamp(m.profileNumber, 1, 4)),   // the button profile in use
     exportData: () => dev.get('/api/getConfig'),
     fileName: name => 'PadBox ' + L.board + ' - GP2040-CE - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
     check: d => !d || typeof d !== 'object' || Array.isArray(d) ? 'This file isn\'t a PadBox configuration file.'

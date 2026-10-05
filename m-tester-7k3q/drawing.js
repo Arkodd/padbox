@@ -237,7 +237,13 @@ export function buildDrawing(onPick, tip, label, board) {
   const paintLabels = () => {
     for (const [pin, t, a, x, y, size] of labels) {
       const v = label ? label(pin) : '', turn = TURN[v];
-      t.textContent = turn === undefined ? v : '';
+      // "R 10%": the amount small under the name, as in the GS Platform design
+      const two = turn === undefined && /^(.+) (\d+%)$/.exec(v);
+      if (two) {
+        t.textContent = '';
+        el('tspan', { x, dy: -size * 0.12 }, t).textContent = two[1];
+        el('tspan', { x, dy: size * 0.62, 'font-size': size * 0.42 }, t).textContent = two[2];
+      } else t.textContent = turn === undefined ? v : '';
       a.setAttribute('visibility', turn === undefined ? 'hidden' : 'visible');
       if (turn !== undefined) a.setAttribute('transform', `translate(${x} ${y}) rotate(${turn}) scale(${size * 0.95})`);
     }

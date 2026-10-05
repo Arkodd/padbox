@@ -419,3 +419,50 @@ dialog .name-in { width: 100%; box-sizing: border-box; height: 32px; border: 0; 
 .dpage.sticks.hoja .stick-ctl .dslider { margin-top: 3px; }
 .dpage.sticks.hoja .angle-row { margin-top: 4px; }
 .dpage.sticks.hoja .two.flips { margin-top: 7px; }
+
+/* ================================================================ PhobGCC on the GS Platform (Figma "PadBox GS Platform") */
+/* STICKS: one wide panel - the gate and Set center on the left; axes, gate shape, the calibration step and Calibrate on the right */
+.dpage.phobsticks { display: block; }
+.panel.phob-wide { width: 775px; height: 415px; box-sizing: border-box; }
+.panel.phob-wide .ptitle { margin-bottom: 0; }
+.phob-body { display: grid; grid-template-columns: 300px 1fr; gap: 45px; }
+.phob-left { display: flex; flex-direction: column; align-items: center; }
+.phob-left .gate-wrap { padding-top: 12px; }
+canvas.phob-gate-cv { width: 252px; height: 252px; }
+.phob-left .rd { margin-top: 2px; }
+.phob-left .angle-row { margin-top: 10px; }
+.phob-left .angle-row .pbtn.angle { width: 100px; }
+.phob-left .angle-hint { white-space: normal; width: 230px; line-height: 10.5px; margin-top: 5px; }
+.legend .lg-x { color: #ffd23c; font-weight: 600; margin-left: 8px; font-size: 8px; }
+.phob-right { padding-top: 66px; }
+.phob-right .two.flips { margin-top: 0; }
+.cal-box { border: 1px solid #c5c5c5; border-radius: 4px; padding: 9px 13px 12px; margin-top: 10px; }
+.cal-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cal-t { color: var(--orange); font: 600 11px/14px "Poppins", sans-serif; }
+.cal-d { font-size: 10px; line-height: 14px; color: #e6e6e6; margin-top: 5px; }
+.cal-s { font-size: 8px; color: #9a9a9a; margin-top: 2px; min-height: 11px; }
+.cal-box .phob-prog { margin: 5px 0 0; height: 3px; }
+.cal-btns { margin-top: 10px; }
+.cal-btns .pbtn, .cal-main .pbtn { height: 26px; }
+.cal-main { margin-top: 12px; justify-content: flex-end; }
+.cal-main .pbtn { flex: 0 0 calc(50% - 4px); }
+.pbtn .key { display: inline-flex; align-items: center; justify-content: center; min-width: 11px; height: 11px; padding: 0 3px; box-sizing: border-box; border-radius: 6px;
+  background: #e6e6e6; color: #262626; font: 600 6.5px "Poppins", sans-serif; font-style: normal; margin-right: 3px; }
+.pbtn.primary .key { background: #fff; color: var(--orange); }
+.angle-off { display: flex; align-items: center; gap: 6px; font-size: 9px; color: #9a9a9a; white-space: nowrap; }
+.hold { width: 14px; height: 14px; padding: 0; border: 0; border-radius: 50%; background: #e6e6e6; color: #262626; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.hold svg { width: 12px; height: 12px; }
+.hold:active { background: var(--orange); color: #fff; }
+
+/* a notice at the top right ("Calibration complete") */
+.toast { position: absolute; right: 12px; top: 70px; z-index: 50; width: 292px; display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px 9px;
+  border-radius: 3px; background: #1d3a26; box-shadow: 0 4px 14px rgba(0, 0, 0, .45); }
+.toast-ic { flex: none; width: 13px; height: 13px; margin-top: 1px; border-radius: 50%; border: 1.3px solid var(--good); color: var(--good); display: flex; align-items: center; justify-content: center; }
+.toast-ic svg { width: 10px; height: 10px; }
+.toast-t { font: 600 10px "Poppins", sans-serif; color: #f0f0f0; }
+.toast-d { margin-top: 2px; font-size: 8.3px; color: #c8c8c8; }
+.toast-x { margin-left: auto; padding: 0; border: 0; background: transparent; color: #c8c8c8; font-size: 13px; line-height: 1; cursor: pointer; }
+
+/* HOJA2: the one-color-for-all wheel greyed out in the effects that don't use it (Fairy, Rainbow, Authentic) */
+.colorrow.off { opacity: .35; }
+.colorrow.off > * { pointer-events: none; }
