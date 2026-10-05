@@ -1,14 +1,15 @@
-// COPY for trying the new design (Figma "PadBox Software"): the GP2040-CE PadBox Calibrator for the PadBox GS Essential,
-// with the redesigned CONTROLLER page and frame (header, side menu). STICKS, SETTINGS and BACKUP are the current app's pages,
-// and saving works exactly as in the app (js/gp/app.js), which this is a copy of.
+// The GP2040-CE PadBox Calibrator in the new design (Figma "PadBox Software", then the GS Essential Redesign:
+// "PadBox GP2040 Essential.pdf") for the PadBox GS Essential and GS Platform: CONTROLLER, STICKS, SETTINGS and
+// BACKUP & RESTORE. Saving works exactly as in the previous app (js/gp/app.js), which this started as a copy of.
 
 import { el, icon, button, card, toggle, slider, combo, setItems, swatchRow, pickColor, hex, readable, image, clamp, sleep, download, openFile, confirmBox, setButtonText, dialog } from './js/ui.js';
 import { Model, ACTS, act, COMBO_PARTS, comboName } from './js/gp/model.js';
 import { firmwareUpdate } from './js/update.js';
 import { buildDrawing } from './drawing.js';
+import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, paintGate, readout, multiSelect, backupPage } from './parts.js';
 import { dicon } from './icons.js';
 
-const SOCD = ['Up priority', 'Neutral (opposite directions cancel out)', 'Second input priority', 'First input priority (locking)', 'Bypass (no cleaning)'];
+const SOCD = ['Up priority', 'Neutral (Opposite directions cancel out)', 'Second input priority', 'First input priority (Locking)', 'Bypass (No cleaning)'];
 const EFFECTS = ['Static color', 'Rainbow', 'Chase', 'Static theme', 'Custom theme'];
 const PRESETS = [0x0000ff, 0xff6800, 0xff0000, 0x00ff00, 0xffffff, 0xa020f0, 0x00ffff];
 
@@ -44,9 +45,14 @@ export async function startGp(shell, dev, opts) {
   const iconBtn = (cls, ic, title, onclick) => { const b = el('button.act.' + cls, { type: 'button', title, html: dicon(ic) }); b.addEventListener('click', onclick); return b; };
   const btnUpdate = iconBtn('outline', 'download', 'Update firmware', () => firmwareUpdate({ board: L.board, current: 'GP2040-CE', enter: noDrive => reboot(noDrive ? 3 : 2, true) }));
   const btnSave = iconBtn('save', 'save', 'Save to the controller', () => flush()); btnSave.disabled = true;
-  const btnPreview = iconBtn('light', 'beacon', 'Restart to Preview LED', () => reboot(1));
+  const btnPreview = iconBtn('light', 'beacon', 'Restart to preview LED', () => reboot(1));
+  // Disconnect: back to the connect screen; the PadBox stays in its configuration mode until it restarts
+  const btnPower = iconBtn('light', 'power', 'Disconnect', async () => {
+    if (Object.values(dirty).some(Boolean) && !await confirmBox('Unsaved changes', 'Your changes aren\'t saved on the controller yet. Disconnect anyway?', 'DISCONNECT')) return;
+    alive = false; shell.lost('Disconnected. The PadBox stays in configuration mode until you unplug it or restart it.');
+  });
   const btnExit = el('button.act.primary', { type: 'button', html: dicon('gamepad') + '<span>Restart as controller</span>' }); btnExit.addEventListener('click', () => reboot(0));
-  shell.actions([btnUpdate, btnSave, btnPreview, btnExit]);
+  shell.actions([btnUpdate, btnSave, btnPreview, btnPower, btnExit]);
 
   function markDirty(k) {
     dirty[k] = true; btnSave.disabled = false;
@@ -62,10 +68,15 @@ export async function startGp(shell, dev, opts) {
   const TRIG = 44, TRIG_OK = new Set([-10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
   const actOf = pin => pin === TRIG ? (m.taction ? m.taction : 11) : m.actionOf(pin);
   const fnName = a => (a ? a.long : '').replace(/\s*\/\s*/g, '/').replace(/\s+\(/, ' (');
+  // the D-pad, the bumper and the stick clicks: no label in the drawing while they have their default function
+  const QUIET_STICKS = { 'GS Essential': [18, 19] };
+  Object.assign(QUIET_STICKS, { 'M Essential': [18, 19], 'M Platform': [18] });   // @M
+  const QUIET = new Set([2, 3, 4, 5, 22, ...(QUIET_STICKS[L.board] || [])]);
+  const quiet = pin => QUIET.has(pin) && L.defaults && pin in L.defaults && actOf(pin) === L.defaults[pin];
   const drawing = buildDrawing(pin => select(pin), pin => {
     const a = act(actOf(pin));
     return (pin === TRIG ? 'Analog trigger' : m.nameOfPin(pin)) + '  →  ' + (a && a.value === 40 ? 'Custom combo: ' + (comboName(m.comboOf(pin)) || 'nothing yet') : a && a.value !== -10 ? fnName(a) : 'nothing');
-  }, pin => { const a = act(actOf(pin)); return !a || a.value === -10 ? '' : a.value === 32 ? 'Turbo' : a.value === 40 ? (comboName(m.comboOf(pin)) || 'Combo') : a.value <= 4 ? a.key : a.short; },   // D-pad: Up/Down/Left/Right, drawn as arrows
+  }, pin => { const a = act(actOf(pin)); return !a || a.value === -10 || quiet(pin) ? '' : a.value === 32 ? 'Turbo' : a.value === 40 ? (comboName(m.comboOf(pin)) || 'Combo') : a.value <= 4 ? a.key : a.short; },   // D-pad: Up/Down/Left/Right, drawn as arrows
   { 'GS Platform': 'platform', 'M Essential': 'm-essential', 'M Platform': 'm-platform' }[L.board] || 'essential');   // @M
   // @GS { 'GS Platform': 'platform' }[L.board] || 'essential');
 
@@ -198,7 +209,7 @@ export async function startGp(shell, dev, opts) {
     profileBar.value = String(clamp(m.editProfile, 1, 4));
     const none = selPin < 0;
     empty.classList.toggle('hidden', !none); settingsPanel.classList.toggle('hidden', none);
-    column.classList.toggle('selected', !none);
+    column.classList.toggle('selected', !none); page0.classList.toggle('selected', !none);
     if (!none) {
       const ph = selPin === TRIG ? null : m.phys(selPin);
       for (const o of fn.options) o.disabled = selPin === TRIG && !TRIG_OK.has(+o.value);   // what the trigger can do
@@ -239,109 +250,98 @@ export async function startGp(shell, dev, opts) {
 
 
   // ---------------------------------------------------------------- the design's building blocks for the other pages
-  const panel = (title, kids, cls) => el('div.panel' + (cls ? '.' + cls : ''), {}, [el('div.ptitle', { text: title }), ...kids]);
-  function dtoggle(text, onchange) {
-    const input = el('input', { type: 'checkbox' });
-    const lab = el('label.dtoggle', {}, [input, el('i'), el('span', { text })]);
-    input.addEventListener('change', () => onchange(input.checked));
-    return { el: lab, get checked() { return input.checked; }, set checked(v) { input.checked = !!v; } };
-  }
-  function dslider(caption, min, max, fmt, onchange) {
-    const val = el('span'), input = el('input.range', { type: 'range', min, max, step: 1 });
-    const paint = () => { const v = +input.value; val.textContent = fmt ? fmt(v) : String(v); input.style.setProperty('--p', (max > min ? (v - min) / (max - min) * 100 : 0) + '%'); };
-    input.addEventListener('input', () => { paint(); onchange(+input.value); });
-    const wrap = el('div.dslider', {}, [el('div.lbl.split', {}, [el('span', { text: caption }), val]), input]);
-    return { el: wrap, get value() { return +input.value; }, set value(v) { input.value = v; paint(); } };
-  }
+  // (panels, switches, sliders and buttons: parts.js)
   function dselect(items, onchange) {
     const s = el('select.field');
     items.forEach((t, i) => s.append(el('option', { value: i, text: t })));
     s.addEventListener('change', () => onchange(+s.value));
     return s;
   }
-  function pbtn(text, ic, primary, onclick) {
-    const b = el('button.pbtn.' + (primary ? 'primary' : 'outline'), { type: 'button', html: (ic ? icon(ic) : '') + '<span>' + text + '</span>' });
-    b.addEventListener('click', onclick);
-    return b;
-  }
 
   // ---------------------------------------------------------------- STICKS page
+  // The redesign: one tall panel per stick - its name with Calibrated / Not calibrated, Enabled; the gate with the stick
+  // in it and its reading; the axes; the gate's shape; the deadzones; then Reset and Calibrate. A stick switched off shows
+  // "Stick disabled" instead of its settings.
   const sticks = [makeStick(0, 'LEFT STICK'), makeStick(1, 'RIGHT STICK')];
   const page1 = el('div.page.hidden.dpage.sticks', {}, sticks.map(s => s.card));
   function makeStick(idx, title) {
-    const cv = el('canvas.gate');
-    const en = dtoggle('Stick enabled', v => { if (idx === 0) m.stick1Enabled = v; else m.stick2Enabled = v; markDirty('cal'); });
-    const stepL = el('div.step'), infoL = el('div.info');
+    const cv = el('canvas.gate'), tag = badge();
+    const en = dtoggle('Enabled', v => { if (idx === 0) m.stick1Enabled = v; else m.stick2Enabled = v; markDirty('cal'); showOn(); }, 'Disabled');
+    const rd1 = el('div.rd1'), rd2 = el('div.rd2'), infoL = el('p.cal-info');
     const bCal = pbtn('Calibrate', 'target', true, () => begin());
     const bNext = pbtn('Next', '', true, () => next());
     const bCancel = pbtn('Cancel', '', false, () => end('Calibration cancelled.'));
-    const bReset = pbtn('Reset', 'reset', false, () => postCal({ ['s' + (idx + 1) + 'cal']: false }, 'Calibration removed. The stick is centred automatically at power-up again.'));
+    const bReset = pbtn('Reset', 'sync', false, () => postCal({ ['s' + (idx + 1) + 'cal']: false }, 'Calibration removed. The stick is centred automatically at power-up again.'));
+    bReset.title = 'Remove the stored calibration'; bCal.title = 'Store the stick\'s centre and full range in the controller';
     const fx = dtoggle('Flip X axis', () => flip()), fy = dtoggle('Flip Y axis', () => flip());
-    const inner = dslider('Inner deadzone', 0, 100, v => v + '%', v => { if (idx === 0) m.innerDeadzone = v; else m.innerDeadzone2 = v; markDirty('settings'); });
-    const outer = dslider('Outer deadzone', 0, 100, v => v + '%', v => { if (idx === 0) m.outerDeadzone = v; else m.outerDeadzone2 = v; markDirty('settings'); });
     // the gate: the right stick's is always round (GP2040-CE's forced circularity); the left one is round by default
     // and can be switched to octagonal (the stick then reaches the octagon's corners)
-    const circ = idx === 0 ? dtoggle('Force circularity (round gate)', v => { m.circularity = v; markDirty('settings'); }) : null;
-    const circNote = idx === 0 ? null : el('p.hint.wrap', { text: 'Circularity is always forced on this stick (round gate).' });
+    const gate = segmented(['Round Gate', 'Octagonal Gate'], v => { m.circularity = v === 0; markDirty('settings'); });
+    if (idx === 1) gate.lock(true, 'This stick\'s gate is always round');
+    const inner = dslider('Inner deadzone', 0, 100, v => v + '%', v => { if (idx === 0) m.innerDeadzone = v; else m.innerDeadzone2 = v; markDirty('settings'); });
+    const outer = dslider('Outer deadzone', 0, 100, v => v + '%', v => { if (idx === 0) m.outerDeadzone = v; else m.outerDeadzone2 = v; markDirty('settings'); });
+    const offMsg = el('div.stick-off', {}, [el('div.empty-t', { text: 'Stick disabled' }),
+      el('div.empty-d', { text: 'This stick is currently disabled. Enable it to access calibration, deadzone, and other input settings.' })]);
+    // while calibrating, the steps take the settings' place
+    const settingsBox = el('div.stick-set', {}, [el('div.two.flips', {}, [fx.el, fy.el]), gate.el, inner.el, outer.el]);
+    const controls = el('div.stick-ctl', {}, [settingsBox, infoL, el('div.btnrow.bottom', {}, [bReset, bCal, bCancel, bNext])]);
     const absent = el('div.empty-d', { text: 'No analog stick on this output.', style: { padding: '90px 0', textAlign: 'center' } });
-    const body = el('div.stick-body', {}, [
-      el('div.gate-col', {}, [cv]),
-      el('div.ctl-col', {}, [stepL, infoL, el('div.btnrow', {}, [bCal, bReset, bNext, bCancel]),
-        el('div.lbl', { text: 'Axes' }), el('div.two', {}, [fx.el, fy.el]),
-        inner.el, outer.el, circ && el('div', { style: { height: '6px' } }), circ && circ.el, circNote]),
-    ]);
+    const body = el('div.stick-body', {}, [el('div.gate-wrap', {}, [cv]), el('div.rd', {}, [rd1, rd2]), controls, offMsg]);
     const c = panel(title, [body, absent], 'stick');
-    c.firstChild.append(en.el);   // "Stick enabled" on the title row
-    const st = { card: c, outX: 0, outY: 0, state: 0, hx: [], hy: [], seen: 0, trail: [], present: true };
+    c.firstChild.append(tag.el, en.el);   // the badge and "Enabled" on the title row
+    const st = { card: c, outX: 0, outY: 0, state: 0, hx: [], hy: [], seen: 0, trail: [], present: true, msg: '' };
     let prov = null, w = null;
     const isAbsent = idx === 1 && L.noRightStick;
-    body.classList.toggle('hidden', isAbsent); absent.classList.toggle('hidden', !isAbsent); en.el.classList.toggle('hidden', isAbsent);
+    body.classList.toggle('hidden', isAbsent); absent.classList.toggle('hidden', !isAbsent); en.el.classList.toggle('hidden', isAbsent); tag.el.classList.toggle('hidden', isAbsent);
 
     function flip() { m.stick[idx].inv = (fx.checked ? 1 : 0) | (fy.checked ? 2 : 0); markDirty('cal'); }
+    function showOn() {
+      const on = en.checked;
+      controls.classList.toggle('hidden', !on); offMsg.classList.toggle('hidden', on);
+      if (!on && st.state) end();
+    }
     st.sync = () => {
       const c2 = m.stick[idx];
       fx.checked = (c2.inv & 1) !== 0; fy.checked = (c2.inv & 2) !== 0;
       en.checked = idx === 0 ? m.stick1Enabled : m.stick2Enabled;
       inner.value = clamp(idx === 0 ? m.innerDeadzone : m.innerDeadzone2, 0, 100);
       outer.value = clamp(idx === 0 ? m.outerDeadzone : m.outerDeadzone2, 0, 100);
-      if (circ) circ.checked = m.circularity; else m.circularity2 = true;   // saved round with the next Save
-      refresh();
+      if (idx === 0) gate.value = m.circularity ? 0 : 1; else { gate.value = 0; m.circularity2 = true; }   // saved round with the next Save
+      showOn(); refresh();
     };
     const sync = st.sync;
     function refresh() {
-      bCal.classList.toggle('hidden', st.state !== 0); bReset.classList.toggle('hidden', st.state !== 0);
-      bNext.classList.toggle('hidden', st.state === 0); bCancel.classList.toggle('hidden', st.state === 0);
-      if (st.state !== 0) return;
-      const c2 = m.stick[idx];
-      stepL.classList.toggle('ok', !!c2.cal);
-      if (c2.cal) { stepL.textContent = 'Calibrated'; infoL.textContent = `Centre ${c2.cx} / ${c2.cy}, X ${c2.minX}..${c2.maxX}, Y ${c2.minY}..${c2.maxY} (raw sensor counts).`; st.status = 'stored in the controller'; }
-      else { stepL.textContent = 'Not calibrated'; infoL.textContent = 'The stick is centred at power-up and its range is learned as you play. Calibrate to store both.'; st.status = 'automatic (no stored calibration)'; }
+      for (const [b, show] of [[bCal, st.state === 0], [bReset, st.state === 0], [bNext, st.state !== 0], [bCancel, st.state !== 0]]) b.classList.toggle('hidden', !show);
+      tag.set(st.state ? 'busy' : m.stick[idx].cal ? 'ok' : 'no');
+      settingsBox.classList.toggle('hidden', st.state !== 0); infoL.classList.toggle('hidden', st.state === 0);
+      if (st.state === 0) st.status = '';
     }
+    // the steps in the panel while calibrating; the result in the status line at the bottom
+    function say(t, color) { if (st.state) { infoL.textContent = t || ''; infoL.style.color = color || ''; } else if (t) shell.footer(t, color); }
     const mean = q => q.reduce((a, b) => a + b, 0) / Math.max(1, q.length);
     const spread = q => q.length ? Math.max(...q) - Math.min(...q) : 0;
-    function begin() { st.state = 1; st.trail = []; stepL.classList.remove('ok'); stepL.textContent = 'Step 1 of 2: centre'; infoL.textContent = 'Let go of the stick so it rests in the middle, then click Next.'; bNext.querySelector('span').textContent = 'Next'; refresh(); }
+    function begin() { st.state = 1; st.trail = []; st.msg = ''; say('Step 1 of 2: let go of the stick so it rests in the middle, then click Next.'); setPbtn(bNext, 'Next'); refresh(); }
     function next() {
       if (st.state === 1) {
-        if (st.hx.length < 8) { infoL.textContent = 'Not enough readings yet, wait a second and click Next again.'; return; }
+        if (st.hx.length < 8) { say('Not enough readings yet, wait a second and click Next again.', 'var(--warn)'); return; }
         const wob = Math.max(spread(st.hx), spread(st.hy));
-        if (wob > 120) { infoL.textContent = `The stick is still moving (${wob} counts of wobble). Let it rest and click Next again.`; return; }
+        if (wob > 120) { say(`The stick is still moving (${wob} counts of wobble). Let it rest and click Next again.`, 'var(--warn)'); return; }
         const cx = mean(st.hx), cy = mean(st.hy);
         w = { cx, cy, minX: cx, maxX: cx, minY: cy, maxY: cy };
         st.state = 2; st.trail = [];
-        stepL.textContent = 'Step 2 of 2: full range';
-        infoL.textContent = 'Roll the stick slowly around the edge 3 times, touching every corner. Click Finish when the trace shows the whole gate.';
-        bNext.querySelector('span').textContent = 'Finish';
+        say('Step 2 of 2: roll the stick slowly around the edge 3 times, touching every corner. Click Finish when the trace shows the whole gate.');
+        setPbtn(bNext, 'Finish');
       } else if (st.state === 2) {
         const rx = Math.min(w.maxX - w.cx, w.cx - w.minX), ry = Math.min(w.maxY - w.cy, w.cy - w.minY);
-        if (rx < 250 || ry < 250) { infoL.textContent = `Not enough movement: the stick has to reach the edge on all four sides (now ${rx | 0} / ${ry | 0} counts, need at least 250). Keep rolling it.`; return; }
+        if (rx < 250 || ry < 250) { say(`Not enough movement: the stick has to reach the edge on all four sides (now ${rx | 0} / ${ry | 0} counts, need at least 250). Keep rolling it.`, 'var(--warn)'); return; }
         const k = 's' + (idx + 1);
         postCal({ [k + 'cal']: true, [k + 'cx']: Math.round(w.cx), [k + 'cy']: Math.round(w.cy), [k + 'minx']: w.minX | 0, [k + 'maxx']: w.maxX | 0, [k + 'miny']: w.minY | 0, [k + 'maxy']: w.maxY | 0 }, 'Saved to the controller. Restart the controller to use it.');
       }
     }
-    function end(msg) { st.state = 0; st.trail = []; refresh(); if (msg) infoL.textContent = msg + ' ' + infoL.textContent; }
+    function end(msg, color) { st.state = 0; st.trail = []; refresh(); say(msg, color); }
     async function postCal(body, msg) {
-      try { const r = await dev.post('/api/setCalibration', body); m.loadCal(r); end(msg); sync(); }
-      catch (e) { infoL.textContent = 'Couldn\'t save: ' + e.message; }
+      try { const r = await dev.post('/api/setCalibration', body); m.loadCal(r); end(msg, 'var(--good)'); sync(); }
+      catch (e) { say('Couldn\'t save: ' + e.message, 'var(--bad)'); }
     }
     const norm = (v, c2, lo, hi) => v >= c2 ? (hi - c2 > 1 ? Math.min(1, (v - c2) / (hi - c2)) : 0) : (c2 - lo > 1 ? -Math.min(1, (c2 - v) / (c2 - lo)) : 0);
     st.feed = (x, y) => {
@@ -362,56 +362,55 @@ export async function startGp(shell, dev, opts) {
       if (st.state === 1) st.status = 'resting: ' + Math.max(spread(st.hx), spread(st.hy)) + ' counts of wobble';
       if (st.state === 2) { const rx = Math.min(w.maxX - w.cx, w.cx - w.minX), ry = Math.min(w.maxY - w.cy, w.cy - w.minY); st.status = `reach so far: X ${rx | 0}  Y ${ry | 0} counts`; }
     };
-    // the gate, in the design's colors: dark field, grey ring, the stick as an orange dot
+    // the gate (parts.js paintGate): a round gate stops the dot at the circle, as the firmware does
     st.paint = () => {
       if (isAbsent || page1.classList.contains('hidden')) return;
-      const r = cv.getBoundingClientRect(), z = parseFloat(getComputedStyle(document.getElementById('stage')).zoom) || 1, dpr = (window.devicePixelRatio || 1) * z;
-      const W = r.width / z, H = r.height / z;
-      if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-      const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-      const cx = W / 2, cy = W / 2, R = W / 2 - 6;
       const round = idx === 0 ? m.circularity : true;
-      // the gate's outline: an octagon with its corners at the 8 directions, or a circle
-      const gate = () => { g.beginPath(); if (round) g.arc(cx, cy, R, 0, Math.PI * 2); else { for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g[i ? 'lineTo' : 'moveTo'](cx + R * Math.cos(a), cy - R * Math.sin(a)); } g.closePath(); } };
-      gate(); g.fillStyle = '#232323'; g.fill();
-      g.lineWidth = 1; g.strokeStyle = '#353535';
-      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * R, cy - Math.sin(a) * R); g.stroke(); }
-      gate(); g.lineWidth = 1.5; g.lineJoin = 'round'; g.strokeStyle = '#c5c5c5'; g.stroke();
-      const din = (idx === 0 ? m.innerDeadzone : m.innerDeadzone2) / 100, dout = (idx === 0 ? m.outerDeadzone : m.outerDeadzone2) / 100;
-      g.setLineDash([4, 3]); g.lineWidth = 1.2;
-      if (din > 0.004) { g.strokeStyle = 'rgba(254,104,5,.8)'; g.beginPath(); g.arc(cx, cy, R * din, 0, Math.PI * 2); g.stroke(); }
-      if (dout < 0.996) { g.strokeStyle = 'rgba(40,166,255,.8)'; g.beginPath(); g.arc(cx, cy, R * dout, 0, Math.PI * 2); g.stroke(); }
-      g.setLineDash([]);
-      st.trail.forEach(([x, y], i) => { g.fillStyle = `rgba(40,166,255,${(26 + 150 * i / Math.max(1, st.trail.length - 1)) / 255})`; g.fillRect(cx + x * R - 1, cy - y * R - 1, 2, 2); });
-      // a round gate: the firmware limits the stick to the circle, so the dot stops at it too
       let px = st.outX, py = st.outY; const pm = Math.hypot(px, py); if (round && pm > 1) { px /= pm; py /= pm; }
-      const ox = cx + px * R, oy = cy - py * R;
-      g.beginPath(); g.arc(ox, oy, 6.5, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = '#2a2a2a'; g.stroke();
-      const mag = Math.hypot(st.outX, st.outY); let ang = Math.atan2(st.outY, st.outX) * 180 / Math.PI; if (ang < 0) ang += 360;
-      const f = v => (v > 0 ? '+' : '') + Math.round(v * 100);
-      g.font = '600 9.5px Poppins'; g.fillStyle = '#cfcfcf'; g.textAlign = 'center';
-      g.fillText(`X ${f(st.outX)}%   Y ${f(st.outY)}%   ${mag > 0.05 ? Math.round(ang) + '°' : 'centred'}`, cx, W + 12);
-      if (st.status) { g.font = '8.5px Poppins'; g.fillStyle = '#8a8a8a'; g.fillText(st.status, cx, W + 25); }
+      paintGate(cv, { round, din: (idx === 0 ? m.innerDeadzone : m.innerDeadzone2) / 100, dout: (idx === 0 ? m.outerDeadzone : m.outerDeadzone2) / 100,
+        out: [px, py], trail: st.trail, gate: st.state ? '#fe6805' : '#8a8a8a', off: !en.checked });
+      const r = readout(st.outX, st.outY);
+      rd1.textContent = r.xy; rd2.textContent = st.state && st.status ? st.status : r.centered ? 'Centered' : r.angle;
     };
     return st;
   }
 
   // ---------------------------------------------------------------- SETTINGS page
+  // INPUT BEHAVIOR and TURBO, each with Reset (back to GP2040-CE's defaults) and Save. TURBO's "Assigned Buttons" always
+  // repeat while held when turbo is on (GP2040-CE's SHMUP "always on" buttons); a button with the Turbo function can
+  // still switch turbo on or off for any button while playing.
   const socd = dselect(SOCD, i => { m.socdMode = i; markDirty('settings'); });
-  const fourWay = dtoggle('4-way mode (no diagonals)', v => { m.fourWayMode = v; markDirty('settings'); });
-  const debounce = dslider('Debounce delay', 0, 50, v => v === 0 ? 'off' : v + ' ms', v => { m.debounceDelay = v; markDirty('settings'); });
+  const fourWay = dtoggle('4-way mode (No diagonals on the D-Pad / Left stick)', v => { m.fourWayMode = v; markDirty('settings'); });
+  const debounce = dslider('Debounce delay', 0, 50, v => v === 0 ? 'Off' : v + 'ms', v => { m.debounceDelay = v; markDirty('settings'); });
   const rumble = dtoggle('Rumble enabled', v => { m.rumbleEnabled = v; markDirty('cal'); });
-  const turbo = dtoggle('Turbo enabled', v => { m.turboEnabled = v; markDirty('settings'); });
-  const shots = dslider('Shot count (higher is faster)', 2, 30, null, v => { m.turboShotCount = v; markDirty('settings'); });
-  const page2 = el('div.page.hidden.dpage.settings', {}, [
-    panel('INPUT BEHAVIOR', [el('div.lbl', { text: 'SOCD cleaning mode' }), socd, el('div', { style: { height: '12px' } }), fourWay.el, el('div', { style: { height: '8px' } }), debounce.el]),
-    panel('TURBO', [turbo.el, el('div', { style: { height: '8px' } }), shots.el, el('p.hint', { text: 'Give a button the Turbo function on the Controller page to use it.' })]),
-  ]);
+  const turbo = dtoggle('Enabled', v => { m.turboEnabled = v; markDirty('settings'); syncTurbo(); }, 'Disabled');
+  const shots = dslider('Shot count (Higher is faster)', 2, 30, null, v => { m.turboShotCount = v; markDirty('settings'); });
+  const TURBO_BTNS = COMBO_PARTS.filter(p => p.kind === 'b' && p.bit <= 128).map(p => { const a = ACTS.find(x => x.key === p.name); return { value: p.bit, text: a ? fnName(a) : p.name, short: p.name }; });
+  const assigned = multiSelect('Select buttons to enable Turbo', TURBO_BTNS, v => { m.turboMask = v.reduce((a, b) => a | b, 0); markDirty('settings'); });
+  assigned.el.title = 'These buttons repeat by themselves while held, whenever turbo is on';
+  const inputPanel = panel('INPUT BEHAVIOR', [el('div.lbl', { text: 'SOCD cleaning mode' }), socd, el('div.gap'), fourWay.el, debounce.el,
+    el('div.btnrow.bottom', {}, [
+      pbtn('Reset', 'sync', false, () => { m.socdMode = 1; m.fourWayMode = false; m.debounceDelay = 5; syncSettings(); markDirty('settings'); }),
+      pbtn('Save', 'check', true, () => flush()),
+    ])], 'stretch');
+  const turboOn = el('div.turbo-on', {}, [shots.el, el('div.lbl', { text: 'Assigned Buttons' }), assigned.el,
+    el('p.hint.wrap', { text: 'Turbo Mode automatically repeats the assigned button input while held, allowing faster repeated actions with less effort.' }),
+    el('div.btnrow.bottom', {}, [
+      pbtn('Reset', 'sync', false, () => { m.turboShotCount = 5; m.turboMask = 0; syncSettings(); markDirty('settings'); }),
+      pbtn('Save', 'check', true, () => flush()),
+    ])]);
+  const turboOff = el('div.panel-off', {}, [el('div.off-icon', { html: dicon('bolt') }), el('div.empty-t', { text: 'Turbo mode disabled' }),
+    el('div.empty-d', { text: 'Enable Turbo Mode to repeat supported button inputs automatically while held' })]);
+  const turboPanel = panel('TURBO', [turboOn, turboOff], 'stretch');
+  turboPanel.firstChild.append(turbo.el);
+  function syncTurbo() { turboOn.classList.toggle('hidden', !turbo.checked); turboOff.classList.toggle('hidden', turbo.checked); }
+  const page2 = el('div.page.hidden.dpage.settings', {}, [inputPanel, turboPanel]);
   // the PadBox M's rumble motor (the GS has none)   // @M
   if (L.m) page2.append(panel('RUMBLE', [rumble.el, el('p.hint', { text: 'Turns the vibration motor off completely.' })]));   // @M
   function syncSettings() {
     socd.value = String(clamp(m.socdMode, 0, 4)); fourWay.checked = m.fourWayMode; debounce.value = m.debounceDelay;
     turbo.checked = m.turboEnabled; shots.value = m.turboShotCount; rumble.checked = m.rumbleEnabled;
+    assigned.value = TURBO_BTNS.filter(t => (m.turboMask & t.value) !== 0).map(t => t.value); syncTurbo();
   }
 
   // @M{
@@ -472,24 +471,21 @@ export async function startGp(shell, dev, opts) {
   }
   // @M}
 
-  // ---------------------------------------------------------------- BACKUP page
-  const bStatus = el('p.hint.wrap');
-  const page3 = el('div.page.hidden.dpage.backup', {}, [
-    panel('BACKUP', [
-      el('p.text', { text: 'Save all the controller\'s settings (buttons, LEDs, calibration and settings) to a file, or load them back. Importing replaces everything on the controller.' }),
-      el('div.btnrow', {}, [
-        pbtn('Export to file', 'upload', true, async () => { try { bStatus.textContent = 'Exporting...'; const cfg = await dev.get('/api/getConfig'); download('padbox-backup.json', JSON.stringify(cfg, null, 1)); bStatus.textContent = 'Saved.'; } catch (e) { bStatus.textContent = 'Export failed: ' + e.message; } }),
-        pbtn('Import from file', 'download', false, async () => {
-          const text = await openFile('.json,application/json'); if (!text) return;
-          if (!await confirmBox('Import backup', 'This overwrites every setting currently on the controller with the ones in this file. Continue?', 'IMPORT')) return;
-          try { bStatus.textContent = 'Importing...'; await dev.post('/api/setConfig', JSON.parse(text)); bStatus.textContent = 'Imported. Click Restart as controller to apply everything.'; } catch (e) { bStatus.textContent = 'Import failed: ' + e.message; }
-        }),
-      ]), bStatus,
-    ]),
-  ]);
+  // ---------------------------------------------------------------- BACKUP & RESTORE page (parts.js): the whole configuration
+  // (GP2040-CE's /api/getConfig), to a file and the backup history; restoring sends it back (/api/setConfig)
+  const backup = backupPage({
+    controller: 'GP2040-CE', board: L.board, firmware: s.ver && s.ver.version ? String(s.ver.version) : '',
+    profiles: () => 1 + m.altDocs.filter(d => d && d.enabled !== false).length,
+    exportData: () => dev.get('/api/getConfig'),
+    fileName: name => 'PadBox ' + L.board + ' - GP2040-CE - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
+    check: d => !d || typeof d !== 'object' || Array.isArray(d) ? 'This file isn\'t a PadBox configuration file.'
+      : d.format ? 'This is a ' + (/hoja/.test(d.format) ? 'HOJA2' : 'different') + ' configuration file: it only goes back onto a PadBox running that firmware.' : '',
+    restore: async d => { await dev.post('/api/setConfig', d); return 'Restored. Click Restart as controller to apply everything.'; },
+  });
+  const page3 = backup.page;
 
   // ---------------------------------------------------------------- the side menu
-  const tabNames = ['CONTROLLER', 'STICKS', 'SETTINGS', 'BACKUP'], pages = [page0, page1, page2, page3];
+  const tabNames = ['CONTROLLER', 'STICKS', 'SETTINGS', 'BACKUP & RESTORE'], pages = [page0, page1, page2, page3];
   if (L.m) { tabNames.splice(2, 0, 'TRIGGER'); pages.splice(2, 0, pageTrig); }   // the PadBox M's analog trigger   // @M
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   shell.tabs(tabNames, i => pages.forEach((p, k) => p.classList.toggle('hidden', k !== i)));

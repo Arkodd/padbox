@@ -1,6 +1,6 @@
 // Test copy of the web app with the new design (Figma "PadBox Software"): GP2040-CE and HOJA2 on the PadBox GS
 // Essential and GS Platform, and PhobGCC on the GS Platform. The page is laid out at the design's own size (1046 x 653)
-// and scaled to the window, so it keeps its proportions. ?demo=gp, gp-platform, hoja, hoja-platform or phob tries it
+// and scaled to the window, so it keeps its proportions. ?demo=gp, gp-platform, hoja-essential, hoja-platform or phob tries it
 // without a controller. GP2040-CE and HOJA2 are reached with WebUSB, PhobGCC with Web Serial (its USB tool mode).
 
 import { el, icon, button } from './js/ui.js';
@@ -28,9 +28,9 @@ const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const PAGES = {
   CONTROLLER: ['controller', 'gamepad', 'Assign functions to each button and configure LED lighting'],
-  STICKS: ['sticks', 'stick', 'Calibrate the sticks and set their deadzones'],
-  SETTINGS: ['settings', 'gear', 'Choose how the buttons and the turbo behave'],
-  BACKUP: ['backup', 'cloud', 'Save the controller\'s settings to a file, or load them back'],
+  STICKS: ['sticks', 'stick', 'Calibrate stick input and adjust deadzones and stick behavior'],
+  SETTINGS: ['settings', 'gear', 'Manage Turbo mode and other advanced controller settings'],
+  'BACKUP & RESTORE': ['backup', 'cloud', 'Export your controller configuration or import a saved configuration file'],
   CALIBRATION: ['calibration', 'stick', 'Calibrate the stick notch by notch, with PhobGCC\'s own calibration'],
 };
 let current = null, connecting = false;
@@ -67,30 +67,53 @@ addEventListener('resize', fit); fit();
   stage.addEventListener('mousedown', hide);
 }
 
+// the side menu's flyout (HOJA2's modes): a list beside the button, closed by any click elsewhere
+let flyout = null, subOver = {}, curName = '';
+function closeMenu() { if (flyout) { flyout.remove(); flyout = null; } }
+function openMenu(btn, i, items) {
+  closeMenu();
+  flyout = el('div.flyout', { 'data-i': String(i) }, items().map(it => {
+    const b = el('button' + (it.sel ? '.sel' : ''), { type: 'button', text: it.text });
+    b.addEventListener('click', e => { e.stopPropagation(); closeMenu(); it.pick(); });
+    return b;
+  }));
+  flyout.style.top = ($('nav').offsetTop + btn.offsetTop) + 'px';
+  $('stage').append(flyout);
+}
+addEventListener('mousedown', e => { if (flyout && !flyout.contains(e.target) && !(e.target.closest && e.target.closest('#nav .has-menu'))) closeMenu(); });
+
 const shell = {
   header(title, board) { $('title').textContent = title; $('board').textContent = board || ''; $('who').classList.remove('hidden'); },
   status(on) { $('who').classList.toggle('off', !on); $('state').textContent = on ? 'Connected' : 'Not connected'; },
   actions(nodes) { const a = $('actions'); a.innerHTML = ''; for (const n of nodes || []) a.append(n); },
-  // subs: optional subtitles that replace PAGES' ({ SETTINGS: '...' })
-  tabs(names, onselect, subs) {
+  // subs: optional subtitles that replace PAGES' ({ SETTINGS: '...' }); menus: a flyout menu beside a side-menu button
+  // ({ 0: () => [{ text, sel, pick }] }, as HOJA2's controller modes in the redesign): clicking the button opens it
+  tabs(names, onselect, subs, menus) {
     const nav = $('nav'); nav.innerHTML = ''; nav.classList.toggle('hidden', !names);
     $('heading').classList.toggle('hidden', !names);
     if (!names) return;
+    closeMenu(); subOver = {};
     const btns = names.map((n, i) => {
       const b = el('button', { type: 'button', title: n.charAt(0) + n.slice(1).toLowerCase(), html: dicon(PAGES[n][1]) });
-      b.addEventListener('click', () => select(i));
+      if (menus && menus[i]) b.classList.add('has-menu');
+      b.addEventListener('click', () => { const was = !!flyout && flyout.dataset.i === String(i); select(i); if (menus && menus[i] && !was) openMenu(b, i, menus[i]); });
       nav.append(b);
       return b;
     });
     const select = i => {
       btns.forEach((b, k) => b.classList.toggle('sel', k === i));
-      $('h1').textContent = names[i]; $('h2').textContent = (subs && subs[names[i]]) || PAGES[names[i]][2];
+      closeMenu();
+      curName = names[i]; $('h1').textContent = names[i]; paintSub();
       document.body.dataset.page = PAGES[names[i]][0];
       onselect && onselect(i);
     };
+    const paintSub = () => { const o = subOver[curName]; if (o) { $('h2').innerHTML = ''; $('h2').append(o); } else $('h2').textContent = (subs && subs[curName]) || PAGES[curName][2]; };
+    shell.sub = (name, node) => { subOver[name] = node; if (name === curName) paintSub(); };
     select(Math.min(btns.length - 1, +(params.get('tab') || 0)));
     return { select };
   },
+  // a page's subtitle replaced by a node (HOJA2: "... in Switch Pro mode", the mode in its color); set up by tabs()
+  sub() { },
   content(node) { const m = $('main'); m.innerHTML = ''; m.append(node); },
   footer(text, color) { const m = $('msg'); m.textContent = text || ''; m.style.color = color || ''; },
   lost(message) { disconnect(message); },
@@ -114,7 +137,7 @@ function showConnect(problem) {
     el('h1', { text: 'CONNECT' }),
     el('p', { text: 'Plug the PadBox GS in with a USB data cable (for GP2040-CE, hold Start while plugging it in), then click CONNECT and choose it in the list. PhobGCC (GS Platform): hold Start while plugging it in, then click CONNECT PHOBGCC and choose "PadBox GS Calibrator".' }),
     el('div.connect-btns', {}, [btn, serBtn]),
-    el('p.demo', { html: 'No controller at hand? Try the demo: GP2040-CE on the <a href="?demo=gp">GS Essential</a> or <a href="?demo=gp-platform">GS Platform</a>, HOJA2 on the <a href="?demo=hoja-platform">GS Platform</a>, PhobGCC on the <a href="?demo=phob">GS Platform</a>' }),
+    el('p.demo', { html: 'No controller at hand? Try the demo: GP2040-CE on the <a href="?demo=gp">GS Essential</a> or <a href="?demo=gp-platform">GS Platform</a>, HOJA2 on the <a href="?demo=hoja-essential">GS Essential</a> or <a href="?demo=hoja-platform">GS Platform</a>, PhobGCC on the <a href="?demo=phob">GS Platform</a>' }),
     problem ? el('p.problem' + (/^Updated to /.test(problem) ? '.good' : ''), { text: problem }) : null,   // after an update: in green
   ]));
 }
@@ -164,9 +187,9 @@ navigator.serial && navigator.serial.addEventListener('connect', e => { if (!cur
 addEventListener('beforeunload', e => { if (current && current.app && current.app.dirty && current.app.dirty()) { e.preventDefault(); e.returnValue = ''; } });
 
 (async () => {
-  const demo = params.get('demo');   // ?demo=gp, gp-platform, hoja, hoja-platform or phob
+  const demo = params.get('demo');   // ?demo=gp, gp-platform, hoja-essential, hoja-platform or phob
   if (demo && demo.startsWith('phob')) { const d = new PhobDemo('GS Platform'); await d.open(); return run(d, startPhob, { demo: true }); }
-  if (demo && demo.startsWith('hoja')) { const d = new HojaDemo(true, true); await d.open(); return run(d, startHoja, { demo: true }); }
+  if (demo && demo.startsWith('hoja')) { const d = new HojaDemo(!demo.includes('essential'), true); await d.open(); return run(d, startHoja, { demo: true }); }
   if (demo) return run(new GpDemo(demo.includes('platform'), true), startGp, { demo: true });
   showConnect();
   try { const list = navigator.usb ? await navigator.usb.getDevices() : []; const d = list.find(x => isGp(x) || isHoja(x)); if (d) open(d); } catch (e) { }

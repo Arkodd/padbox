@@ -1,8 +1,9 @@
-// The HOJA2 PadBox Calibrator in the new design (Figma "PadBox Software"), for the PadBox GS Essential and GS Platform:
-// the same frame, drawing and panels as the GP2040-CE copy (gp-app.js), with HOJA2's settings - a copy of js/hoja/app.js.
-// CONTROLLER: the mode (top right), what each button does in that mode, its LED color, and the lighting (effect, color,
-// idle glow, brightness, animation time - as in the design's image.png). STICKS: calibration, deadzones, snapback,
-// curve and ANGLE SET. Changes apply to the PadBox right away (written into its RAM); Save keeps them.
+// The HOJA2 PadBox Calibrator in the new design (Figma "PadBox Software", then the GS Essential Redesign: "PadBox HOJA2
+// Essential.pdf"), for the PadBox GS Essential and GS Platform: the same frame, drawing and panels as gp-app.js, with
+// HOJA2's settings - it started as a copy of js/hoja/app.js. CONTROLLER: the mode (in the menu beside the CONTROLLER
+// button, named under the title), what each button does in that mode, its LED color, and the lighting (effect, color,
+// idle glow, brightness, animation time). STICKS: calibration, ANGLE SET, deadzones, snapback and curve. BACKUP &
+// RESTORE. Changes apply to the PadBox right away (written into its RAM); Save keeps them.
 
 import { el, pickColor, hex, clamp, confirmBox, download, openFile } from './js/ui.js';
 import { Blk, Rpt, DeviceInfo } from './js/hoja/device.js';
@@ -10,6 +11,7 @@ import { Analog, Rgb, Gamepad, Input, IN, IN_TRIGGER, INPUTS, PROFILES, MODES, p
 import { firmwareUpdate } from './js/update.js';
 import { buildDrawing } from './drawing.js';
 import { dicon } from './icons.js';
+import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, paintGate, readout, backupPage } from './parts.js';
 
 // The drawing's buttons (named by their GP2040-CE GPIO, see drawing.js) -> HOJA2's input slots and LED numbers
 // (js/hoja/model.js gsEssential / gsPlatform)
@@ -83,12 +85,11 @@ export async function startHoja(shell, dev, opts) {
   const iconBtn = (cls, ic, title, onclick) => { const b = el('button.act.' + cls, { type: 'button', title, html: dicon(ic) }); b.addEventListener('click', onclick); return b; };
   const btnUpdate = iconBtn('outline', 'download', 'Update firmware', () => firmwareUpdate({ board: lay.board, current: 'HOJA2', enter: async noDrive => { alive = false; await dev.bootloader(noDrive); } }));
   const btnSave = iconBtn('save', 'save', 'Save to the PadBox', save); btnSave.disabled = true;
-  const btnDone = el('button.act.primary', { type: 'button', html: dicon('gamepad') + '<span>Disconnect</span>' });
-  btnDone.addEventListener('click', async () => {
+  const btnPower = iconBtn('light', 'power', 'Disconnect', async () => {
     if (dirty.size && !await confirmBox('Unsaved changes', 'Your changes work now but aren\'t saved: they\'ll be lost when the PadBox is unplugged. Disconnect anyway?', 'DISCONNECT')) return;
     shell.lost(null);
   });
-  shell.actions([btnUpdate, btnSave, btnDone]);
+  shell.actions([btnUpdate, btnSave, btnPower]);
 
   // ---------------------------------------------------------------- CONTROLLER page
   let editProfile = 0, selInput = -1;
@@ -105,20 +106,26 @@ export async function startHoja(shell, dev, opts) {
   }, pin => {
     const i = inputOf(pin), o = selectable(i) ? outputOf(i) : null;
     if (!o) return '';
+    const own = { 2: 'D-pad up', 3: 'D-pad down', 5: 'D-pad left', 4: 'D-pad right' }[pin];
+    if (own && o.name === own) return '';
+    if (!platform && ((pin === 18 && o.short === 'LS') || (pin === 19 && o.short === 'RS'))) return '';
+    if (pin === 22 && /^(L|LB|L1)$/.test(o.short)) return '';
     if (/^D-pad /.test(o.name)) return ARROWS[o.short] || o.short;
     const amt = amountOf(i);
     return amt != null && amt < 100 ? o.short.replace('~', '') + ' ' + amt + '%' : o.short;
   }, platform ? 'platform' : 'essential');
 
-  // the mode, top right (where the GP2040-CE copy has its profile): which console the PadBox talks to; each mode
-  // has its own button mapping
-  const modeSel = el('select.field.profile-sel', { title: 'The controller mode: which console the PadBox acts as. Each mode has its own button mapping.' });
-  for (const [n, v] of MODES) modeSel.append(el('option', { value: v, text: n }));
-  modeSel.addEventListener('change', () => {
-    editProfile = profileOfMode(+modeSel.value);
-    Gamepad.setMode(B[Blk.GAMEPAD], +modeSel.value); changed(Blk.GAMEPAD);
-    refreshSide();
-  });
+  // the mode: which console the PadBox acts as, each with its own button mapping. The redesign chooses it in a menu
+  // beside the CONTROLLER button (shell.tabs menus) and names it under the page's title, in the console's color.
+  const MODE_MENU = [[0, 'Switch Pro', '#e60012'], [3, 'GameCube', '#8f7fd8'], [2, 'Slippi', '#21ba45'], [4, 'Nintendo 64', '#f2b705'],
+    [5, 'SNES', '#b4a7e5'], [1, 'XInput (Xbox / PC)', '#52b043'], [6, 'SInput', '#28a6ff']];
+  let curMode = 0;
+  function showMode() {
+    const mm = MODE_MENU.find(x => x[0] === curMode) || MODE_MENU[0];
+    shell.sub('CONTROLLER', el('span', {}, ['Assign functions to each button and configure LED lighting', el('br'), 'in ', el('b.mode-name', { text: mm[1], style: { color: mm[2] } }), ' mode']));
+  }
+  function setMode(v) { curMode = v; editProfile = profileOfMode(v); Gamepad.setMode(B[Blk.GAMEPAD], v); changed(Blk.GAMEPAD); showMode(); refreshSide(); }
+  const modeMenu = () => MODE_MENU.map(([v, text]) => ({ text, sel: v === curMode, pick: () => { if (v !== curMode) setMode(v); } }));
 
   // the right-hand column: BUTTON SETTINGS (or "No button selected"), then GLOBAL LED SETTINGS
   const empty = el('div.panel.empty', {}, [
@@ -168,15 +175,17 @@ export async function startHoja(shell, dev, opts) {
     el('div.noled-note', { text: 'This button has no LED' }),
   ]);
   ledFieldBtn.title = 'This button\x27s LED color (used by the Static, Reactive and Fairy effects)';
-  const btnResetMode = el('button.pbtn.primary', { type: 'button', html: dicon('sync') + '<span>Reset this mode</span>' });
-  btnResetMode.addEventListener('click', () => resetModes([editProfile]));
-  const btnResetAll = el('button.pbtn.outline', { type: 'button', html: dicon('sync') + '<span>Reset all modes</span>' });
-  btnResetAll.addEventListener('click', () => resetModes(PROFILES.map((_, p) => p)));
+  const btnResetMode = el('button.pbtn.primary', { type: 'button', html: dicon('sync') + '<span>Reset this button</span>' });
+  btnResetMode.addEventListener('click', () => resetButton());
+  const btnResetAll = el('button.pbtn.outline', { type: 'button', html: dicon('sync') + '<span>Reset all buttons</span>' });
+  btnResetAll.addEventListener('click', () => resetModes([editProfile]));
+  btnResetAll.title = 'Every button back to its default in this mode';
   const settingsPanel = el('div.panel.hidden', {}, [
     el('div.ptitle', { text: 'BUTTON SETTINGS' }),
     el('div.lbl', { text: 'Function' }), fn, amount.el,
     ledBlock,
     btnResetMode, btnResetAll,
+    el('p.hint', { html: 'Click <b>Save</b> to keep your changes on the controller' }),
   ]);
 
   // GLOBAL LED SETTINGS: the effect, one color for every button, idle glow, brightness and the animation's time
@@ -217,7 +226,7 @@ export async function startHoja(shell, dev, opts) {
     bright.el, speed.el,
   ]);
   const column = el('div.side-col', {}, [empty, settingsPanel, ledPanel]);
-  const page0 = el('div.page.controller', {}, [drawing.svg, modeSel, column]);
+  const page0 = el('div.page.controller.hoja', {}, [drawing.svg, column]);
 
   function refreshSide() {
     const rb = B[Blk.RGB];
@@ -225,7 +234,7 @@ export async function startHoja(shell, dev, opts) {
     speed.disabled = Rgb.mode(rb) < 2;   // only the animated effects use it
     const none = selInput < 0;
     empty.classList.toggle('hidden', !none); settingsPanel.classList.toggle('hidden', none);
-    column.classList.toggle('selected', !none);
+    column.classList.toggle('selected', !none); page0.classList.toggle('selected', !none);
     if (!none) {
       fn.innerHTML = '';
       fn.append(el('option', { value: -1, text: 'Nothing (disabled)' }));
@@ -241,6 +250,22 @@ export async function startHoja(shell, dev, opts) {
     drawing.refreshTips();
   }
   function select(i) { if (!selectable(i)) return; selInput = i; refreshSide(); }
+  // one button back to its default in this mode: the firmware only resets a whole mode (MAPPER_CMD_DEFAULT_<mode>), so
+  // that's done, this button's slot taken from it, and every other button put back as it was
+  async function resetButton() {
+    const i = selInput; if (i < 0) return;
+    clearTimeout(liveTimer); await pushLive();
+    const keep = B[Blk.INPUT].slice();
+    btnResetMode.disabled = btnResetAll.disabled = true;
+    const r = await dev.command(Blk.INPUT, 2 + editProfile, 1500);
+    const fresh = r.ok ? await dev.readBlock(Blk.INPUT) : null;
+    btnResetMode.disabled = btnResetAll.disabled = false;
+    if (!fresh) { if (r.ok) await dev.writeBlock(Blk.INPUT, keep.slice()); return say('Couldn\'t reset the button - the PadBox didn\'t answer. Try again.', 'var(--bad)'); }
+    const o = Input.offset(editProfile, i);
+    keep.set(fresh.subarray(o, o + 5), o);
+    B[Blk.INPUT] = keep; changed(Blk.INPUT); refreshSide();
+    say('This button is back to its default in ' + PROFILES[editProfile] + ' mode. Click Save to keep it after unplugging.', 'var(--warn)');
+  }
   async function resetModes(list) {
     const what = list.length === 1 ? PROFILES[list[0]] + ' mode' : 'every mode';
     if (!await confirmBox('Reset buttons', 'Put every button back to its default in ' + what + '?', 'RESET')) return;
@@ -264,33 +289,15 @@ export async function startHoja(shell, dev, opts) {
     drawing.setSticks(stickXY);
   }, 30);
 
-  // ---------------------------------------------------------------- the design's building blocks for the other pages
-  function panel(title, kids, cls) { return el('div.panel' + (cls ? '.' + cls : ''), {}, [el('div.ptitle', { text: title }), ...kids]); }
-  function dtoggle(text, onchange) {
-    const input = el('input', { type: 'checkbox' });
-    const lab = el('label.dtoggle', {}, [input, el('i'), el('span', { text })]);
-    input.addEventListener('change', () => onchange(input.checked));
-    return { el: lab, get checked() { return input.checked; }, set checked(v) { input.checked = !!v; } };
-  }
-  function dslider(caption, min, max, fmt, onchange) {
-    const val = el('span'), input = el('input.range', { type: 'range', min, max, step: 1 });
-    const paint = () => { const v = +input.value; val.textContent = fmt ? fmt(v) : String(v); input.style.setProperty('--p', (max > min ? (v - min) / (max - min) * 100 : 0) + '%'); };
-    input.addEventListener('input', () => { paint(); onchange(+input.value); });
-    const wrap = el('div.dslider', {}, [el('div.lbl.split', {}, [el('span', { text: caption }), val]), input]);
-    return { el: wrap, get value() { return +input.value; }, set value(v) { input.value = v; paint(); },
-      set disabled(v) { input.disabled = !!v; wrap.classList.toggle('off', !!v); } };
-  }
-  function pbtn(text, ic, primary, onclick) {
-    const b = el('button.pbtn.' + (primary ? 'primary' : 'outline'), { type: 'button', html: (ic ? dicon(ic) : '') + '<span>' + text + '</span>' });
-    b.addEventListener('click', onclick);
-    return b;
-  }
+  // ---------------------------------------------------------------- the design's building blocks for the other pages: parts.js
 
   // ---------------------------------------------------------------- STICKS page
-  // Each panel's Calibrate button calibrates that stick only; the other stick keeps its calibration. Firmware from
-  // before the one-stick commands calibrates both sticks together instead.
+  // The redesign: one tall panel per stick - its name with Calibrated / Not calibrated, Enabled; the gate with the output
+  // (orange dot) and the raw reading (ring); ANGLE SET; the axes; the gate's shape; deadzones, snapback and curve; then
+  // Reset (back to this stick's settings as they were when connecting) and Calibrate. Each panel's Calibrate calibrates
+  // that stick only; firmware from before the one-stick commands calibrates both sticks together instead.
   const sticks = [makeStick(false, 'LEFT STICK'), makeStick(true, hasRight ? 'RIGHT STICK' : 'C-STICK')];
-  const page1 = el('div.page.hidden.dpage.sticks', {}, sticks.map(s => s.card));
+  const page1 = el('div.page.hidden.dpage.sticks.hoja', {}, sticks.map(s => s.card));
   function refreshCal(msg, color) {
     for (const s of sticks) s.showCal(msg, color);
   }
@@ -327,55 +334,69 @@ export async function startHoja(shell, dev, opts) {
   function makeStick(right, title) {
     const A = () => B[Blk.ANALOG];
     const present = !right || hasRight;
-    const cv = el('canvas.gate');
-    const en = dtoggle('Stick enabled', v => { Analog.setDisabled(A(), right, !v); changed(Blk.ANALOG); });
-    const stepL = el('div.step'), infoL = el('div.info');
-    const bCal = pbtn('Calibrate', '', true, () => toggleCalibrate(right));
-    const bAngle = pbtn('Angle set', '', false, angleSet);
-    bAngle.title = 'Hold the stick in a notch, then click to line that notch up with it';
+    const cv = el('canvas.gate'), tag = badge();
+    const en = dtoggle('Enabled', v => { Analog.setDisabled(A(), right, !v); changed(Blk.ANALOG); showOn(); }, 'Disabled');
+    const rd1 = el('div.rd1'), infoL = el('p.cal-info');
+    const legend = el('div.rd2.legend', { html: '<i class="lg-dot"></i>Output<i class="lg-ring"></i>Raw' });
+    const bCal = pbtn('Calibrate', 'target', true, () => toggleCalibrate(right));
+    const bAngle = pbtn('Angle set', 'target', true, angleSet);
+    bAngle.classList.add('angle');
+    const bReset = pbtn('Reset', 'sync', false, () => { st.load(st.start); st.apply(); changed(Blk.ANALOG); st.showCal('This stick\'s settings are back to how they were when you connected.'); });
+    bReset.title = 'Put this stick\'s settings back to how they were when you connected';
     const fx = dtoggle('Flip X axis', v => { Analog.setInv(A(), right ? 6 : 2, v); changed(Blk.ANALOG); });
     const fy = dtoggle('Flip Y axis', v => { Analog.setInv(A(), right ? 8 : 4, v); changed(Blk.ANALOG); });
-    // the gate drawn: the right stick's is round; the left one's is round by default on the GS Essential and
-    // octagonal by default on the GS Platform (switchable either way)
-    const oct = right ? null : dtoggle('Octagonal gate', () => { });
-    if (oct) oct.checked = platform;
+    // the gate drawn: round or octagonal (the left stick: octagonal by default on the GS Platform)
+    const gate = segmented(['Round Gate', 'Octagonal Gate'], () => { });
+    gate.value = !right && platform ? 1 : 0;
     const dz = v => (v * 100 / 2047).toFixed(1) + '%';
     const dead = dslider('Inner deadzone', 0, 400, dz, v => { Analog.setDeadzone(A(), right, v); changed(Blk.ANALOG); });
     const outer = dslider('Outer deadzone', 0, 400, dz, v => { Analog.setOuter(A(), right, v); changed(Blk.ANALOG); });
-    const snap = dslider('Snapback filter', 0, 255, v => v === 0 ? 'off' : String(v), v => { Analog.setSnap(A(), right, v); changed(Blk.ANALOG); });
-    const exp = dslider('Curve (1.00 = linear)', 50, 300, v => (v / 100).toFixed(2), v => { Analog.setExp(A(), right, clamp(v - 49, 1, 251)); changed(Blk.ANALOG); });
+    const snap = dslider('Snapback filter', 0, 255, v => v === 0 ? 'Off' : String(v), v => { Analog.setSnap(A(), right, v); changed(Blk.ANALOG); });
+    const exp = dslider('Curve', 50, 300, v => (v / 100).toFixed(2), v => { Analog.setExp(A(), right, clamp(v - 49, 1, 251)); changed(Blk.ANALOG); });
+    const offMsg = el('div.stick-off', {}, [el('div.empty-t', { text: 'Stick disabled' }),
+      el('div.empty-d', { text: 'This stick is currently disabled. Enable it to access calibration, deadzone, and other input settings.' })]);
+    // while calibrating, the steps take the settings' place
+    const settingsBox = el('div.stick-set', {}, [
+      el('div.angle-row', {}, [bAngle]), el('p.angle-hint', { text: 'Hold the stick in a notch, then click ANGLE SET to line that notch up with it' }),
+      el('div.two.flips', {}, [fx.el, fy.el]), gate.el, dead.el, outer.el, snap.el, exp.el,
+]);
+    exp.el.title = 'Adjust how stick input responds around the centre';
+    const controls = el('div.stick-ctl', {}, [settingsBox, infoL, el('div.btnrow.bottom', {}, [bReset, bCal])]);
     const absent = el('div.empty-d', { text: 'The C-stick is made of buttons, so there\'s nothing to calibrate.', style: { padding: '90px 0', textAlign: 'center' } });
-    const body = el('div.stick-body', {}, [
-      el('div.gate-col', {}, [cv]),
-      el('div.ctl-col', {}, [stepL, infoL, el('div.btnrow', {}, [bCal, bAngle]),
-        el('div.lbl', { text: 'Axes' }), el('div.two', {}, [fx.el, fy.el]),
-        dead.el, outer.el, snap.el, exp.el, oct && el('div', { style: { height: '8px' } }), oct && oct.el]),
-    ]);
+    const body = el('div.stick-body', {}, [el('div.gate-wrap', {}, [cv]), el('div.rd', {}, [rd1, legend]), controls, offMsg]);
     const c = panel(title, [body, absent], 'stick');
-    c.firstChild.append(en.el);   // "Stick enabled" on the title row
-    body.classList.toggle('hidden', !present); absent.classList.toggle('hidden', present); en.el.classList.toggle('hidden', !present);
-    const st = { card: c, bCal, right, present, x: 0, y: 0, rx: 0, ry: 0, trail: [] };
+    c.firstChild.append(tag.el, en.el);   // the badge and "Enabled" on the title row
+    body.classList.toggle('hidden', !present); absent.classList.toggle('hidden', present); en.el.classList.toggle('hidden', !present); tag.el.classList.toggle('hidden', !present);
+    const st = { card: c, bCal, right, present, x: 0, y: 0, rx: 0, ry: 0, trail: [], start: null };
     st.calibrated = () => calibrating && (calSticks & (right ? 2 : 1)) !== 0;   // this stick is being calibrated
-    st.load = () => {
-      en.checked = !Analog.disabled(A(), right); fx.checked = Analog.inv(A(), right ? 6 : 2); fy.checked = Analog.inv(A(), right ? 8 : 4);
-      dead.value = clamp(Analog.deadzone(A(), right), 0, 400); outer.value = clamp(Analog.outer(A(), right), 0, 400);
-      snap.value = clamp(Analog.snap(A(), right), 0, 255); exp.value = clamp(Analog.exp(A(), right) + 49, 50, 300);
+    function showOn() { const on = en.checked; controls.classList.toggle('hidden', !on); offMsg.classList.toggle('hidden', on); }
+    // this stick's settings: read from B (or from a copy kept at connect, for Reset)
+    const read = () => ({ on: !Analog.disabled(A(), right), fx: Analog.inv(A(), right ? 6 : 2), fy: Analog.inv(A(), right ? 8 : 4),
+      dead: clamp(Analog.deadzone(A(), right), 0, 400), outer: clamp(Analog.outer(A(), right), 0, 400), snap: clamp(Analog.snap(A(), right), 0, 255), exp: clamp(Analog.exp(A(), right) + 49, 50, 300) });
+    st.load = v => {
+      v = v || read(); if (!st.start) st.start = v;
+      en.checked = v.on; fx.checked = v.fx; fy.checked = v.fy;
+      dead.value = v.dead; outer.value = v.outer; snap.value = v.snap; exp.value = v.exp;
+      showOn();
     };
     st.apply = () => {
+      Analog.setDisabled(A(), right, !en.checked);
       Analog.setInv(A(), right ? 6 : 2, fx.checked); Analog.setInv(A(), right ? 8 : 4, fy.checked);
       Analog.setDeadzone(A(), right, dead.value); Analog.setOuter(A(), right, outer.value); Analog.setSnap(A(), right, snap.value); Analog.setExp(A(), right, clamp(exp.value - 49, 1, 251));
     };
     st.showCal = (msg, color) => {
       const mine = st.calibrated();
-      bCal.querySelector('span').textContent = mine ? 'Stop' : 'Calibrate';
+      setPbtn(bCal, mine ? 'Stop' : 'Calibrate', mine ? '' : 'target');
       const set = Analog.stickCalibrated(A(), right);
-      stepL.classList.toggle('ok', !mine && !!set && !msg);
-      stepL.textContent = mine ? 'Calibrating' : set ? 'Calibrated' : 'Not calibrated';
+      tag.set(mine ? 'busy' : set ? 'ok' : 'no');
+      // the steps in the panel while calibrating; anything else in the status line at the bottom
+      const busy = mine || calibrating;
+      settingsBox.classList.toggle('hidden', busy); infoL.classList.toggle('hidden', !busy); bReset.disabled = busy;
       infoL.style.color = color || '';
-      infoL.textContent = msg || (mine
+      infoL.textContent = busy ? msg || (mine
         ? 'Roll ' + (calSticks === 3 && hasRight ? 'both sticks' : 'the stick') + ' slowly around the edge 3 times, touching every corner, then click Stop.'
-        : calibrating ? 'The other stick is being calibrated. This one keeps working as usual.'
-        : set ? 'Hold the stick in a notch and click Angle set to line that notch up with it.' : 'Calibrate for the full range and accurate diagonals.');
+        : 'The other stick is being calibrated. This one keeps working as usual.') : '';
+      if (!busy && msg) say(msg, color);
     };
     async function angleSet() {
       if (calibrating) return st.showCal('Finish the calibration first.', 'var(--warn)');
@@ -391,36 +412,14 @@ export async function startHoja(shell, dev, opts) {
       Analog.setSlotIn(A(), right, slot, angle, dist); changed(Blk.ANALOG);
       st.showCal(`The notch at ${Math.round(target)}° now matches your stick (${Math.round(angle)}°). Click Save to keep it.`, 'var(--good)');
     }
-    // the gate, in the design's colors: dark field, grey outline, the output as an orange dot, the raw reading as a ring
+    // the gate (parts.js paintGate): the gate's shape in orange over a dashed reference circle, as in the design
     st.paint = () => {
       if (!present || page1.classList.contains('hidden')) return;
       if (st.calibrated() && Math.hypot(st.rx, st.ry) > 0.5) { st.trail.push([st.rx, st.ry]); if (st.trail.length > 3000) st.trail.shift(); }
-      const r = cv.getBoundingClientRect(), z = parseFloat(getComputedStyle(document.getElementById('stage')).zoom) || 1, dpr = (window.devicePixelRatio || 1) * z;
-      const W = r.width / z, H = r.height / z;
-      if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-      const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-      const cx = W / 2, cy = W / 2, R = W / 2 - 6;
-      const round = !(oct && oct.checked);
-      const gate = () => { g.beginPath(); if (round) g.arc(cx, cy, R, 0, Math.PI * 2); else { for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g[i ? 'lineTo' : 'moveTo'](cx + R * Math.cos(a), cy - R * Math.sin(a)); } g.closePath(); } };
-      gate(); g.fillStyle = '#232323'; g.fill();
-      g.lineWidth = 1; g.strokeStyle = '#353535';
-      for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * R, cy - Math.sin(a) * R); g.stroke(); }
-      gate(); g.lineWidth = 1.5; g.lineJoin = 'round'; g.strokeStyle = st.calibrated() ? '#fe6805' : '#c5c5c5'; g.stroke();
-      const din = dead.value / 2047, dout = 1 - outer.value / 2047;
-      g.setLineDash([4, 3]); g.lineWidth = 1.2;
-      if (din > 0.003) { g.strokeStyle = 'rgba(254,104,5,.8)'; g.beginPath(); g.arc(cx, cy, R * din, 0, Math.PI * 2); g.stroke(); }
-      if (dout < 0.997) { g.strokeStyle = 'rgba(40,166,255,.8)'; g.beginPath(); g.arc(cx, cy, R * dout, 0, Math.PI * 2); g.stroke(); }
-      g.setLineDash([]);
-      st.trail.forEach(([x, y], i) => { g.fillStyle = `rgba(40,166,255,${(26 + 150 * i / Math.max(1, st.trail.length - 1)) / 255})`; g.fillRect(cx + x * R - 1, cy - y * R - 1, 2, 2); });
-      const place = (x, y) => { const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; } return [cx + x * R, cy - y * R]; };
-      const [rwx, rwy] = place(st.rx, st.ry), [ox, oy] = place(st.x, st.y);
-      g.beginPath(); g.arc(rwx, rwy, 7, 0, Math.PI * 2); g.lineWidth = 1.5; g.strokeStyle = 'rgba(225,225,225,.75)'; g.stroke();
-      g.beginPath(); g.arc(ox, oy, 6.5, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = '#2a2a2a'; g.stroke();
-      const mag = Math.hypot(st.x, st.y); let ang = Math.atan2(st.y, st.x) * 180 / Math.PI; if (ang < 0) ang += 360;
-      const f = v => (v > 0 ? '+' : '') + Math.round(v * 100);
-      g.font = '600 9.5px Poppins'; g.fillStyle = '#cfcfcf'; g.textAlign = 'center';
-      g.fillText(`X ${f(st.x)}%   Y ${f(st.y)}%   ${mag > 0.05 ? Math.round(ang) + '°' : 'centred'}`, cx, W + 12);
-      g.font = '8.5px Poppins'; g.fillStyle = '#8a8a8a'; g.fillText('orange dot = output   ring = raw', cx, W + 25);
+      paintGate(cv, { round: gate.value === 0, din: dead.value / 2047, dout: 1 - outer.value / 2047, out: [st.x, st.y], raw: [st.rx, st.ry],
+        trail: st.trail, gate: '#fe6805', ref: true, off: !en.checked });
+      const r = readout(st.x, st.y);
+      rd1.textContent = r.xy + (r.angle ? '     ' + r.angle : '');
     };
     return st;
   }
@@ -432,54 +431,46 @@ export async function startHoja(shell, dev, opts) {
   const BACKUP_BLOCKS = { haptic: Blk.HAPTIC, imu: Blk.IMU, analog: Blk.ANALOG, rgb: Blk.RGB, gamepad: Blk.GAMEPAD, input: Blk.INPUT };
   const b64 = u => { let t = ''; for (let i = 0; i < u.length; i += 0x8000) t += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(t); };
   const unb64 = t => Uint8Array.from(atob(t), c => c.charCodeAt(0));
-  const bStatus = el('p.hint.wrap');
-  const bSay = (t, c) => { bStatus.textContent = t; bStatus.style.color = c || ''; };
-  async function exportBackup() {
-    clearTimeout(liveTimer); await pushLive();
+  const file = () => {
     const blocks = {};
     for (const [k, b] of Object.entries(BACKUP_BLOCKS)) blocks[k] = b64(B[b]);
-    const now = new Date(), p2 = n => String(n).padStart(2, '0'), day = now.getFullYear() + '-' + p2(now.getMonth() + 1) + '-' + p2(now.getDate());   // local date
-    download('PadBox ' + lay.name + ' - HOJA2 backup ' + day + '.json', JSON.stringify({
-      format: 'padbox-hoja2-backup', version: 1, board: lay.name, firmware: fw ? fw.toString(16).toUpperCase() : '', created: now.toISOString(), blocks }, null, 1));
-    bSay('Backup saved to your downloads.' + (dirty.size ? ' It includes the changes you haven\x27t saved to the PadBox yet.' : ''), 'var(--good)');
-  }
-  async function importBackup() {
-    if (calibrating) return bSay('Finish the stick calibration first.', 'var(--warn)');
-    const text = await openFile('.json,application/json'); if (!text) return;
-    let file; try { file = JSON.parse(text); } catch (e) { return bSay('This file isn\x27t a PadBox backup.', 'var(--bad)'); }
-    if (!file || file.format !== 'padbox-hoja2-backup' || !file.blocks) return bSay('This file isn\x27t a HOJA2 backup. GP2040-CE and PhobGCC backups only go back onto those firmwares.', 'var(--bad)');
-    if (file.board !== lay.name) return bSay('This backup is from a PadBox ' + file.board + ', and this is a PadBox ' + lay.name + ': their buttons differ, so it can\x27t be restored here.', 'var(--bad)');
-    const data = {};
+    return { format: 'padbox-hoja2-backup', version: 1, board: lay.name, firmware: fw ? fw.toString(16).toUpperCase() : '', created: new Date().toISOString(), blocks };
+  };
+  const checkFile = f => {
+    if (!f || f.format !== 'padbox-hoja2-backup' || !f.blocks) return 'This file isn\x27t a HOJA2 configuration file. GP2040-CE and PhobGCC files only go back onto those firmwares.';
+    if (f.board !== lay.name) return 'This configuration is from a PadBox ' + f.board + ', and this is a PadBox ' + lay.name + ': their buttons differ, so it can\x27t be restored here.';
+    if (calibrating) return 'Finish the stick calibration first.';
     for (const [k, b] of Object.entries(BACKUP_BLOCKS)) {
-      let d; try { d = unb64(file.blocks[k] || ''); } catch (e) { d = null; }
-      if (!d || d.length !== B[b].length) return bSay('This backup is incomplete or damaged (' + k + ' settings).', 'var(--bad)');
-      if (d[0] !== B[b][0]) return bSay('This backup was made with a different HOJA2 version (' + k + ' settings), so it can\x27t be restored on this firmware.', 'var(--bad)');
-      data[b] = d;
+      let d; try { d = unb64(f.blocks[k] || ''); } catch (e) { d = null; }
+      if (!d || d.length !== B[b].length) return 'This configuration is incomplete or damaged (' + k + ' settings).';
+      if (d[0] !== B[b][0]) return 'This configuration was made with a different HOJA2 version (' + k + ' settings), so it can\x27t be restored on this firmware.';
     }
-    const when = file.created ? new Date(file.created).toLocaleString() : 'an unknown date';
-    if (!await confirmBox('Import backup', 'This replaces every setting on the PadBox (buttons, LEDs, sticks and their calibration, gyro, rumble and mode) with the backup from ' + when + ', and saves it. Continue?', 'IMPORT')) return;
-    bSay('Importing...', 'var(--warn)');
+    return '';
+  };
+  async function restoreFile(f) {
+    const data = {};
+    for (const [k, b] of Object.entries(BACKUP_BLOCKS)) data[b] = unb64(f.blocks[k]);
     clearTimeout(liveTimer); live.clear();
     for (const [b, d] of Object.entries(data)) { B[b] = d; await dev.writeBlock(+b, d.slice()); }
     loadUi();
     saving = true; btnSave.disabled = true;
     const r = await dev.command(Blk.GAMEPAD, 0xff, 4000);   // GAMEPAD_CMD_SAVE_ALL
     saving = false;
-    if (r.ok) { dirty.clear(); bSay('Backup imported and saved to the PadBox.', 'var(--good)'); say('Backup imported and saved.', 'var(--good)'); }
-    else { Object.values(BACKUP_BLOCKS).forEach(b => dirty.add(b)); bSay('The backup is on the PadBox now, but saving it failed: click Save to keep it after unplugging.', 'var(--bad)'); }
-    refreshSave();
+    if (!r.ok) { Object.values(BACKUP_BLOCKS).forEach(b => dirty.add(b)); refreshSave(); throw new Error('the configuration is on the PadBox now, but saving it failed: click Save to keep it after unplugging'); }
+    dirty.clear(); refreshSave(); say('Configuration restored and saved.', 'var(--good)');
+    return 'Configuration restored and saved to the PadBox.';
   }
-  const page2 = el('div.page.hidden.dpage.backup', {}, [
-    panel('BACKUP', [
-      el('p.text', { text: 'Save all the PadBox\x27s settings (buttons, LEDs, sticks and their calibration, gyro, rumble and mode) to a file, or load them back. Importing replaces everything on the PadBox.' }),
-      el('div.btnrow', {}, [pbtn('Export to file', 'upload', true, exportBackup), pbtn('Import from file', 'download', false, importBackup)]),
-      bStatus,
-    ]),
-  ]);
+  const backup = backupPage({
+    controller: 'HOJA2', board: lay.name, firmware: fw ? fw.toString(16).toUpperCase() : '', profiles: () => PROFILES.length,
+    exportData: async () => { clearTimeout(liveTimer); await pushLive(); return file(); },
+    fileName: name => 'PadBox ' + lay.name + ' - HOJA2 - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
+    check: checkFile, restore: restoreFile,
+  });
+  const page2 = backup.page;
 
 
   // ---------------------------------------------------------------- the side menu, load, live reports
-  const tabNames = ['CONTROLLER', 'STICKS', 'BACKUP'], pages = [page0, page1, page2];
+  const tabNames = ['CONTROLLER', 'STICKS', 'BACKUP & RESTORE'], pages = [page0, page1, page2];
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   let curTab = 0, curName = 'CONTROLLER';
   shell.tabs(tabNames, i => {
@@ -487,11 +478,11 @@ export async function startHoja(shell, dev, opts) {
     // the live report the open page needs: raw buttons for CONTROLLER (and the trigger), the sticks otherwise
     dev.reportMode(curName === 'CONTROLLER' || curName === 'TRIGGER' ? Rpt.INPUT_RAW : Rpt.INPUT_JOYSTICKS);
     pressed.fill(false);
-  });
+  }, null, { 0: modeMenu });
   // shows the settings in B on every page (at start, and after a backup is imported)
   function loadUi() {
-    modeSel.value = String(MODES.some(m => m[1] === Gamepad.mode(B[Blk.GAMEPAD])) ? Gamepad.mode(B[Blk.GAMEPAD]) : 0);
-    editProfile = profileOfMode(+modeSel.value);
+    curMode = MODES.some(m => m[1] === Gamepad.mode(B[Blk.GAMEPAD])) ? Gamepad.mode(B[Blk.GAMEPAD]) : 0;
+    editProfile = profileOfMode(curMode); showMode();
     bright.value = clamp(Math.round(Rgb.brightness(B[Blk.RGB]) * 100 / 4096), 0, 100);
     speed.value = clamp(Rgb.speed(B[Blk.RGB]), 300, 5000);
     idle.checked = Rgb.idleGlow(B[Blk.RGB]) !== 0;

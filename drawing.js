@@ -53,10 +53,11 @@ function el(name, attrs, parent) {
 }
 
 // Builds the drawing. onPick(pin) when a button is clicked; tip(pin) = the hover text; label(pin) = the short name
-// written on the button (its function).
+// written on the button (its function; '' for none - the redesign writes nothing on the D-pad, sticks and bumper while
+// they do what they're for, so the apps return '' for those).
 export function buildDrawing(onPick, tip, label, board) {
   const B = BOARDS[board] || BOARDS.essential, k = B.R / 79;   // k: the round buttons' size against the Essential's
-  const svg = el('svg', { viewBox: '0 0 1530 1200', class: 'pad-drawing', role: 'img', 'aria-label': B.name });
+  const svg = el('svg', { viewBox: B.viewBox || '0 0 1530 1200', class: 'pad-drawing', role: 'img', 'aria-label': B.name });
   const defs = el('defs', {}, svg);
   const parts = {};   // pin -> [shapes]
   const add = (pin, shape) => {
@@ -101,13 +102,15 @@ export function buildDrawing(onPick, tip, label, board) {
   });
   dpadLabels = [[2, 263.7, 211], [3, 263.7, 327], [5, 206, 268.7], [4, 322, 268.7]].map(([pin, x, y]) => [pin, x + B.dpad[0], y + B.dpad[1]]);
 
-  // sticks: a dark ring with the cap inside; clicking one = its click (L3 / R3), if it has one
+  // sticks: a dark ring with the cap inside; clicking one = its click (L3 / R3), if it has one. The redesign (GS Essential
+  // Redesign) draws them still, so the GS has no live dot on them (the STICKS page shows where they are).
   const dots = [];   // the live position of each stick
   B.sticks.forEach(([pin, x, y, sz]) => {
     const g = el('g', {}, svg);
     if (pin >= 0) add(pin, g);
     el('circle', { cx: x, cy: y, r: 54 * sz, fill: C.stickRing }, g);
     el('circle', { cx: x, cy: y, r: 44 * sz, fill: C.btn, stroke: C.stickInner, 'stroke-width': '3' }, g);
+    if (!B.m) return;
     const dot = el('circle', { cx: x, cy: y, r: 15 * sz, fill: C.pressed, stroke: C.edge, 'stroke-width': '3', 'pointer-events': 'none' }, svg);
     dots.push({ dot, x, y, travel: 34 * sz });
   });
@@ -124,8 +127,8 @@ export function buildDrawing(onPick, tip, label, board) {
     const glow = el('circle', { cx: x, cy: y, r: 100.6 * k, fill: 'url(#led' + pin + ')', 'pointer-events': 'none', visibility: 'hidden' }, svg);
     leds[pin] = { stops, glow, x, y };
   }
-  // (no dark outline on the face buttons: the LED band sits right at their edge, as in the design)
-  for (const [pin, x, y] of B.round) add(pin, el('circle', { cx: x, cy: y, r: B.R, fill: C.btn }, svg));
+  // a thin dark edge on the face buttons, as in the redesign; a lit LED's band covers it
+  for (const [pin, x, y] of B.round) add(pin, el('circle', { cx: x, cy: y, r: B.R - 2 * k, fill: C.btn, stroke: C.edge, 'stroke-width': 4 * k }, svg));
   for (const [pin, x, y] of B.round) leds[pin].band = el('circle', { cx: x, cy: y, r: 78.9 * k, fill: 'none', 'stroke-width': 4.8 * k, 'pointer-events': 'none', visibility: 'hidden' }, svg);
   // color(pin) = the LED's color as '#rrggbb', or null for none
   function setLeds(color) {

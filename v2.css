@@ -286,3 +286,136 @@ canvas.phob-canvas { display: block; width: 300px; height: 300px; }
 .combo-chip { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid #555; border-radius: 4px; cursor: pointer; font: 600 13px "Poppins", sans-serif; }
 .combo-chip input { accent-color: #fe6805; width: 15px; height: 15px; margin: 0; }
 .combo-chip:has(input:checked) { border-color: #fe6805; background: rgba(254, 104, 5, .12); }
+
+/* ================================================================ the GS Essential Redesign ("PadBox GP2040 Essential.pdf",
+   "PadBox HOJA2 Essential.pdf"): positions read off its pages (1389 x 868, so x 0.753 here) */
+
+/* CONTROLLER: "No button selected" lower than BUTTON SETTINGS, and the profile (GP2040-CE) just above either */
+.side-col:not(.phob) { top: 169px; }
+.side-col:not(.phob).selected { top: 108px; }
+.side-col:not(.phob) .panel.empty { height: 166px; }
+.page.controller .profile-sel { top: 134px; }
+.page.controller.selected .profile-sel { top: 74px; }
+/* HOJA2: the subtitle has a second line ("in Switch Pro mode"), and the drawing sits a little lower */
+.page.controller.hoja .pad-drawing { top: 154.5px; }
+#heading p .mode-name { font-weight: 600; }
+
+/* the side menu's flyout (HOJA2's modes) and the little arrow on the button that has one */
+#nav button.has-menu { position: relative; }
+#nav button.has-menu::after { content: ""; position: absolute; right: 4px; top: 50%; margin-top: -3px; border: 3px solid transparent; border-left: 4px solid currentColor; border-right: 0; }
+.flyout { position: absolute; left: 57px; z-index: 6; width: 150px; background: #3a3a3a; box-shadow: 0 4px 14px rgba(0, 0, 0, .5); display: flex; flex-direction: column; padding: 0 0 2px; }
+.flyout button { height: 28px; text-align: left; padding: 0 10px; background: transparent; border: 0; color: #e6e6e6; font: 600 12.5px "Poppins", sans-serif; cursor: pointer; }
+.flyout button:hover { background: #4a4a4a; }
+.flyout button.sel { background: var(--orange-deep); color: #fff; }
+
+/* the other pages start where the redesign's panels do */
+body:not([data-page="controller"]) #main { top: 152px; bottom: 16px; }
+
+/* a panel's title row: the badge after the name, the switch on the right */
+.ptitle .badge { margin-left: 9px; font: 600 6.6px/1 "Poppins", sans-serif; padding: 3px 5px; border-radius: 1px; color: #fff; letter-spacing: 0; }
+.badge.no { background: #d52b2b; }
+.badge.ok { background: #1ea84b; }
+.badge.busy { background: var(--orange); }
+.dtoggle.off { opacity: .45; pointer-events: none; }
+
+/* two choices in a pill: Round Gate | Octagonal Gate */
+.seg { display: flex; height: 26px; margin-top: 10px; border-radius: 13px; background: #3d3d3d; }
+.seg button { flex: 1; border: 0; border-radius: 13px; background: transparent; color: #e6e6e6; font: 400 10px "Poppins", sans-serif; cursor: pointer; }
+.seg button.on { background: #dddddd; color: #262626; }
+.seg.locked, .seg.locked button { cursor: not-allowed; }
+.seg.locked button:not(.on) { color: #7a7a7a; }
+
+/* STICKS: two tall panels, everything stacked: the gate, its reading, then the settings, Reset and Calibrate at the foot */
+.dpage.sticks { grid-template-columns: 349px 349px; gap: 18px; }
+.panel.stick { height: 481px; box-sizing: border-box; display: flex; flex-direction: column; padding: 11px 13px 13px; }
+.panel.stick .ptitle { margin-bottom: 0; }
+.stick-body { display: flex; flex-direction: column; flex: 1; margin-top: 0; gap: 0; }
+.gate-wrap { display: flex; justify-content: center; padding-top: 9px; }
+canvas.gate { width: 206px; height: 206px; }
+.rd { text-align: center; margin-top: 6px; font-size: 7.5px; line-height: 12.5px; color: #a8a8a8; }
+.rd1 { white-space: pre; }
+.cal-info { margin: 2px 0 0; min-height: 0; font-size: 8.5px; line-height: 12px; color: #bdbdbd; text-align: center; }
+.cal-info:empty { display: none; }
+.stick-ctl { display: flex; flex-direction: column; flex: 1; }
+.two.flips { margin-top: 18px; }
+.stick-ctl .dslider { margin-top: 9px; }
+.btnrow.bottom { margin-top: auto; padding-top: 12px; }
+.btnrow.bottom .pbtn { height: 26px; }
+.stick-off { margin: 56px 0 0; text-align: center; }
+.stick-off .empty-t { margin-top: 0; }
+/* HOJA2's panels hold more (ANGLE SET, snapback, curve): a smaller gate, closer rows */
+.dpage.sticks.hoja canvas.gate { width: 140px; height: 140px; }
+.dpage.sticks.hoja .gate-wrap { padding-top: 6px; }
+.dpage.sticks.hoja .rd { margin-top: 3px; }
+.dpage.sticks.hoja .two.flips { margin-top: 8px; }
+.dpage.sticks.hoja .seg { margin-top: 7px; height: 24px; }
+.dpage.sticks.hoja .stick-ctl .dslider { margin-top: 5px; }
+.dpage.sticks.hoja .btnrow.bottom { padding-top: 6px; }
+.dpage.sticks.hoja .cal-info { margin-top: 3px; }
+.legend { display: flex; align-items: center; justify-content: center; gap: 3px; }
+.legend .lg-dot, .legend .lg-ring { display: inline-block; width: 5px; height: 5px; border-radius: 50%; }
+.legend .lg-dot { background: var(--orange); }
+.legend .lg-ring { border: 1px solid #c5c5c5; width: 4px; height: 4px; margin-left: 8px; }
+.angle-row { display: flex; justify-content: center; margin-top: 6px; }
+.angle-row .pbtn.angle { width: 100px; margin: 0; height: 24px; }
+.angle-hint { margin: 3px 0 0; font-size: 7.4px; color: #9a9a9a; text-align: center; white-space: nowrap; }
+.angle-hint.left { text-align: left; margin-top: 1px; }
+
+/* SETTINGS: INPUT BEHAVIOR and TURBO side by side, the same height, Reset and Save at the foot */
+.dpage.settings { grid-template-columns: 349px 349px; gap: 18px; align-items: stretch; }
+.panel.stretch { display: flex; flex-direction: column; min-height: 205px; box-sizing: border-box; }
+.panel.stretch .ptitle { margin-bottom: 4px; }
+.panel .gap { height: 10px; }
+.panel.stretch .dslider { margin-top: 10px; }
+.turbo-on { display: flex; flex-direction: column; flex: 1; }
+.turbo-on .dslider { margin-top: 4px; }
+.turbo-on .lbl { margin-top: 8px; }
+.dpage .turbo-on p.hint.wrap { margin-top: 6px; font-size: 7.8px; line-height: 11px; }
+.panel-off { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding-bottom: 8px; }
+.panel-off .off-icon { width: 46px; height: 46px; color: #8a8a8a; }
+.panel-off .off-icon svg { width: 100%; height: 100%; }
+.panel-off .empty-t { margin-top: 6px; }
+.panel-off .empty-d { margin-top: 4px; }
+
+/* a dropdown of check boxes (TURBO's Assigned Buttons) */
+.ms-wrap { position: relative; }
+.field.ms { display: flex; align-items: center; text-align: left; overflow: hidden;
+  background: var(--field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='4'%3E%3Cpath d='M0 0h6L3 4z' fill='%23333'/%3E%3C/svg%3E") no-repeat right 10px center; }
+.ms-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field.ms.empty .ms-txt { color: #5f5f5f; }
+.ms-list { position: absolute; left: 0; right: 0; top: 28px; z-index: 10; background: #ececec; border-radius: 2px; box-shadow: 0 4px 14px rgba(0, 0, 0, .45); padding: 4px 0; max-height: 230px; overflow: auto; }
+.ms-list label { display: flex; align-items: center; gap: 7px; padding: 3px 9px; color: #2b2b2b; font-size: 10px; cursor: pointer; }
+.ms-list label:hover { background: #dcdcdc; }
+.ms-list input { accent-color: #fe6805; margin: 0; width: 12px; height: 12px; }
+
+/* BACKUP & RESTORE: CONFIGURATION FILES, then BACKUP HISTORY */
+.dpage.backup { display: flex; flex-direction: column; gap: 18px; width: 715px; }
+.dpage.backup .panel { width: auto; }
+.dpage.backup .btnrow .pbtn { max-width: none; height: 26px; }
+.dpage.backup .ptitle { margin-bottom: 4px; }
+.dpage.backup .panel p.text { margin: 0 0 10px; font-size: 10px; }
+.dpage.backup p.last b { color: var(--orange); font-weight: 600; }
+.dpage.backup .hint.wrap:empty { display: none; }
+.tbl { max-height: 250px; overflow: auto; }
+table.hist { width: 100%; border-collapse: collapse; font-size: 9.6px; }
+table.hist th { text-align: left; font-weight: 600; color: #e6e6e6; padding: 4px 6px 7px 0; border-bottom: 1px solid #5a5a5a; white-space: nowrap; }
+table.hist td { padding: 7px 6px 7px 0; border-bottom: 1px solid #5a5a5a; color: #d2d2d2; white-space: nowrap; }
+table.hist td.nm { font-weight: 600; color: #f0f0f0; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+table.hist td.valid { color: var(--good); }
+table.hist td.other { color: var(--muted); }
+table.hist td.acts { text-align: right; padding-right: 0; }
+table.hist tr.none td { color: var(--muted); text-align: center; padding: 16px 0; }
+.ia { width: 20px; height: 18px; padding: 0; border: 0; background: transparent; color: var(--orange); cursor: pointer; vertical-align: middle; }
+.ia svg { width: 13px; height: 13px; }
+.ia.del { color: #e53935; }
+.ia:hover:not(:disabled) { filter: brightness(1.3); }
+.ia:disabled { opacity: .3; cursor: default; }
+dialog .name-in { width: 100%; box-sizing: border-box; height: 32px; border: 0; border-radius: 2px; background: #dddddd; color: #262626; font: 400 14px "Poppins", sans-serif; padding: 0 10px; outline: none; }
+
+/* while a stick is calibrated, its steps where its settings were */
+.stick-set { display: flex; flex-direction: column; }
+.stick-ctl .cal-info { margin: 18px 2px 0; font-size: 10.5px; line-height: 15.5px; color: #e6e6e6; text-align: left; }
+.dpage.sticks.hoja canvas.gate { width: 126px; height: 126px; }
+.dpage.sticks.hoja .stick-ctl .dslider { margin-top: 3px; }
+.dpage.sticks.hoja .angle-row { margin-top: 4px; }
+.dpage.sticks.hoja .two.flips { margin-top: 7px; }

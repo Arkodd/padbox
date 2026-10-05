@@ -16,7 +16,9 @@ export const Imu = {
   accelSens: (b, axis) => b[17 + axis], setAccelSens: (b, axis, v) => { b[17 + axis] = v; },
 };
 // hapticConfig_s (8 bytes): haptic_strength 0..255 at 1 (0 = rumble off)
-export const Haptic = { strength: b => b[1], setStrength: (b, v) => { b[1] = v; } };
+// [2] haptic_triggers: the short "click" on the motor when a trigger is pressed (an analog trigger, or a button on
+// LT / RT), pcm_play_bump in pcm.c; 0 = off
+export const Haptic = { strength: b => b[1], setStrength: (b, v) => { b[1] = v; }, triggers: b => b[2] !== 0, setTriggers: (b, on) => { b[2] = on ? 1 : 0; } };
 
 // analogConfig_s (1024 bytes)
 export const Analog = {
@@ -60,6 +62,7 @@ export const Gamepad = { mode: b => b[1], setMode: (b, v) => { b[1] = v; } };
 export const INPUTS = 36;
 const off = (p, i) => 1 + p * INPUTS * 5 + i * 5;
 export const Input = {
+  offset: (p, i) => off(p, i),   // the slot's 5 bytes start here
   code: (b, p, i) => { const v = b[off(p, i) + 4]; return v > 127 ? v - 256 : v; },
   setCode: (b, p, i, c) => { b[off(p, i) + 4] = c & 255; },
   stat: (b, p, i) => u16(b, off(p, i)) >> 3,

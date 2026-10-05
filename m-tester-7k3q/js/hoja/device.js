@@ -112,7 +112,7 @@ export class HojaDemo extends HojaProtocol {
     this.platform = platform; this.gs = gs; this.focused = -1;
     this.blocks = BlkSize.map(n => new Uint8Array(n));
     const B = this.blocks, u16 = (b, o, v) => { b[o] = v & 255; b[o + 1] = (v >> 8) & 255; };
-    B[Blk.GAMEPAD][0] = 0x14; B[Blk.ANALOG][0] = 0x14; B[Blk.RGB][0] = 0x12; B[Blk.IMU][0] = 0x12; B[Blk.HAPTIC][0] = 0x11; B[Blk.HAPTIC][1] = 200;
+    B[Blk.GAMEPAD][0] = 0x14; B[Blk.ANALOG][0] = 0x14; B[Blk.RGB][0] = 0x12; B[Blk.IMU][0] = 0x12; B[Blk.HAPTIC][0] = 0x11; B[Blk.HAPTIC][1] = 200; B[Blk.HAPTIC][2] = 1;
     B[Blk.IMU].fill(120, 14, 17); B[Blk.IMU].fill(100, 17, 20); B[Blk.INPUT][0] = 0x15;
     const an = B[Blk.ANALOG], dv = new DataView(an.buffer);
     u16(an, 682, 100); u16(an, 684, 100); u16(an, 688, 80); u16(an, 690, 80); an[696] = 51; an[697] = 51;

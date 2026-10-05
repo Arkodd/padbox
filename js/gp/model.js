@@ -197,6 +197,10 @@ export class Model {
     this.socdMode = I(g, 'socdMode', 1); this.fourWayMode = B(g, 'fourWayMode', false);
     this.debounceDelay = I(g, 'debounceDelay', 5); this.profileNumber = Math.max(1, I(g, 'profileNumber', 1));
     this.turboEnabled = B(ad, 'TurboInputEnabled', false); this.turboShotCount = I(ad, 'turboShotCount', 5);
+    // the buttons that always repeat while turbo is on (the redesign's "Assigned Buttons"): GP2040-CE's SHMUP mode
+    // "always on" buttons (TurboOptions shmupAlwaysOn1..4, GAMEPAD_MASK_* bits)
+    this.turboMask = B(ad, 'shmupMode', false) ? (I(ad, 'shmupAlwaysOn1', 0) | I(ad, 'shmupAlwaysOn2', 0) | I(ad, 'shmupAlwaysOn3', 0) | I(ad, 'shmupAlwaysOn4', 0)) : 0;
+    this.turboMask0 = this.turboMask;
     this.innerDeadzone = I(ad, 'inner_deadzone', 0); this.outerDeadzone = I(ad, 'outer_deadzone', 100); this.circularity = B(ad, 'forced_circularity', false);
     this.innerDeadzone2 = I(ad, 'inner_deadzone2', 0); this.outerDeadzone2 = I(ad, 'outer_deadzone2', 100); this.circularity2 = B(ad, 'forced_circularity2', false);
     this.editProfile = Math.max(1, Math.min(4, this.profileNumber));
@@ -237,6 +241,7 @@ export class Model {
     // the sticks' centres belong to the calibration (/api/setCalibration): sending back the values read at connect
     // would put the old ones back - 0 on a new calibration, which leaves a calibrated stick stuck in the middle
     for (const k of ['joystickCenterX', 'joystickCenterY', 'joystickCenterX2', 'joystickCenterY2']) delete d[k];
+    if (this.turboMask !== this.turboMask0) Object.assign(d, { shmupMode: this.turboMask !== 0, shmupAlwaysOn1: this.turboMask, shmupAlwaysOn2: 0, shmupAlwaysOn3: 0, shmupAlwaysOn4: 0 });
     return d;
   }
   pinsBody() {

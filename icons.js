@@ -37,7 +37,16 @@ const I = {
     + '<g fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round"><circle cx="16.5" cy="25.1" r="6.4" fill="#000" stroke="none"/><path d="M16.6 16.7L13.2 20.6 16.4 24" stroke-width="4.1"/></g></mask>'
     + '<g fill="currentColor" mask="url(#cloud-cut)"><circle cx="10.2" cy="21.1" r="5.2"/><circle cx="14.4" cy="14.5" r="6.8"/><circle cx="21.4" cy="19.5" r="6.6"/></g>'
     + '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14.21 21.58A4.2 4.2 0 1 1 12.55 23.66" stroke-width="2.3"/><path d="M16.6 16.7L13.2 20.6 16.4 24" stroke-width="1.7"/></g></g>',
-  click: '<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity=".85"><path d="M9.5 2.8v3.6M3.6 5.2l2.5 2.5M2.2 10.6h3.6M15.4 5.2l-2.5 2.5M3.8 16.3l2.5-2.5"/></g><path fill="currentColor" opacity=".72" d="M9.6 8.6l12 7.3-5.6.9-2.8 6.6z"/>',
+  // the redesign (GS Essential Redesign): Disconnect, Save, Calibrate, the backup page's buttons and its history's actions
+  power: line('<path d="M12 3.8v7.4"/><path d="M7.4 6.6a7.2 7.2 0 1 0 9.2 0"/>'),
+  check: line('<path d="M5.5 12.5l4.2 4.2 8.8-9.4"/>'),
+  target: line('<circle cx="12" cy="12" r="7.6"/><path d="M12 8.6v6.8M8.6 12h6.8"/>'),
+  upload: line('<path d="M12 15.5v-10M8.3 9.2L12 5.5l3.7 3.7M6 15.5v3.5h12v-3.5"/>'),
+  pencil: line('<path d="M15.2 5.3l3.5 3.5L9 18.5l-4.2.7.7-4.2z"/><path d="M13.2 7.3l3.5 3.5"/>'),
+  trash: line('<path d="M5 7h14M10 7V5h4v2M6.8 7l.8 12h8.8l.8-12M10.2 10.5v5.5M13.8 10.5v5.5"/>'),
+  restore: line('<path d="M4.8 12a7.2 7.2 0 1 0 2.1-5.1L4.8 9"/><path d="M4.8 4.8V9H9"/><path d="M12 8.2V12l2.6 1.8"/>'),
+  bolt: '<path fill="currentColor" d="M13.6 2.5L5.8 13.4h5.3l-1.6 8.1 8.6-11.6h-5.6z"/>',
+  click: '<g fill="none"stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity=".85"><path d="M9.5 2.8v3.6M3.6 5.2l2.5 2.5M2.2 10.6h3.6M15.4 5.2l-2.5 2.5M3.8 16.3l2.5-2.5"/></g><path fill="currentColor" opacity=".72" d="M9.6 8.6l12 7.3-5.6.9-2.8 6.6z"/>',
 };
 
 export function dicon(name, cls) {

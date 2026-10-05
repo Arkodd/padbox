@@ -48,14 +48,14 @@ const BOARDS = {
   // (configs/PadboxMEssential, PadboxMPlatform). Lower panel: the Essential's right stick and Thumb button, the
   // Platform's C-stick (up, right, left, down) and A button.
   "m-essential": {
-    m: true, name: 'PadBox M Essential', R: 73.5,
+    m: true, name: 'PadBox M Essential', R: 73.5, viewBox: '-28 0 1586 1244',   // a little smaller: its body reaches lower than the GS's, over the status line
     round: [[10, 786.3, 323.7], [11, 940, 253.8], [12, 1110.3, 253.8], [13, 1273.7, 300.2], [6, 795.2, 504.9], [7, 948.8, 435], [8, 1119, 435], [9, 1282.5, 481.4],
       [15, 816.3, 710.5]],
     sticks: [[18, 253.4, 238.2, 1.12], [19, 640.8, 710.5, 1.12]],
     dpad: [0, 0], bumperLabel: [284, 14],
   },
   "m-platform": {
-    m: true, name: 'PadBox M Platform', R: 73.5,
+    m: true, name: 'PadBox M Platform', R: 73.5, viewBox: '-28 0 1586 1244',
     round: [[10, 786.3, 323.7], [11, 940, 253.8], [12, 1110.3, 253.8], [13, 1273.7, 300.2], [6, 795.2, 504.9], [7, 948.8, 435], [8, 1119, 435], [9, 1282.5, 481.4],
       [32, 690, 679], [30, 857.7, 697.6], [31, 589.7, 816], [33, 658.5, 970.4], [19, 758.8, 834.7]],
     sticks: [[18, 253.4, 238.2, 1.12]],
@@ -77,10 +77,11 @@ function el(name, attrs, parent) {
 }
 
 // Builds the drawing. onPick(pin) when a button is clicked; tip(pin) = the hover text; label(pin) = the short name
-// written on the button (its function).
+// written on the button (its function; '' for none - the redesign writes nothing on the D-pad, sticks and bumper while
+// they do what they're for, so the apps return '' for those).
 export function buildDrawing(onPick, tip, label, board) {
   const B = BOARDS[board] || BOARDS.essential, k = B.R / 79;   // k: the round buttons' size against the Essential's
-  const svg = el('svg', { viewBox: '0 0 1530 1200', class: 'pad-drawing', role: 'img', 'aria-label': B.name });
+  const svg = el('svg', { viewBox: B.viewBox || '0 0 1530 1200', class: 'pad-drawing', role: 'img', 'aria-label': B.name });
   const defs = el('defs', {}, svg);
   const parts = {};   // pin -> [shapes]
   const add = (pin, shape) => {
@@ -183,13 +184,15 @@ export function buildDrawing(onPick, tip, label, board) {
   }
   // @M}
 
-  // sticks: a dark ring with the cap inside; clicking one = its click (L3 / R3), if it has one
+  // sticks: a dark ring with the cap inside; clicking one = its click (L3 / R3), if it has one. The redesign (GS Essential
+  // Redesign) draws them still, so the GS has no live dot on them (the STICKS page shows where they are).
   const dots = [];   // the live position of each stick
   B.sticks.forEach(([pin, x, y, sz]) => {
     const g = el('g', {}, svg);
     if (pin >= 0) add(pin, g);
     el('circle', { cx: x, cy: y, r: 54 * sz, fill: C.stickRing }, g);
     el('circle', { cx: x, cy: y, r: 44 * sz, fill: C.btn, stroke: C.stickInner, 'stroke-width': '3' }, g);
+    if (!B.m) return;
     const dot = el('circle', { cx: x, cy: y, r: 15 * sz, fill: C.pressed, stroke: C.edge, 'stroke-width': '3', 'pointer-events': 'none' }, svg);
     dots.push({ dot, x, y, travel: 34 * sz });
   });
@@ -206,8 +209,8 @@ export function buildDrawing(onPick, tip, label, board) {
     const glow = el('circle', { cx: x, cy: y, r: 100.6 * k, fill: 'url(#led' + pin + ')', 'pointer-events': 'none', visibility: 'hidden' }, svg);
     leds[pin] = { stops, glow, x, y };
   }
-  // (no dark outline on the face buttons: the LED band sits right at their edge, as in the design)
-  for (const [pin, x, y] of B.round) add(pin, el('circle', { cx: x, cy: y, r: B.R, fill: C.btn }, svg));
+  // a thin dark edge on the face buttons, as in the redesign; a lit LED's band covers it
+  for (const [pin, x, y] of B.round) add(pin, el('circle', { cx: x, cy: y, r: B.R - 2 * k, fill: C.btn, stroke: C.edge, 'stroke-width': 4 * k }, svg));
   for (const [pin, x, y] of B.round) leds[pin].band = el('circle', { cx: x, cy: y, r: 78.9 * k, fill: 'none', 'stroke-width': 4.8 * k, 'pointer-events': 'none', visibility: 'hidden' }, svg);
   // color(pin) = the LED's color as '#rrggbb', or null for none
   function setLeds(color) {
