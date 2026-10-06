@@ -297,7 +297,13 @@ export async function startPhob(shell, dev, opts) {
     };
     return v;
   }
-  function notchName(n) { return { 0: 'right', 2: 'up-right', 4: 'up', 6: 'up-left', 8: 'left', 10: 'down-left', 12: 'down', 14: 'down-right' }[n] || 'in-between'; }
+  // the notch's name where the gate shows it: mirrored by the flips, like the target cross
+  function notchName(n) {
+    if (view.inv & 1) n = (24 - n) % 16;
+    if (view.inv & 2) n = (16 - n) % 16;
+    return notchLabel(n);
+  }
+  function notchLabel(n) { return { 0: 'right', 2: 'up-right', 4: 'up', 6: 'up-left', 8: 'left', 10: 'down-left', 12: 'down', 14: 'down-right' }[n] || 'in-between'; }
   // the calibration box, from each frame: getting ready, the 32 capture steps (16 notches, each centre then edge), the
   // 12 notch adjustments, saving
   function showStep(f) {
@@ -434,6 +440,11 @@ export async function startPhob(shell, dev, opts) {
     view.outX = (f.ax - 127) / 100; view.outY = (f.ay - 127) / 100;
     // while calibrating, the C-stick's output is the target
     view.hasTarget = view.active; view.tx = (f.cx - 127) / 100; view.ty = (f.cy - 127) / 100;
+    // PhobGCC calibrates the stick itself (its raw reading) and flips only its output afterwards. The raw ring is drawn
+    // flipped, so the target and its aim are flipped the same way: lining the ring up with the cross then calibrates the
+    // real stick, and the output, flipped by the firmware, ends up where the raw ring shows
+    if (view.inv & 1) { view.tx = -view.tx; if (!isNaN(view.aim)) view.aim = (540 - view.aim) % 360; }
+    if (view.inv & 2) { view.ty = -view.ty; if (!isNaN(view.aim)) view.aim = (360 - view.aim) % 360; }
     if (curPage === page1) { const r = readout(view.outX, view.outY); rd1.textContent = r.xy + (r.angle ? '     ' + r.angle : ''); }
     showStep(f);
     invOther = f.inv & 12;
