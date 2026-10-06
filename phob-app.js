@@ -10,7 +10,7 @@ import { el, pickColor, hex, clamp, confirmBox } from './js/ui.js';
 import { firmwareUpdate } from './js/update.js';
 import { buildDrawing } from './drawing.js';
 import { dicon } from './icons.js';
-import { panel, dtoggle, dslider, pbtn, segmented, badge, readout, backupPage, toast } from './parts.js';
+import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, readout, backupPage, toast } from './parts.js';
 
 const BA = 1, BB = 2, BX = 4, BY = 8, BZ = 16, BL = 32, BR = 64, BS = 128;
 const CAL_ORDER = [0, 1, 8, 9, 16, 17, 24, 25, 4, 5, 12, 13, 20, 21, 28, 29, 2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31];
@@ -217,8 +217,11 @@ export async function startPhob(shell, dev, opts) {
   const holdBtn = (cls, title, m) => { const b = el('button.hold.' + cls, { type: 'button', title, html: dicon(cls === 'ccw' ? 'minus' : 'plus') }); b.addEventListener('pointerdown', () => { holdMask |= m; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { holdMask &= ~m; }); return b; };
   const stepT = el('div.cal-t'), stepD = el('div.cal-d'), stepS = el('div.cal-s'), prog = el('div.phob-prog', {}, [el('i')]);
   const bUndo = macroBtn('Undo', 'Z', [[BZ, 200]], false), bSkip = macroBtn('Skip', 'START', [[BS, 200]], false), bAdv = macroBtn('Advance', 'A', [[BA, 200]], true);
+  // while lining a notch up: back to the angle it was captured at (B)
+  const bResetNotch = macroBtn('Reset notch', 'B', [[BB, 200]], false);
+  bResetNotch.title = 'Put this notch back to the angle it was captured at';
   const angleRow = el('div.angle-off', {}, [holdBtn('ccw', 'Rotate counter-clockwise (hold)', BY), el('span', { text: 'Angle offset' }), holdBtn('cw', 'Rotate clockwise (hold)', BX)]);
-  const calBox = el('div.cal-box.hidden', {}, [el('div.cal-head', {}, [stepT, angleRow]), stepD, stepS, prog, el('div.btnrow.cal-btns', {}, [bUndo, bSkip, bAdv])]);
+  const calBox = el('div.cal-box.hidden', {}, [el('div.cal-head', {}, [stepT, angleRow]), stepD, stepS, prog, el('div.btnrow.cal-btns', {}, [bUndo, bResetNotch, bSkip, bAdv])]);
   const bCal = pbtn('Calibrate', 'target', true, () => {
     if (!frame || frame.step >= 0) return;
     // a locked controller (PhobGCC's safe mode) is unlocked first: A+X+Y+Start held, then A+X+Y+L starts the calibration
@@ -226,12 +229,19 @@ export async function startPhob(shell, dev, opts) {
     macroUntil = 0; cal.starting = performance.now() + (frame.locked ? 3800 : 300);
   });
   bCal.title = 'PhobGCC\'s own step-by-step calibration: 16 notches, then fine-tuning each notch\'s angle';
+  // PhobGCC's safe mode: locked, its calibration and settings combos do nothing (A + X + Y + Start held about a second
+  // unlocks, a short press locks). The button says what a click does; the state is on the title row.
+  const bLock = pbtn('Unlock', '', false, () => {
+    if (!frame || frame.step >= 0) return;
+    macro = frame.locked ? [[BA | BX | BY | BS, 1300]] : [[BA | BX | BY | BS, 250]]; macroUntil = 0;
+  });
+  const lockTag = el('span.lock-tag');
   const stickPanel = panel('STICK', [el('div.phob-body', {}, [
     el('div.phob-left', {}, [el('div.gate-wrap', {}, [view.canvas]), el('div.rd', {}, [rd1, legend]), el('div.angle-row', {}, [setCenter]),
       el('p.angle-hint', { text: 'Let go of the stick, then click Set center if the stick reads off-center or the plot is cluttered' })]),
-    el('div.phob-right', {}, [el('div.two.flips', {}, [flips[0].el, flips[1].el]), gateSeg.el, calBox, el('div.btnrow.cal-main', {}, [bCal])]),
+    el('div.phob-right', {}, [el('div.two.flips', {}, [flips[0].el, flips[1].el]), gateSeg.el, calBox, el('div.btnrow.cal-main', {}, [bLock, bCal])]),
   ])], 'phob-wide');
-  stickPanel.firstChild.append(tag.el);
+  stickPanel.firstChild.append(tag.el, lockTag);
   const page1 = el('div.page.hidden.dpage.phobsticks', {}, [stickPanel]);
   const cal = { starting: 0, was: -1 };
 
@@ -282,6 +292,11 @@ export async function startPhob(shell, dev, opts) {
   // the calibration box, from each frame: getting ready, the 32 capture steps (16 notches, each centre then edge), the
   // 12 notch adjustments, saving
   function showStep(f) {
+    // locked / unlocked: on the title row, and what the lock button does
+    lockTag.textContent = f.locked ? 'Locked' : 'Unlocked'; lockTag.className = 'lock-tag ' + (f.locked ? 'locked' : 'open');
+    setPbtn(bLock, f.locked ? 'Unlock' : 'Lock', ''); bLock.disabled = f.step >= 0;
+    bLock.title = f.locked ? 'Unlock the controller (A + X + Y + Start, held): needed before calibrating or changing its settings'
+      : 'Lock the controller (A + X + Y + Start): its calibration combos can\'t be pressed by accident';
     const now = performance.now();
     const ready = f.step < 0 && cal.starting && now < cal.starting + 4000;   // clicked Calibrate, the firmware hasn't started yet
     const on = f.step >= 0 || ready;
@@ -308,12 +323,12 @@ export async function startPhob(shell, dev, opts) {
       const i = f.step - 32;
       title = 'LINE THE NOTCH UP WITH YOUR GATE (' + (i + 1) + '/' + ADJ_ORDER.length + ')'; p = f.step / 44;
       text = 'Rotate the ' + notchName(ADJ_ORDER[i]) + ' notch\'s angle with the − / + buttons (hold), then press Advance (A)';
-      buttons = [bUndo, bSkip, bAdv]; angle = true;
+      buttons = [bUndo, bResetNotch, bSkip, bAdv]; angle = true;
     } else { title = 'SAVING'; text = 'Finishing and saving the calibration...'; buttons = []; p = 1; }
     stepT.textContent = title; stepD.textContent = text; stepS.textContent = sub;
     prog.firstChild.style.width = (p * 100) + '%'; prog.classList.toggle('hidden', ready);
     angleRow.classList.toggle('hidden', !angle);
-    for (const b of [bUndo, bSkip, bAdv]) b.classList.toggle('hidden', !buttons.includes(b));
+    for (const b of [bUndo, bResetNotch, bSkip, bAdv]) b.classList.toggle('hidden', !buttons.includes(b));
   }
 
   // ---------------------------------------------------------------- SETTINGS page (the left stick's: the C-stick is buttons)
@@ -333,7 +348,7 @@ export async function startPhob(shell, dev, opts) {
   const resetSet = list => { if (!settings0) return; for (const s of list) { vals[s.idx] = settings0[s.idx]; s.value = vals[s.idx]; } sChanged(); };
   const card = (title, list, note) => panel(title, [...list.map(s => s.el), el('p.hint.wrap', { text: note }),
     el('div.btnrow.bottom', {}, [pbtn('Reset', 'sync', false, () => resetSet(list)), pbtn('Save', 'check', true, () => { clearTimeout(setTimer); pending.settings = vals.slice(); saveAll(); })])], 'stretch');
-  const page2 = el('div.page.hidden.dpage.settings', {}, [
+  const page2 = el('div.page.hidden.dpage.settings.phobset', {}, [
     card('STICK RESPONSE', sliders.slice(0, 4), 'Snapback: less bounce when you let the stick go. Smoothing: higher is smoother but slower.'),
     card('STICK SHAPING', sliders.slice(4), 'Waveshaping: the response during fast movement. Cardinal snapping: near-cardinal inputs snap to the axis.'),
   ]);

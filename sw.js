@@ -2,7 +2,7 @@
 // visit. Bump VERSION when publishing a new version: the old copy is then replaced on the next visit.
 // The files are the published site's (tools/build-gs.js): the calibrator in the new design at the root, using the
 // device and model modules in js/.
-const VERSION = 'padbox-web-15';
+const VERSION = 'padbox-web-16';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css', 'v2.css',
   'main.js', 'gp-app.js', 'hoja-app.js', 'phob-app.js', 'drawing.js', 'icons.js', 'ref-icons.js', 'parts.js', 'gs-essential-shapes.js',
