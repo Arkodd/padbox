@@ -319,8 +319,12 @@ export async function startHoja(shell, dev, opts) {
   // (orange dot) and the raw reading (ring); ANGLE SET; the axes; the gate's shape; deadzones, snapback and curve; then
   // Reset (back to this stick's settings as they were when connecting) and Calibrate. Each panel's Calibrate calibrates
   // that stick only; firmware from before the one-stick commands calibrates both sticks together instead.
-  const sticks = [makeStick(false, 'LEFT STICK'), makeStick(true, hasRight ? 'RIGHT STICK' : 'C-STICK')];
-  const page1 = el('div.page.hidden.dpage.sticks.hoja', {}, sticks.map(s => s.card));
+  // the GS Platform has one stick: one wide panel, as in its design (the gate, its reading and ANGLE SET on the left,
+  // the settings on the right)
+  const sticks = [makeStick(false, hasRight ? 'LEFT STICK' : 'STICK'), makeStick(true, hasRight ? 'RIGHT STICK' : 'C-STICK')];
+  if (!hasRight) { const c = sticks[0].card; c.classList.add('wide'); const body = c.querySelector('.stick-body'), rd = body.querySelector('.rd');
+    rd.after(c.querySelector('.angle-row'), c.querySelector('p.angle-hint:not(.left)')); }
+  const page1 = el('div.page.hidden.dpage.sticks.hoja' + (hasRight ? '' : '.one'), {}, (hasRight ? sticks : sticks.slice(0, 1)).map(s => s.card));
   function refreshCal(msg, color) {
     for (const s of sticks) s.showCal(msg, color);
   }
@@ -376,7 +380,7 @@ export async function startHoja(shell, dev, opts) {
     const outer = dslider('Outer deadzone', 0, 400, dz, v => { Analog.setOuter(A(), right, v); changed(Blk.ANALOG); });
     const snap = dslider('Snapback filter', 0, 255, v => v === 0 ? 'Off' : String(v), v => { Analog.setSnap(A(), right, v); changed(Blk.ANALOG); });
     const exp = dslider('Curve', 50, 300, v => (v / 100).toFixed(2), v => { Analog.setExp(A(), right, clamp(v - 49, 1, 251)); changed(Blk.ANALOG); });
-    const offMsg = el('div.stick-off', {}, [el('div.empty-t', { text: 'Stick disabled' }),
+    const offMsg = el('div.stick-off', {}, [el('div.off-icon', { html: dicon('nav-stick') }), el('div.empty-t', { text: 'Stick disabled' }),
       el('div.empty-d', { text: 'This stick is currently disabled. Enable it to access calibration, deadzone, and other input settings.' })]);
     // while calibrating, the steps take the settings' place
     const settingsBox = el('div.stick-set', {}, [

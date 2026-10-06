@@ -122,16 +122,24 @@ export const niceDate = d => { d = new Date(d); const p = n => String(n).padStar
 function loadHistory() { try { const h = JSON.parse(localStorage.getItem(STORE) || '[]'); return Array.isArray(h) ? h : []; } catch (e) { return []; } }
 function saveHistory(h) { try { localStorage.setItem(STORE, JSON.stringify(h)); return true; } catch (e) { return false; } }
 
-function askName(title, value, ok) {
+// The design's name window ("EDIT BACKUP", Figma PadBox GS Platform): a panel in the middle of the frame over the page,
+// dimmed and blurred; its text, the name field, then Cancel and the orange button. Resolves to the name, or null.
+function askName(title, text, value, ok) {
   return new Promise(res => {
-    const input = el('input.name-in', { type: 'text', value, maxlength: 40, spellcheck: 'false' });
-    let d;
-    const done = v => { d.close(); res(v); };
-    const okB = button(ok, { primary: true, icon: '', onclick: () => done(input.value.trim() || value) });
-    const no = button('CANCEL', { icon: '', onclick: () => done(null) });
+    const stage = document.getElementById('stage');
+    const input = el('input.field.dm-in', { type: 'text', value, maxlength: 40, spellcheck: 'false' });
+    const cancel = el('button.pbtn.outline', { type: 'button', html: '<i class="dm-x">×</i><span>Cancel</span>' });
+    const go = el('button.pbtn.primary', { type: 'button', html: dicon('check') + '<span>' + ok + '</span>' });
+    const box = el('div.panel.dmodal', { role: 'dialog', 'aria-label': title }, [el('div.ptitle', { text: title }), el('p.dm-t', { text }), input, el('div.dm-btns', {}, [cancel, go])]);
+    const back = el('div.dm-back', {}, [box]);
+    const done = v => { back.remove(); removeEventListener('keydown', key, true); res(v); };
+    const key = e => { if (e.key === 'Escape') { e.preventDefault(); done(null); } };
+    cancel.addEventListener('click', () => done(null));
+    go.addEventListener('click', () => done(input.value.trim() || value));
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); done(input.value.trim() || value); } });
-    d = dialog(title, '', 'info', [el('div.lbl', { text: 'Name', style: { color: 'var(--soft)', margin: '0 0 6px' } }), input], [okB, no]);
-    d.addEventListener('cancel', () => res(null));
+    back.addEventListener('mousedown', e => { if (e.target === back) done(null); });
+    addEventListener('keydown', key, true);
+    stage.append(back);
     setTimeout(() => { input.focus(); input.select(); }, 30);
   });
 }
@@ -168,7 +176,7 @@ export function backupPage(o) {
   }
   async function exportNow() {
     const n = loadHistory().filter(mine).length + 1;
-    const name = await askName('Export configuration', 'Backup ' + n, 'EXPORT'); if (!name) return;
+    const name = await askName('EXPORT CONFIGURATION', 'Name this backup to find it in your Backup history', 'Backup ' + n, 'Export'); if (!name) return;
     say('Exporting...', 'var(--warn)');
     let data; try { data = await o.exportData(); } catch (e) { return say('Export failed: ' + e.message, 'var(--bad)'); }
     const text = JSON.stringify(data, null, 1);
@@ -197,7 +205,7 @@ export function backupPage(o) {
     restoreData(data, 'the backup "' + e.name + '" from ' + niceDate(e.created));
   }
   async function rename(e) {
-    const name = await askName('Rename backup', e.name, 'RENAME'); if (!name) return;
+    const name = await askName('EDIT BACKUP', 'Enter a new name to find this backup in your Backup history', e.name, 'Save'); if (!name) return;
     const h = loadHistory(), x = h.find(y => y.id === e.id); if (x) { x.name = name; saveHistory(h); }
     paint();
   }

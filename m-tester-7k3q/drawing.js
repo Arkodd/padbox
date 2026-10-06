@@ -81,7 +81,7 @@ function el(name, attrs, parent) {
 // they do what they're for, so the apps return '' for those).
 export function buildDrawing(onPick, tip, label, board) {
   const B = BOARDS[board] || BOARDS.essential, k = B.R / 79;   // k: the round buttons' size against the Essential's
-  const svg = el('svg', { viewBox: B.viewBox || '0 0 1530 1200', class: 'pad-drawing', role: 'img', 'aria-label': B.name });
+  const svg = el('svg', { viewBox: B.viewBox || '0 0 1530 1200', class: 'pad-drawing pd-' + (BOARDS[board] ? board : 'essential'), role: 'img', 'aria-label': B.name });
   const defs = el('defs', {}, svg);
   const parts = {};   // pin -> [shapes]
   const add = (pin, shape) => {

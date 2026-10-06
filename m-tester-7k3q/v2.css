@@ -713,3 +713,49 @@ table.hist td.acts { line-height: 0; } table.hist td.acts .ia { position: relati
 .flyout button:first-child { height: 29.42px; padding-top: 1.63px; }
 .flyout button.sel { background: var(--orange-deep); color: #eeeeee; }
 body[data-page="connect"] #main { left: 0; top: 0; }
+/* the GS Platform's drawing where its design (Figma "PadBox GS Platform - GP2040") has it: a little smaller and lower */
+.pad-drawing.pd-platform { left: 128.17px; top: 151.24px; width: 639.97px; height: 501.94px; }
+.page.controller.hoja .pad-drawing.pd-platform { top: 161.86px; }
+
+/* GS Platform STICKS (GP2040-CE): one 949 x 425 panel - the 284 px gate and its reading on the left, the settings in a
+   470 px column on the right, Reset and Calibrate at its foot */
+.dpage.sticks.one { display: block; }
+.panel.stick.wide { position: relative; width: 775.51px; height: 347.3px; }
+.panel.stick.wide .ptitle { padding-right: 19.61px; }
+.panel.stick.wide .stick-body { display: block; }
+.panel.stick.wide .gate-wrap { position: absolute; left: 46.85px; top: 51.75px; padding: 0; }
+.panel.stick.wide canvas.gate { width: 238.08px; height: 238.08px; }
+.panel.stick.wide .rd { position: absolute; left: 0; width: 331.78px; top: 292.5px; margin: 0; }
+.panel.stick.wide .stick-ctl { position: absolute; left: 357.93px; width: 384.08px; top: 92.34px; bottom: 87.43px; }
+.panel.stick.wide .two.flips { margin-top: 0; grid-template-columns: 198.6px 1fr; }
+.panel.stick.wide .seg { margin-top: 12.26px; }
+.panel.stick.wide .seg button.on { flex: 0 0 197.76px; }
+.panel.stick.wide .stick-ctl .dslider, .panel.stick.wide .stick-ctl .dslider + .dslider { margin-top: 8.82px; }
+.panel.stick.wide .btnrow { gap: 12.26px; }
+.panel.stick.wide .stick-off { position: absolute; left: 336.7px; width: 384px; top: 108px; margin: 0; }
+.stick-off .off-icon { width: 52.3px; height: 52.3px; margin: 0 auto; color: #9d9d9d; }
+.stick-off .off-icon svg { width: 100%; height: 100%; }
+.panel.stick:not(.wide) .stick-off .off-icon { display: none; }
+.panel.stick.wide .stick-off .empty-t { margin-top: 6.5px; }
+.panel.stick.wide .stick-off .empty-d { padding: 0; }
+
+/* the name window (EDIT BACKUP): 426 x 211, centred, the page behind it dimmed and blurred */
+.dm-back { position: absolute; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(24, 24, 24, .55); backdrop-filter: blur(3.27px); -webkit-backdrop-filter: blur(3.27px); }
+.panel.dmodal { width: 348.12px; height: 172.43px; padding: 24.84px 19.61px 18.8px; }
+.dm-t { margin: 20.76px 0 0; font-size: 9.81px; line-height: 1; color: #9d9d9d; }
+.field.dm-in { display: block; width: 100%; margin-top: 15.69px; cursor: text; padding-right: 7.2px; }
+.dm-btns { display: flex; justify-content: flex-end; gap: 13.07px; margin-top: 15.52px; }
+.dm-btns .pbtn { width: 84.99px; margin: 0; }
+.dm-btns .pbtn svg.ri { width: 8.66px; height: 8.66px; }
+.dm-x { font-style: normal; font-size: 11px; line-height: 1; }
+/* HOJA2 on the GS Platform: the same wide panel, taller for ANGLE SET, snapback and curve */
+.dpage.sticks.hoja.one .panel.stick.wide { height: 405px; }
+.panel.stick.wide .angle-row { position: absolute; left: 0; width: 331.78px; top: 327px; margin: 0; }
+.panel.stick.wide p.angle-hint:not(.left) { position: absolute; left: 0; width: 331.78px; top: 362px; margin: 0; white-space: normal; text-align: center; }
+.dpage.sticks.hoja .panel.stick.wide .rd { top: 290px; margin: 0; }
+.dpage.sticks.hoja .panel.stick.wide .gate-wrap { padding: 0; }
+.dpage.sticks.hoja .panel.stick.wide canvas.gate { width: 238.08px; height: 238.08px; }
+.dpage.sticks.hoja .panel.stick.wide .stick-ctl { top: 70px; bottom: 21px; }
+.dpage.sticks.hoja .panel.stick.wide .two.flips { margin-top: 0; }
+.panel.stick.wide .stick-off { top: 88px; }
+.panel.stick.wide .stick-off .off-icon { width: 80px; height: 80px; margin: 0 auto -16px; }

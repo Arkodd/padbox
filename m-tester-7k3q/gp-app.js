@@ -74,9 +74,9 @@ export async function startGp(shell, dev, opts) {
   const QUIET_STICKS = { 'GS Essential': [18, 19] };
   Object.assign(QUIET_STICKS, { 'M Essential': [18, 19], 'M Platform': [18] });   // @M
   const QUIET = new Set([2, 3, 4, 5, 22, ...(QUIET_STICKS[L.board] || [])]);
-  // the GS draws its face buttons with their GameCube names, as in the redesign (X Y Z / A B R L; L1 has none, so its
+  // the GS Essential draws its face buttons with their GameCube names, as in its redesign (the Platform's keeps GP2040-CE's) (X Y Z / A B R L; L1 has none, so its
   // button is left blank); the full function is in the button's tooltip and in BUTTON SETTINGS
-  const GC = /^GS /.test(L.board) ? { B1: 'A', B2: 'B', B3: 'X', B4: 'Y', R1: 'Z', R2: 'R', L2: 'L', L1: '' } : null;
+  const GC = L.board === 'GS Essential' ? { B1: 'A', B2: 'B', B3: 'X', B4: 'Y', R1: 'Z', R2: 'R', L2: 'L', L1: '' } : null;
   const quiet = pin => QUIET.has(pin) && L.defaults && pin in L.defaults && actOf(pin) === L.defaults[pin];
   const drawing = buildDrawing(pin => select(pin), pin => {
     const a = act(actOf(pin));
@@ -275,8 +275,10 @@ export async function startGp(shell, dev, opts) {
   // The redesign: one tall panel per stick - its name with Calibrated / Not calibrated, Enabled; the gate with the stick
   // in it and its reading; the axes; the gate's shape; the deadzones; then Reset and Calibrate. A stick switched off shows
   // "Stick disabled" instead of its settings.
-  const sticks = [makeStick(0, 'LEFT STICK'), makeStick(1, 'RIGHT STICK')];
-  const page1 = el('div.page.hidden.dpage.sticks', {}, sticks.map(s => s.card));
+  // the GS Platform has one stick: one wide panel, the gate on the left and its settings on the right (its design)
+  const sticks = [makeStick(0, L.noRightStick ? 'STICK' : 'LEFT STICK'), makeStick(1, 'RIGHT STICK')];
+  if (L.noRightStick) sticks[0].card.classList.add('wide');
+  const page1 = el('div.page.hidden.dpage.sticks' + (L.noRightStick ? '.one' : ''), {}, (L.noRightStick ? sticks.slice(0, 1) : sticks).map(s => s.card));
   function makeStick(idx, title) {
     const cv = el('canvas.gate'), tag = badge();
     const en = dtoggle('Enabled', v => { if (idx === 0) m.stick1Enabled = v; else m.stick2Enabled = v; markDirty('cal'); showOn(); }, 'Disabled');
@@ -294,7 +296,7 @@ export async function startGp(shell, dev, opts) {
     const inner = dslider('Inner deadzone', 0, 100, v => v + '%', v => { if (idx === 0) m.innerDeadzone = v; else m.innerDeadzone2 = v; markDirty('settings'); });
     // GP2040-CE stores how far out the stick reaches 100% (100 = all the way); shown as the deadzone at the edge (0% = none)
     const outer = dslider('Outer deadzone', 0, 100, v => v + '%', v => { if (idx === 0) m.outerDeadzone = 100 - v; else m.outerDeadzone2 = 100 - v; markDirty('settings'); });
-    const offMsg = el('div.stick-off', {}, [el('div.empty-t', { text: 'Stick disabled' }),
+    const offMsg = el('div.stick-off', {}, [el('div.off-icon', { html: dicon('nav-stick') }), el('div.empty-t', { text: 'Stick disabled' }),
       el('div.empty-d', { text: 'This stick is currently disabled. Enable it to access calibration, deadzone, and other input settings.' })]);
     // while calibrating, the steps take the settings' place
     const settingsBox = el('div.stick-set', {}, [el('div.two.flips', {}, [fx.el, fy.el]), gate.el, inner.el, outer.el]);
