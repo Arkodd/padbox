@@ -254,11 +254,13 @@ export async function startPhob(shell, dev, opts) {
 
   function makeView() {
     const canvas = el('canvas.gate.phob-gate-cv');
-    const v = { canvas, octagon: false, active: false, outX: 0, outY: 0, hasTarget: false, tx: 0, ty: 0, aim: NaN, aimCenter: false, rawX: 0.5, rawY: 0.5, cx: NaN, cy: NaN, range: 0.05, trail: [], ang: 0, pct: 0 };
+    const v = { canvas, octagon: false, active: false, outX: 0, outY: 0, hasTarget: false, tx: 0, ty: 0, aim: NaN, aimCenter: false, rawX: 0.5, rawY: 0.5, cx: NaN, cy: NaN, range: 0.05, trail: [], ang: 0, pct: 0, inv: 0 };
+    // the raw reading is drawn with the stick's flips too (bit 0 X, bit 1 Y), so it sits with the output it gives
+    const fx = () => (v.inv & 1) ? -1 : 1, fy = () => (v.inv & 2) ? -1 : 1;
     v.setRaw = (x, y) => {
       if (isNaN(v.cx)) { v.cx = x; v.cy = y; }
       v.rawX = x; v.rawY = y;
-      const dx = x - v.cx, dy = y - v.cy, m = Math.hypot(dx, dy);
+      const dx = fx() * (x - v.cx), dy = fy() * (y - v.cy), m = Math.hypot(dx, dy);
       if (m > v.range) v.range = m;
       let ang = Math.atan2(dy, dx) * 180 / Math.PI; if (ang < 0) ang += 360;
       v.ang = ang; v.pct = v.range > 0 ? 100 * m / v.range : 0;
@@ -285,7 +287,7 @@ export async function startPhob(shell, dev, opts) {
       if (v.active && !isNaN(v.aim)) { const a = v.aim * Math.PI / 180; g.setLineDash([4, 4]); g.lineWidth = 1; g.strokeStyle = 'rgba(255,210,60,.6)'; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); g.setLineDash([]); }
       g.fillStyle = 'rgba(40,166,255,.5)';
       for (const [x, y] of v.trail) g.fillRect(c + x / v.range * R - 1, c - y / v.range * R - 1, 2, 2);
-      if (!isNaN(v.cx)) { g.beginPath(); g.arc(c + (v.rawX - v.cx) / v.range * R, c - (v.rawY - v.cy) / v.range * R, 6, 0, Math.PI * 2); g.lineWidth = 1; g.strokeStyle = '#e6e6e6'; g.stroke(); }
+      if (!isNaN(v.cx)) { g.beginPath(); g.arc(c + fx() * (v.rawX - v.cx) / v.range * R, c - fy() * (v.rawY - v.cy) / v.range * R, 6, 0, Math.PI * 2); g.lineWidth = 1; g.strokeStyle = '#e6e6e6'; g.stroke(); }
       g.beginPath(); g.arc(c + clamp(v.outX, -1.2, 1.2) * R, c - clamp(v.outY, -1.2, 1.2) * R, 4, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill();
       // the target: where PhobGCC wants the stick for this step (it shows it on the C-stick's output while calibrating)
       if (v.hasTarget) {
@@ -424,6 +426,7 @@ export async function startPhob(shell, dev, opts) {
     const freshPress = f.phys & ~phys;
     phys = f.phys;
     if (freshPress && curPage === page0) { for (let b = 0; b < 21; b++) if (freshPress & (1 << b)) { if (pinOf(b) >= 0) select(b); break; } }   // pressing a button selects it
+    if ((f.inv & 3) !== view.inv) { view.inv = f.inv & 3; view.trail = []; }   // a flip: the old trace would be mirrored
     view.setRaw(f.rawAx, f.rawAy);
     view.active = f.step >= 0 && f.stick === 0;
     view.aim = NaN; view.aimCenter = false;
