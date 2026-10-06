@@ -235,12 +235,12 @@ export async function startPhob(shell, dev, opts) {
   const calBox = el('div.cal-box.hidden', {}, [el('div.cal-head', {}, [stepT, angleRow]), stepD, stepS, prog, el('div.btnrow.cal-btns', {}, [bUndo, bResetNotch, bSkip, bAdv])]);
   const bCal = pbtn('Calibrate', 'target', true, () => {
     if (!frame || frame.step >= 0) return;
-    // a locked controller (PhobGCC's safe mode) is unlocked first: A+X+Y+Start held, then A+X+Y+L starts the calibration
+    // a locked controller (PhobGCC's safe mode) is unlocked first: 1K+1P+2P+Start held (sent as A+X+Y+Start), then 1K+1P+2P+4K (A+X+Y+L) starts the calibration
     macro = frame.locked ? [[BA | BX | BY | BS, 1300], [0, 2200], [BA | BX | BY | BL, 300]] : [[BA | BX | BY | BL, 300]];
     macroUntil = 0; cal.starting = performance.now() + (frame.locked ? 3800 : 300);
   });
   bCal.title = 'PhobGCC\'s own step-by-step calibration: 16 notches, then fine-tuning each notch\'s angle';
-  // PhobGCC's safe mode: locked, its calibration and settings combos do nothing (A + X + Y + Start held about a second
+  // PhobGCC's safe mode: locked, its calibration and settings combos do nothing (1K + 1P + 2P + Start held about a second
   // unlocks, a short press locks). The button says what a click does; the state is on the title row.
   const bLock = pbtn('Unlock', '', false, () => {
     if (!frame || frame.step >= 0) return;
@@ -311,8 +311,8 @@ export async function startPhob(shell, dev, opts) {
     // locked / unlocked: on the title row, and what the lock button does
     lockTag.textContent = f.locked ? 'Locked' : 'Unlocked'; lockTag.className = 'lock-tag ' + (f.locked ? 'locked' : 'open');
     setPbtn(bLock, f.locked ? 'Unlock' : 'Lock', ''); bLock.disabled = f.step >= 0;
-    bLock.title = f.locked ? 'Unlock the controller (A + X + Y + Start, held): needed before calibrating or changing its settings'
-      : 'Lock the controller (A + X + Y + Start): its calibration combos can\'t be pressed by accident';
+    bLock.title = f.locked ? 'Unlock the controller: hold 1K + 1P + 2P + Start for about a second (this button does it for you). Needed before calibrating or changing its settings'
+      : 'Lock the controller: press 1K + 1P + 2P + Start (this button does it for you). Its calibration combos then can\'t be pressed by accident';
     const now = performance.now();
     const ready = f.step < 0 && cal.starting && now < cal.starting + 4000;   // clicked Calibrate, the firmware hasn't started yet
     const on = f.step >= 0 || ready;
