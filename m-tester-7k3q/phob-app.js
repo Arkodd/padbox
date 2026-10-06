@@ -10,7 +10,7 @@ import { el, pickColor, hex, clamp, confirmBox } from './js/ui.js';
 import { firmwareUpdate } from './js/update.js';
 import { buildDrawing } from './drawing.js';
 import { dicon } from './icons.js';
-import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, readout, backupPage, toast } from './parts.js';
+import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, readout, backupPage, toast, updateNotice } from './parts.js';
 
 const BA = 1, BB = 2, BX = 4, BY = 8, BZ = 16, BL = 32, BR = 64, BS = 128;
 const CAL_ORDER = [0, 1, 8, 9, 16, 17, 24, 25, 4, 5, 12, 13, 20, 21, 28, 29, 2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31];
@@ -203,9 +203,9 @@ export async function startPhob(shell, dev, opts) {
   view.octagon = true;   // octagonal by default, like a GameCube stick's gate
   const gateSeg = segmented(['Round Gate', 'Octagonal Gate'], v => { view.octagon = v === 1; });
   gateSeg.value = 1;
-  // flips: bit 0 left X, 1 left Y ("I <mask>", no need to recalibrate). Sent right away: the firmware applies and saves
-  // a flip as soon as it gets it, so there's nothing to wait for (it used to wait for the header's Save, which was easy
-  // to miss); each frame then confirms it (onFrame: "Axis flip saved")
+  // flips: bit 0 left X, 1 left Y ("I <mask>"). Sent right away: the firmware applies and saves a flip as soon as it gets
+  // it. It mirrors the stick's RAW reading (the firmware's readAx / readAy), so the calibration, this gate and the output
+  // all agree - and a calibration made before the flip has to be redone (onFrame says so once it's confirmed)
   const flips = [dtoggle('Flip X axis', flipChanged), dtoggle('Flip Y axis', flipChanged)];
   let invOther = 0;   // the C-stick's flip bits, kept as they are
   function flipChanged() {
@@ -255,12 +255,10 @@ export async function startPhob(shell, dev, opts) {
   function makeView() {
     const canvas = el('canvas.gate.phob-gate-cv');
     const v = { canvas, octagon: false, active: false, outX: 0, outY: 0, hasTarget: false, tx: 0, ty: 0, aim: NaN, aimCenter: false, rawX: 0.5, rawY: 0.5, cx: NaN, cy: NaN, range: 0.05, trail: [], ang: 0, pct: 0, inv: 0 };
-    // the raw reading is drawn with the stick's flips too (bit 0 X, bit 1 Y), so it sits with the output it gives
-    const fx = () => (v.inv & 1) ? -1 : 1, fy = () => (v.inv & 2) ? -1 : 1;
     v.setRaw = (x, y) => {
       if (isNaN(v.cx)) { v.cx = x; v.cy = y; }
       v.rawX = x; v.rawY = y;
-      const dx = fx() * (x - v.cx), dy = fy() * (y - v.cy), m = Math.hypot(dx, dy);
+      const dx = x - v.cx, dy = y - v.cy, m = Math.hypot(dx, dy);
       if (m > v.range) v.range = m;
       let ang = Math.atan2(dy, dx) * 180 / Math.PI; if (ang < 0) ang += 360;
       v.ang = ang; v.pct = v.range > 0 ? 100 * m / v.range : 0;
@@ -287,7 +285,7 @@ export async function startPhob(shell, dev, opts) {
       if (v.active && !isNaN(v.aim)) { const a = v.aim * Math.PI / 180; g.setLineDash([4, 4]); g.lineWidth = 1; g.strokeStyle = 'rgba(255,210,60,.6)'; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); g.setLineDash([]); }
       g.fillStyle = 'rgba(40,166,255,.5)';
       for (const [x, y] of v.trail) g.fillRect(c + x / v.range * R - 1, c - y / v.range * R - 1, 2, 2);
-      if (!isNaN(v.cx)) { g.beginPath(); g.arc(c + fx() * (v.rawX - v.cx) / v.range * R, c - fy() * (v.rawY - v.cy) / v.range * R, 6, 0, Math.PI * 2); g.lineWidth = 1; g.strokeStyle = '#e6e6e6'; g.stroke(); }
+      if (!isNaN(v.cx)) { g.beginPath(); g.arc(c + (v.rawX - v.cx) / v.range * R, c - (v.rawY - v.cy) / v.range * R, 6, 0, Math.PI * 2); g.lineWidth = 1; g.strokeStyle = '#e6e6e6'; g.stroke(); }
       g.beginPath(); g.arc(c + clamp(v.outX, -1.2, 1.2) * R, c - clamp(v.outY, -1.2, 1.2) * R, 4, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill();
       // the target: where PhobGCC wants the stick for this step (it shows it on the C-stick's output while calibrating)
       if (v.hasTarget) {
@@ -297,13 +295,7 @@ export async function startPhob(shell, dev, opts) {
     };
     return v;
   }
-  // the notch's name where the gate shows it: mirrored by the flips, like the target cross
-  function notchName(n) {
-    if (view.inv & 1) n = (24 - n) % 16;
-    if (view.inv & 2) n = (16 - n) % 16;
-    return notchLabel(n);
-  }
-  function notchLabel(n) { return { 0: 'right', 2: 'up-right', 4: 'up', 6: 'up-left', 8: 'left', 10: 'down-left', 12: 'down', 14: 'down-right' }[n] || 'in-between'; }
+  function notchName(n) { return { 0: 'right', 2: 'up-right', 4: 'up', 6: 'up-left', 8: 'left', 10: 'down-left', 12: 'down', 14: 'down-right' }[n] || 'in-between'; }
   // the calibration box, from each frame: getting ready, the 32 capture steps (16 notches, each centre then edge), the
   // 12 notch adjustments, saving
   function showStep(f) {
@@ -404,7 +396,13 @@ export async function startPhob(shell, dev, opts) {
 
   const ints = (line, n) => { const p = line.split(','); if (p.length !== n + 1) return null; const v = p.slice(1).map(Number); return v.some(isNaN) ? null : v; };
   let haveFrame = false, colorShown = false;
+  // which build the controller runs: "V,<board>,<build>" (firmware from before builds were numbered answers without one,
+  // or not at all): a newer PhobGCC on the site gets the same notice as GP2040-CE and HOJA2
+  let versionAsked = false, noticeShown = false;
+  const showUpdate = build => { if (noticeShown) return; noticeShown = true; if (!opts.demo || /[?&]update/.test(location.search)) updateNotice({ board: boardName, family: 'PhobGCC', build, button: btnUpdate, open: () => btnUpdate.click() }); };
   dev.onLine = line => {
+    if (line.startsWith('V,')) { const p = line.split(','); showUpdate(p.length > 2 ? +p[2] || 0 : 0); return; }
+    if (line.startsWith('F,') && !versionAsked) { versionAsked = true; dev.send('V'); setTimeout(() => showUpdate(0), 3000); }
     if (line.startsWith('F,')) {
       const v = line.split(',').slice(1).map(Number);
       if (v.length < 15) return;
@@ -432,7 +430,7 @@ export async function startPhob(shell, dev, opts) {
     const freshPress = f.phys & ~phys;
     phys = f.phys;
     if (freshPress && curPage === page0) { for (let b = 0; b < 21; b++) if (freshPress & (1 << b)) { if (pinOf(b) >= 0) select(b); break; } }   // pressing a button selects it
-    if ((f.inv & 3) !== view.inv) { view.inv = f.inv & 3; view.trail = []; }   // a flip: the old trace would be mirrored
+    if ((f.inv & 3) !== view.inv) { view.inv = f.inv & 3; view.trail = []; view.reset(true); }   // a flip: the raw reading is mirrored now
     view.setRaw(f.rawAx, f.rawAy);
     view.active = f.step >= 0 && f.stick === 0;
     view.aim = NaN; view.aimCenter = false;
@@ -440,15 +438,10 @@ export async function startPhob(shell, dev, opts) {
     view.outX = (f.ax - 127) / 100; view.outY = (f.ay - 127) / 100;
     // while calibrating, the C-stick's output is the target
     view.hasTarget = view.active; view.tx = (f.cx - 127) / 100; view.ty = (f.cy - 127) / 100;
-    // PhobGCC calibrates the stick itself (its raw reading) and flips only its output afterwards. The raw ring is drawn
-    // flipped, so the target and its aim are flipped the same way: lining the ring up with the cross then calibrates the
-    // real stick, and the output, flipped by the firmware, ends up where the raw ring shows
-    if (view.inv & 1) { view.tx = -view.tx; if (!isNaN(view.aim)) view.aim = (540 - view.aim) % 360; }
-    if (view.inv & 2) { view.ty = -view.ty; if (!isNaN(view.aim)) view.aim = (360 - view.aim) % 360; }
     if (curPage === page1) { const r = readout(view.outX, view.outY); rd1.textContent = r.xy + (r.angle ? '     ' + r.angle : ''); }
     showStep(f);
     invOther = f.inv & 12;
-    if (wanted.inv >= 0 && f.inv === wanted.inv) { wanted.inv = -1; say('Axis flip saved in the controller. No need to recalibrate.', 'var(--good)'); view.reset(true); }
+    if (wanted.inv >= 0 && f.inv === wanted.inv) { wanted.inv = -1; say('Axis flipped and saved. Click Calibrate to calibrate the stick again in this orientation.', 'var(--warn)'); view.reset(true); }
     else if (wanted.inv < 0 && pending.inv < 0) { flips[0].checked = (f.inv & 1) !== 0; flips[1].checked = (f.inv & 2) !== 0; }
     if (f.saveState === 2) say('Warning: the controller couldn\'t save its settings.', 'var(--bad)');
     // ask for what we don't know yet; resend what wasn't confirmed
