@@ -69,11 +69,18 @@ export function paintGate(cv, o) {
     grad.addColorStop(0, o.off ? 'rgba(150,150,150,.16)' : 'rgba(254,104,5,.2)'); grad.addColorStop(1, o.off ? 'rgba(150,150,150,.03)' : 'rgba(254,104,5,.04)');
     g.fillStyle = grad; g.beginPath(); g.arc(c, c, rin, 0, Math.PI * 2); g.fill();
   }
+  // outer deadzone (the stick reaches 100% this far out), drawn like the inner one: the same glow, in the ring between
+  // it and the gate's edge (strongest at the edge), then the same circle
+  const dout = o.dout != null && o.dout < 0.995 ? Math.max(o.dout, 0) : 1, rout = R * dout;
+  if (dout < 1) {
+    const grad = g.createRadialGradient(c, c, rout, c, c, R);
+    grad.addColorStop(0, o.off ? 'rgba(150,150,150,.03)' : 'rgba(254,104,5,.04)'); grad.addColorStop(1, o.off ? 'rgba(150,150,150,.16)' : 'rgba(254,104,5,.2)');
+    g.fillStyle = grad; g.beginPath(); g.arc(c, c, R, 0, Math.PI * 2); g.arc(c, c, rout, 0, Math.PI * 2, true); g.fill('evenodd');
+  }
   g.lineWidth = 1; g.strokeStyle = '#4a4a4a';
   for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); }
   if (din > 0.01) { g.strokeStyle = '#5a5a5a'; g.beginPath(); g.arc(c, c, rin, 0, Math.PI * 2); g.stroke(); }
-  // outer deadzone (the stick reaches 100% this far out)
-  if (o.dout != null && o.dout < 0.995) { g.setLineDash([3, 3]); g.strokeStyle = 'rgba(40,166,255,.7)'; g.beginPath(); g.arc(c, c, R * o.dout, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); }
+  if (dout < 1) { g.strokeStyle = '#5a5a5a'; g.beginPath(); g.arc(c, c, rout, 0, Math.PI * 2); g.stroke(); }
   if (o.ref) { g.setLineDash([3, 2.5]); g.lineWidth = 1; g.strokeStyle = '#b5b5b5'; shape(R, true); g.stroke(); g.setLineDash([]); }
   g.lineWidth = o.ref ? 1.3 : 1; g.lineJoin = 'round'; g.strokeStyle = o.off ? '#5c5c5c' : o.gate || '#666666'; shape(o.ref ? R - 1.5 : R, o.round); g.stroke();
   (o.trail || []).forEach(([x, y], i, t) => { g.fillStyle = `rgba(40,166,255,${(26 + 150 * i / Math.max(1, t.length - 1)) / 255})`; g.fillRect(c + x * R - 1, c - y * R - 1, 2, 2); });
