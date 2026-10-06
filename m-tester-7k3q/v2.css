@@ -480,3 +480,236 @@ canvas.phob-gate-cv { width: 252px; height: 252px; }
 .un-t { font: 600 12px "Poppins", sans-serif; color: #f0f0f0; }
 .un-d { margin-top: 6px; font-size: 9.6px; line-height: 13.5px; color: #cfcfcf; }
 .update-note .btnrow .pbtn { height: 26px; }
+
+/* ================================================================ the GS Essential Redesign, final pages (1280 x 800, 4 Oct 2026):
+   "PadBox GP2040 Essential.pdf", "PadBox HOJA2 Essential.pdf" and their PNGs. Every size below is the design's, read off its
+   vector pages, times 1046 / 1280 (0.8172). Its fonts: 40 px Xirod titles, 24 px subtitles, 16 px panel titles, 12 px text,
+   10 px small text, 8 px tags (here 32.69, 19.61, 13.07, 9.81, 8.17, 6.54). */
+:root {
+  --orange: #ff6800; --orange-hot: #ff8a3a; --orange-deep: #d95700; --text: #dfdfdf; --soft: #dfdfdf; --muted: #9d9d9d; --good: #46d682;
+  --bg: #2a2a2a; --field: #dfdfdf;
+}
+/* the background: a soft light at the middle, darker to the edges (the design's radial gradient) */
+body { background: radial-gradient(circle calc(513.2px * var(--zoom, 1)) at 50% calc(50% + 82.1px * var(--zoom, 1)),
+  #3d3d3d 0%, #383838 15%, #343434 29%, #303030 40%, #2d2d2d 50%, #282828 64%, #252525 74%, #212121 100%) fixed #212121; }
+#stage { color: var(--text); }
+
+/* header: the logo, the firmware's name and its state, the buttons */
+#head .logo { position: absolute; left: 16.34px; top: 15.81px; width: 90.71px; height: 12.83px; color: #fff; }
+#head .who { left: 0; top: 0; }
+#head .who .t { position: absolute; left: 150.36px; top: 9.66px; margin: 0; display: block; white-space: nowrap; font: 400 16.34px/1 var(--techno); color: #dfdfdf; }
+#head .who .t span { margin: 0; }
+#head .who .dot { left: -15.93px; top: 3.01px; width: 8.17px; height: 8.17px; background: var(--good); }
+#head .who .s { position: absolute; left: 150.36px; top: 28.69px; margin: 0; font-size: 9.81px; line-height: 1; color: var(--muted); }
+#head .acts { right: 11.44px; top: 11.44px; gap: 9.81px; }
+.act { height: 32.69px; min-width: 32.69px; width: 32.69px; border-radius: 0; }
+.act svg.ri { width: 32.69px; height: 32.69px; }
+.act.outline { border: 0; outline: 1px solid #d9d9d9; outline-offset: 0; color: #d9d9d9; }
+.act.save { color: #eeeeee; }
+.act.save:disabled { background: #3a2518; color: #666666; }
+.act.light { background: #d9d9d9; color: #212121; }
+.act.primary { width: 174.06px; min-width: 0; padding: 0 0 0 9.81px; justify-content: flex-start; gap: 8.17px; font-size: 13.07px; color: #eeeeee; }
+.act.primary svg.ri { width: 14.71px; height: 14.71px; }
+
+/* page title */
+#heading { left: 130.75px; top: 0; }
+#heading h1 { position: absolute; left: 0; top: 67.54px; white-space: nowrap; font: 400 32.69px/1 var(--techno); color: #dfdfdf; }
+#heading p { position: absolute; left: 0; top: 102.91px; margin: 0; white-space: nowrap; font: 400 19.61px/29.42px "Poppins", sans-serif; color: var(--muted); letter-spacing: 0; }
+#heading p .mode-name { font-weight: 600; }
+
+/* side menu: 64 px squares, 24 px apart, centred on the window's height */
+#nav { top: 326.88px; transform: translateY(-50%); gap: 19.61px; }
+#nav button { width: 52.3px; height: 52.3px; border-radius: 0 1.63px 1.63px 0; background: #3d3d3d; color: #dfdfdf; }
+#nav button svg.ri { width: 52.3px; height: 52.3px; }
+#nav button.sel { background: var(--orange-deep); color: #eeeeee; }
+#nav button.has-menu::after { display: none; }
+
+/* CONTROLLER: the drawing where the design places it (its tracing at 0.4214 of the 1530 x 1200 geometry); HOJA2's sits
+   13 px lower, under its two-line subtitle */
+.pad-drawing { left: 125.46px; top: 144.39px; width: 644.73px; height: 505.67px; }
+.page.controller.hoja .pad-drawing { top: 155.01px; }
+
+/* the right-hand column: the profile, then "No button selected" or BUTTON SETTINGS, then GLOBAL LED SETTINGS. Panels:
+   267 x n px, 1 px #d9d9d9 border, 6 px corners, filled, a soft shadow; their content 17 px in (233 px wide). Every row is
+   placed by the design's baselines (Poppins: baseline = line-height / 2 + 0.35 em). */
+.profile-sel, .page.controller .profile-sel { left: 818px; width: 216.55px; top: 134.02px; height: 26.15px; }
+.page.controller.selected .profile-sel { top: 73.55px; }
+.side-col, .side-col.selected, .side-col:not(.phob) { left: 817.19px; width: 218.19px; top: 169.16px; gap: 8.17px; }
+.side-col.selected, .side-col:not(.phob).selected { top: 108.69px; }
+.panel { box-sizing: border-box; border: .8172px solid #d9d9d9; border-radius: 4.9px; background: #2a2a2a; box-shadow: 0 3.27px 3.27px rgba(0, 0, 0, .25); padding: 13.4px 13.07px 13.07px; }
+.ptitle { font: 600 13.07px/1 "Poppins", sans-serif; color: #dfdfdf; margin: 0; letter-spacing: 0; }
+.lbl { font-size: 9.81px; line-height: 1; color: #dfdfdf; margin: 0; }
+.lbl.split { color: #dfdfdf; }
+.lbl.split span:last-child { color: #9d9d9d; }
+.field { height: 26.15px; border-radius: 3.27px; background: #dfdfdf; color: #2a2a2a; font: 400 9.81px/26.15px "Poppins", sans-serif; padding: 0 22px 0 7.2px; box-shadow: 0 0 0 .8172px #dfdfdf; box-sizing: border-box; }
+select.field { background: #dfdfdf url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 6.7 4'%3E%3Cpath d='M.5 0h5.7a.5.5 0 0 1 .37.85L3.72 3.82a.55.55 0 0 1-.74 0L.13.85A.5.5 0 0 1 .5 0z' fill='%23212121'/%3E%3C/svg%3E") no-repeat right 9.56px top 13.07px / 5.48px 3.3px; }
+select.field.mono { font-size: 9.81px; letter-spacing: .06em; padding-left: 5.5px; }
+
+/* side column rows */
+.side-col .panel > .ptitle + .lbl, .side-col .panel > .ptitle + div > .lbl:first-child { margin-top: 14.22px; }
+.side-col .panel > .lbl + select.field, .side-col .panel > .lbl + .field { margin-top: 5.88px; }
+.side-col .panel > select.field + .lbl, .side-col .panel > select.field + div > .lbl:first-child, .side-col .panel > select.field + .amount-row + .lbl,
+.side-col .panel > select.field + .led-block > .lbl:first-child, .side-col .panel > .amount-row + .led-block > .lbl:first-child { margin-top: 12.09px; }
+.side-col .panel:nth-child(2) > div > .lbl:first-child { margin-top: 12.09px; }
+.side-col .panel:nth-child(2) { padding-bottom: 11.85px; }
+.led-block .two { margin-top: 6.7px; gap: 9.81px; }
+.field.color { gap: 3.27px; padding-left: 4.9px; }
+.field.color .dot { width: 14.71px; height: 14.71px; }
+.field.color:disabled { cursor: default; }
+.two.caps { margin: 5.32px 0 0; font-size: 8.17px; line-height: 1; color: #9d9d9d; }
+.led-block.noled .noled-note { top: 18.49px; height: 26.15px; font-size: 8.17px; }
+.pbtn { height: 26.15px; border-radius: 0; font: 400 9.81px "Poppins", sans-serif; gap: 4.9px; color: #eeeeee; }
+.pbtn svg.ri { width: 8.33px; height: 8.33px; }
+.side-col .pbtn.primary { margin-top: 11.03px; }
+.side-col .pbtn.outline { margin-top: 4.9px; }
+.pbtn.outline { border: 0; box-shadow: 0 0 0 .8172px #d9d9d9; color: #eeeeee; }
+.pbtn.primary { background: var(--orange); }
+.panel .hint { margin: 6.95px 0 0; font-size: 8.17px; line-height: 1; color: #9d9d9d; letter-spacing: 0; }
+.panel .hint b { color: #9d9d9d; font-weight: 600; }
+
+/* "No button selected" */
+.side-col:not(.phob) .panel.empty, .panel.empty { height: 166.7px; padding: 25.33px 0 0; justify-content: flex-start; }
+.click-icon { width: 37.6px; height: 37.6px; color: #9d9d9d; }
+.click-icon svg.ri { width: 100%; height: 100%; }
+.empty-t { margin-top: 16.67px; font: 600 13.07px/1 "Poppins", sans-serif; color: #9d9d9d; }
+.empty-d { margin-top: 5.23px; font-size: 9.81px; line-height: 14.71px; color: #9d9d9d; white-space: pre-line; }
+.panel.empty .empty-d { white-space: pre; }
+
+/* GLOBAL LED SETTINGS */
+.side-col .panel.ledp { height: 284.38px; padding-bottom: 0; }
+.idle-row { display: flex; justify-content: space-between; align-items: center; height: 9.81px; }
+.idle-row .dtoggle { font-size: 9.81px; color: #dfdfdf; }
+.colorrow { gap: 9.81px; margin-top: 6.7px; }
+.wheel { width: 79.27px; height: 79.27px; }
+.wheel::before { -webkit-mask: radial-gradient(circle, transparent 0 26.27px, #000 26.6px); mask: radial-gradient(circle, transparent 0 26.27px, #000 26.6px); }
+.wheel-in { width: 36.04px; height: 36.04px; margin: -18.02px 0 0 -18.02px; }
+.wheel-knob { width: 14.71px; height: 14.71px; margin: -7.36px 0 0 -7.36px; box-sizing: border-box; background: transparent; border: 1.63px solid #dfdfdf; box-shadow: none; }
+.colorrow > div { flex: 1; padding-top: 7.77px; }
+.readout { font-size: 8.17px; line-height: 1; color: #9d9d9d; margin: 0 0 7.76px; }
+.sw { gap: 4.9px; }
+.sw button { width: 16.34px; height: 16.34px; }
+.sw .plus { box-sizing: border-box; border: .8172px solid #9d9d9d; }
+.sw .plus svg { width: 11px; height: 11px; }
+.ledp .dslider { margin-top: 12.09px; }
+.ledp .dslider .lbl { margin: 0; }
+.dslider input.range { margin: 5.07px 0 0; }
+/* sliders: a 2 px grey track, the part to the left 4 px orange with round ends, a 14 px orange knob with a light ring */
+input.range { display: block; height: 13.07px; margin: 0; }
+input.range::-webkit-slider-runnable-track { height: 3.27px; background:
+  linear-gradient(#ff6800, #ff6800) 0 0 / var(--p, 0%) 100% no-repeat,
+  linear-gradient(#9d9d9d, #9d9d9d) 0 50% / 100% 1.63px no-repeat; border-radius: 1.63px; }
+input.range::-webkit-slider-thumb { width: 11.44px; height: 11.44px; margin-top: -4.09px; border-radius: 50%; background: #ff6800; border: 0; box-shadow: 0 0 0 .8172px #dfdfdf; }
+input.range:disabled::-webkit-slider-runnable-track, .dslider.off input.range::-webkit-slider-runnable-track { background:
+  linear-gradient(#3d3d3d, #3d3d3d) 0 50% / var(--p, 0%) 1.63px no-repeat, linear-gradient(#9d9d9d, #9d9d9d) 0 50% / 100% 1.63px no-repeat; }
+input.range:disabled::-webkit-slider-thumb, .dslider.off input.range::-webkit-slider-thumb { background: #3d3d3d; }
+.dslider.off { opacity: 1; }
+.dslider.off .lbl span { color: inherit; }
+/* switches: 24 x 14, grey off, orange on */
+.dtoggle { gap: 5.72px; font-size: 9.81px; color: #dfdfdf; }
+.dtoggle i { width: 19.61px; height: 11.44px; border-radius: 5.72px; background: #9d9d9d; }
+.dtoggle i::after { left: .82px; top: .82px; width: 9.81px; height: 9.81px; background: #dfdfdf; }
+.dtoggle input:checked + i { background: var(--orange); }
+.dtoggle input:checked + i::after { left: 8.99px; background: #d9d9d9; }
+.dtoggle.off { opacity: 1; }
+.amount-row.off { display: none; }
+.side-col .panel > .amount-row { margin-top: 6px; }
+.side-col .panel .hint { letter-spacing: -.04em; }   /* the design's line is set tighter (228 px at 10 px) */
+
+/* ---------------------------------------------------------------- STICKS, SETTINGS, BACKUP (pages 4-8 of the GP2040 design) */
+body:not([data-page="controller"]) #main { left: 129.93px; top: 151.18px; right: 0; bottom: 0; }
+.dpage.sticks, .dpage.settings { grid-template-columns: 348.94px 348.94px; gap: 17.98px; }
+.panel .ptitle { display: flex; align-items: center; height: 13.07px; }
+.ptitle .badge { margin-left: 7.93px; height: 14.71px; box-sizing: border-box; padding: 0 4.9px; font: 600 6.54px/14.71px "Poppins", sans-serif; border-radius: 0; color: #dfdfdf; }
+.badge.no { background: #d92424; }
+.badge.ok { background: #1aa64a; }
+.dpage .panel .ptitle .dtoggle { margin-left: auto; }
+/* STICKS: a 427 x 591 panel per stick; the gate (251 px) centred under the title, its reading, the axes, the gate shape,
+   the deadzones, then Reset and Calibrate */
+.panel.stick { height: 482.96px; padding: 13.4px 13.07px 13.48px; }
+.gate-wrap { padding-top: 16.28px; }
+canvas.gate { width: 211.1px; height: 211.1px; }
+.rd { margin-top: 2.72px; font-size: 8.17px; line-height: 12.26px; color: #9d9d9d; }
+.two.flips { margin-top: 20.43px; height: 11.44px; display: grid; grid-template-columns: 160.99px 1fr; gap: 0; }
+.two.flips .dtoggle { margin: 0; }
+.seg { margin-top: 11.44px; height: 26.15px; border-radius: 8.17px; background: #3d3d3d; }
+.seg button { border-radius: 8.17px; font-size: 9.81px; color: #eeeeee; }
+.seg button:first-child { flex: 0 0 165.89px; }
+.seg button.on { background: #dfdfdf; color: #212121; }
+.stick-ctl .dslider { margin-top: 8.82px; }
+.stick-ctl .dslider + .dslider { margin-top: 8.01px; }
+.btnrow { gap: 10.3px; }
+.btnrow.bottom { padding-top: 0; margin-top: auto; }
+.btnrow .pbtn, .btnrow.bottom .pbtn { height: 26.15px; }
+.pbtn.outline { margin: 0; }
+.stick-off { margin: 68px 0 0; }
+.stick-off .empty-t { font-size: 13.07px; }
+.stick-off .empty-d { white-space: normal; padding: 0 40px; }
+.seg button { font-weight: 400; }
+/* the chosen gate shape is 203 px wide, whichever side it is on */
+.seg button:first-child { flex: 1; }
+.seg button.on { flex: 0 0 165.89px; }
+/* HOJA2's STICKS (its page is 916 px tall, so it scrolls): a 715 px panel - a 226 px gate with its dashed reference
+   circle, the reading and the legend, ANGLE SET and its hint, then the same rows as GP2040-CE's plus snapback and curve */
+#main .dpage.sticks.hoja { overflow-y: auto; overflow-x: hidden; scrollbar-width: none; padding-bottom: 13.07px; box-sizing: border-box; }
+#main .dpage.sticks.hoja::-webkit-scrollbar { display: none; }
+.dpage.sticks.hoja .panel.stick { height: 584.3px; }
+.dpage.sticks.hoja .gate-wrap { padding-top: 10.57px; }
+.dpage.sticks.hoja canvas.gate { width: 190.68px; height: 190.68px; }
+.dpage.sticks.hoja .rd { margin-top: 1.91px; line-height: 13.89px; }
+.dpage.sticks.hoja .angle-row { margin-top: 3.27px; }
+.angle-row .pbtn.angle { width: 99.7px; height: 26.15px; }
+.angle-hint { margin: 5.31px 0 0; font-size: 8.17px; line-height: 1; color: #9d9d9d; }
+.dpage.sticks.hoja .two.flips { margin-top: 15.94px; }
+.dpage.sticks.hoja .seg { margin-top: 11.44px; height: 26.15px; }
+.dpage.sticks.hoja .stick-ctl .dslider { margin-top: 8.01px; }
+.dpage.sticks.hoja .stick-ctl .seg + .dslider { margin-top: 8.82px; }
+.angle-hint.left { text-align: left; margin-top: 4.5px; }
+.dpage.sticks.hoja .btnrow.bottom { padding-top: 0; }
+.legend { gap: 3.27px; }
+.legend .lg-dot, .legend .lg-ring { width: 6.54px; height: 6.54px; box-sizing: border-box; }
+.legend .lg-ring { margin-left: 8.17px; border: .82px solid #dfdfdf; }
+/* SETTINGS: INPUT BEHAVIOR and TURBO, 427 x 253 each, Reset and Save at the foot */
+.panel.stretch { height: 206.75px; min-height: 0; padding: 13.4px 13.07px 13.07px; }
+.dpage .panel > .ptitle + .lbl, .turbo-on > .dslider:first-child { margin-top: 14.22px; }
+.dpage .panel > .lbl + select.field, .turbo-on .lbl + .ms-wrap { margin-top: 5.88px; }
+.panel.stretch > select.field + .dtoggle { margin-top: 11.44px; }
+.panel.stretch > .dtoggle + .dslider { margin-top: 13.73px; }
+.dslider input.range { margin-top: 5.07px; }
+.turbo-on .dslider + .lbl { margin-top: 8.02px; }
+.dpage .turbo-on p.hint.wrap { margin: 6.54px 0 0; font-size: 8.17px; line-height: 12.26px; color: #9d9d9d; letter-spacing: -.02em; }
+.field.ms.empty .ms-txt { color: #666666; }
+.panel-off { justify-content: flex-start; padding: 0; }
+.panel-off .off-icon { width: 58.43px; height: 58.43px; margin-top: 34.1px; color: #9d9d9d; }
+.panel-off .empty-t { margin-top: 14.54px; }
+.panel-off .empty-d { margin-top: 5.23px; white-space: pre-line; }
+.panel.stretch .ptitle, .dpage .panel .ptitle, .panel.stick .ptitle { margin-bottom: 0; }
+.panel-off .off-icon { margin-top: 20.9px; }
+.panel.stretch > .dtoggle { height: 11.44px; }
+/* BACKUP & RESTORE: two 875 px panels, 22 px apart */
+.dpage.backup { width: 715.05px; gap: 17.98px; }
+.dpage.backup .panel { padding: 13.4px 13.07px 13.07px; }
+.dpage.backup .panel p.text { margin: 7.68px 0 0; font-size: 9.81px; line-height: 1; color: #dfdfdf; }
+.dpage.backup p.last b { color: var(--orange); font-weight: 600; }
+.dpage.backup .btnrow { margin-top: 22.23px; gap: 13.07px; }
+.dpage.backup .btnrow .pbtn { height: 26.15px; }
+.dpage.backup .pbtn svg.ri { width: 8.99px; height: 8.99px; }
+.dpage.backup .hint.wrap { margin-top: 8px; }
+.tbl { max-height: none; overflow: visible; margin-top: 5.07px; }
+table.hist { table-layout: fixed; font-size: 9.81px; }
+table.hist th, table.hist td { height: 27.78px; box-sizing: border-box; padding: 0; line-height: 1; vertical-align: middle; border-bottom: .8172px solid #3d3d3d; color: #dfdfdf; overflow: hidden; text-overflow: ellipsis; }
+table.hist th { font-weight: 600; }
+table.hist td.nm { font-weight: 600; color: #dfdfdf; max-width: none; }
+table.hist td.valid { color: #14aa4b; }
+table.hist tr.can { cursor: pointer; }
+table.hist tr.can:hover td { background: rgba(255, 255, 255, .04); }
+table.hist td.acts { text-align: left; overflow: visible; }
+.ia { width: 9.81px; height: 9.81px; margin-right: 10.6px; vertical-align: middle; }
+.ia svg.ri { width: 9.81px; height: 9.81px; }
+.ia.del { color: #d92424; }
+table.hist td.acts { line-height: 0; } table.hist td.acts .ia { position: relative; top: -2px; }
+/* HOJA2's mode menu: a 183 px list beside the CONTROLLER button, the mode in use orange */
+.flyout { left: 57.2px; width: 149.55px; background: #3d3d3d; padding: 0 0 4.09px; box-shadow: 0 3.27px 3.27px rgba(0, 0, 0, .25); }
+.flyout button { height: 27.78px; padding: 0 0 0 9.81px; font: 600 13.07px/27.78px "Poppins", sans-serif; color: #dfdfdf; }
+.flyout button:first-child { height: 29.42px; padding-top: 1.63px; }
+.flyout button.sel { background: var(--orange-deep); color: #eeeeee; }
+body[data-page="connect"] #main { left: 0; top: 0; }

@@ -69,13 +69,13 @@ export function paintGate(cv, o) {
     grad.addColorStop(0, o.off ? 'rgba(150,150,150,.16)' : 'rgba(254,104,5,.2)'); grad.addColorStop(1, o.off ? 'rgba(150,150,150,.03)' : 'rgba(254,104,5,.04)');
     g.fillStyle = grad; g.beginPath(); g.arc(c, c, rin, 0, Math.PI * 2); g.fill();
   }
-  g.lineWidth = 1; g.strokeStyle = '#555';
+  g.lineWidth = 1; g.strokeStyle = '#4a4a4a';
   for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); }
   if (din > 0.01) { g.strokeStyle = '#5a5a5a'; g.beginPath(); g.arc(c, c, rin, 0, Math.PI * 2); g.stroke(); }
   // outer deadzone (the stick reaches 100% this far out)
   if (o.dout != null && o.dout < 0.995) { g.setLineDash([3, 3]); g.strokeStyle = 'rgba(40,166,255,.7)'; g.beginPath(); g.arc(c, c, R * o.dout, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); }
   if (o.ref) { g.setLineDash([3, 2.5]); g.lineWidth = 1; g.strokeStyle = '#b5b5b5'; shape(R, true); g.stroke(); g.setLineDash([]); }
-  g.lineWidth = 1.3; g.lineJoin = 'round'; g.strokeStyle = o.off ? '#5c5c5c' : o.gate || '#8a8a8a'; shape(o.ref ? R - 1.5 : R, o.round); g.stroke();
+  g.lineWidth = o.ref ? 1.3 : 1; g.lineJoin = 'round'; g.strokeStyle = o.off ? '#5c5c5c' : o.gate || '#666666'; shape(o.ref ? R - 1.5 : R, o.round); g.stroke();
   (o.trail || []).forEach(([x, y], i, t) => { g.fillStyle = `rgba(40,166,255,${(26 + 150 * i / Math.max(1, t.length - 1)) / 255})`; g.fillRect(c + x * R - 1, c - y * R - 1, 2, 2); });
   const place = ([x, y]) => { const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; } return [c + x * R, c - y * R]; };
   const [ox, oy] = place(o.out || [0, 0]), [rx, ry] = place(o.raw || o.out || [0, 0]);
@@ -152,16 +152,18 @@ export function backupPage(o) {
     for (const e of h.slice().sort((a, b) => b.created.localeCompare(a.created))) {
       const ok = mine(e);
       const act = (ic, title, cls, fn, off) => { const b = el('button.ia.' + cls, { type: 'button', title, html: dicon(ic) }); b.disabled = !!off; b.addEventListener('click', fn); return b; };
-      rows.append(el('tr', {}, [
+      // the design's row: name to status, then rename and delete; clicking the row restores it (if it's from this PadBox)
+      const tr = el('tr' + (ok ? '.can' : ''), { title: ok ? 'Click to restore this backup onto the controller' : '' }, [
         el('td.nm', { text: e.name }), el('td', { text: e.mode || (e.profiles != null ? e.profiles + (e.profiles === 1 ? ' profile' : ' profiles') : '') }), el('td', { text: niceDate(e.created) }),
         el('td', { text: (e.size / 1024).toFixed(2) + ' Kb' }), el('td', { text: e.controller }), el('td', { text: e.firmware || '' }),
         el('td.' + (ok ? 'valid' : 'other'), { text: ok ? 'Valid' : 'Other PadBox', title: ok ? '' : 'Made on a PadBox ' + e.board + ' with ' + e.controller + ': it can only go back onto that one.' }),
         el('td.acts', {}, [
-          act('restore', ok ? 'Restore this backup onto the controller' : 'This backup is from another PadBox or firmware', 'rs', () => restoreFrom(e), !ok),
-          act('pencil', 'Rename', 'ed', () => rename(e)),
-          act('trash', 'Delete', 'del', () => remove(e)),
+          act('pencil', 'Rename', 'ed', ev => { ev.stopPropagation(); rename(e); }),
+          act('trash', 'Delete', 'del', ev => { ev.stopPropagation(); remove(e); }),
         ]),
-      ]));
+      ]);
+      if (ok) tr.addEventListener('click', () => restoreFrom(e));
+      rows.append(tr);
     }
   }
   async function exportNow() {
@@ -203,10 +205,11 @@ export function backupPage(o) {
     if (!await confirmBox('Delete backup', 'Remove "' + e.name + '" from the backup history? A file you downloaded stays where it is.', 'DELETE')) return;
     saveHistory(loadHistory().filter(y => y.id !== e.id)); paint();
   }
-  const head = el('thead', {}, [el('tr', {}, ['Name', 'Mode', 'Date', 'Size', 'Controller', 'Firmware', 'Status', ''].map(t => el('th', { text: t })))]);
+  const head = el('thead', {}, [el('tr', {}, ['Name', o.modeTitle || 'Mode', 'Date', 'Size', 'Controller', 'Firmware', 'Status', ''].map(t => el('th', { text: t })))]);
+  const cols = el('colgroup', {}, [122.58, 71.91, 120.13, 76.81, 99.7, 90.71, 68.63, null].map(w => el('col', w ? { style: { width: w + 'px' } } : {})));
   const page = el('div.page.hidden.dpage.backup', {}, [
-    panel('CONFIGURATION FILES', [last, el('div.btnrow', {}, [pbtn('Export configuration to file', 'download', false, exportNow), pbtn('Import configuration from file', 'upload', true, importNow)]), status]),
-    panel('BACKUP HISTORY', [el('p.text', { text: 'View previously saved configurations and restore a previous setup' }), el('div.tbl', {}, [el('table.hist', {}, [head, rows])])]),
+    panel('CONFIGURATION FILES', [last, el('div.btnrow', {}, [pbtn('Export configuration to file', 'dl-small', false, exportNow), pbtn('Import configuration from file', 'ul-small', true, importNow)]), status]),
+    panel('BACKUP HISTORY', [el('p.text', { text: 'View previously saved configurations and restore a previous setup' }), el('div.tbl', {}, [el('table.hist', {}, [cols, head, rows])])]),
   ]);
   paint();
   return { page, say };

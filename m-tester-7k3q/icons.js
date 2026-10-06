@@ -1,5 +1,6 @@
 // The design's own icons (Figma "PadBox Software"), redrawn on a 24 x 24 grid to match the reference shapes.
 // Line icons are thin (1.5); the side-menu, save and gamepad icons are solid.
+import { REF_ICONS } from './ref-icons.js';
 
 const line = d => `<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</g>`;
 
@@ -50,6 +51,10 @@ const I = {
   click: '<g fill="none"stroke="currentColor" stroke-width="1.25" stroke-linecap="round" opacity=".85"><path d="M9.5 2.8v3.6M3.6 5.2l2.5 2.5M2.2 10.6h3.6M15.4 5.2l-2.5 2.5M3.8 16.3l2.5-2.5"/></g><path fill="currentColor" opacity=".72" d="M9.6 8.6l12 7.3-5.6.9-2.8 6.6z"/>',
 };
 
+// the redesign's icons, exactly as its pages have them (ref-icons.js): each in the box it has in the design, so CSS gives
+// it that box's size (the header's and side menu's fill their whole button)
 export function dicon(name, cls) {
+  const r = REF_ICONS[name];
+  if (r) return `<svg class="ri ri-${name} ${cls || ''}" viewBox="${r[0]}">${r[1].map(d => d[0] === 'E' ? `<path fill="currentColor" fill-rule="evenodd" d="${d.slice(1)}"/>` : `<path fill="currentColor" d="${d}"/>`).join('')}</svg>`;
   return `<svg class="${cls || ''}" viewBox="0 0 24 24">${I[name] || ''}</svg>`;
 }

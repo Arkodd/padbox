@@ -51,7 +51,7 @@ export async function startHoja(shell, dev, opts) {
   const BOARD = platform ? PLATFORM : ESSENTIAL;
   const mismatch = B[Blk.ANALOG][0] !== VERSIONS.analog || B[Blk.GAMEPAD][0] !== VERSIONS.gamepad || B[Blk.RGB][0] !== VERSIONS.rgb || B[Blk.INPUT][0] !== VERSIONS.input;
 
-  shell.header('HOJA2', 'PadBox ' + lay.name + (fw ? '  •  firmware ' + fw.toString(16).toUpperCase() : '') + (opts.demo ? '  •  demo' : ''));
+  shell.header('HOJA2', 'PadBox' + lay.name.replace(/^GS /, '').replace(/ /g, ''), 'PadBox ' + lay.name + (fw ? '  •  firmware ' + fw.toString(16).toUpperCase() : '') + (opts.demo ? '  •  demo' : ''));
   shell.status(true);
 
   // ---------------------------------------------------------------- changes: live to RAM, Save to flash
@@ -83,13 +83,22 @@ export async function startHoja(shell, dev, opts) {
 
   // ---------------------------------------------------------------- header buttons (the design's icon buttons)
   const iconBtn = (cls, ic, title, onclick) => { const b = el('button.act.' + cls, { type: 'button', title, html: dicon(ic) }); b.addEventListener('click', onclick); return b; };
-  const btnUpdate = iconBtn('outline', 'download', 'Update firmware', () => firmwareUpdate({ board: lay.board, current: 'HOJA2', enter: async noDrive => { alive = false; await dev.bootloader(noDrive); } }));
-  const btnSave = iconBtn('save', 'save', 'Save to the PadBox', save); btnSave.disabled = true;
-  const btnPower = iconBtn('light', 'power', 'Disconnect', async () => {
+  const btnUpdate = iconBtn('outline', 'hdr-download', 'Update firmware', () => firmwareUpdate({ board: lay.board, current: 'HOJA2', enter: async noDrive => { alive = false; await dev.bootloader(noDrive); } }));
+  const btnSave = iconBtn('save', 'hdr-save', 'Save to the PadBox', save); btnSave.disabled = true;
+  const btnPower = iconBtn('light', 'hdr-power', 'Disconnect', async () => {
     if (dirty.size && !await confirmBox('Unsaved changes', 'Your changes work now but aren\'t saved: they\'ll be lost when the PadBox is unplugged. Disconnect anyway?', 'DISCONNECT')) return;
     shell.lost(null);
   });
-  shell.actions([btnUpdate, btnSave, btnPower]);
+  // the design's other two buttons. HOJA2 works as a controller while it's being set up, and shows LED changes right
+  // away, so there's nothing to restart: the LED button sends any change still waiting, and "Restart as controller"
+  // saves and closes the connection (the PadBox carries on as a controller)
+  const btnPreview = iconBtn('light', 'hdr-beacon', 'Preview LED on the PadBox (HOJA2 shows LED changes right away)', async () => { clearTimeout(liveTimer); await pushLive(); say('The PadBox shows your LED settings now.', 'var(--good)'); });
+  const btnExit = el('button.act.primary', { type: 'button', title: 'Save and finish: the PadBox carries on as a controller', html: dicon('hdr-gamepad') + '<span>Restart as controller</span>' });
+  btnExit.addEventListener('click', async () => {
+    if (dirty.size) { await save(); if (dirty.size) return; }
+    alive = false; shell.lost('Saved. The PadBox is working as a controller: plug it back in or click CONNECT to set it up again.');
+  });
+  shell.actions([btnUpdate, btnSave, btnPreview, btnPower, btnExit]);
   // a newer firmware on the site: say so (HOJA2's fw_version is its build time)
   if (!opts.demo || /[?&]update/.test(location.search)) updateNotice({ board: lay.board, family: 'HOJA2', build: fw, button: btnUpdate, open: () => btnUpdate.click() });
 
@@ -133,7 +142,7 @@ export async function startHoja(shell, dev, opts) {
   const empty = el('div.panel.empty', {}, [
     el('div.click-icon', { html: dicon('click') }),
     el('div.empty-t', { text: 'No button selected' }),
-    el('div.empty-d', { text: 'Click a button on the controller or press it on the device to configure its function and LED lighting' }),
+    el('div.empty-d', { text: 'Click a button on the controller or press\nit on the device to configure its function\nand LED lighting' }),
   ]);
   const fn = el('select.field.mono');
   fn.addEventListener('change', () => {
@@ -171,10 +180,13 @@ export async function startHoja(shell, dev, opts) {
     const led = ledOf(selInput); if (led < 0) return;
     pickColor(Rgb.color(B[Blk.RGB], led), c => { Rgb.setColor(B[Blk.RGB], led, c); changed(Blk.RGB); refreshSide(); });
   });
+  const pressDot = el('i.dot'), pressTxt = el('span');
+  const pressField = el('button.field.color', { type: 'button', disabled: true, title: 'HOJA2 lights a pressed button in its own color (Reactive effect)' }, [pressDot, pressTxt]);
   const ledBlock = el('div.led-block', {}, [
     el('div.lbl', { text: 'LED color' }),
-    el('div.two.one', {}, [ledFieldBtn]),
+    el('div.two', {}, [ledFieldBtn, pressField]),
     el('div.noled-note', { text: 'This button has no LED' }),
+    el('div.two.caps', {}, [el('span', { text: 'Default color' }), el('span', { text: 'When pressed' })]),
   ]);
   ledFieldBtn.title = 'This button\x27s LED color (used by the Static and Reactive effects)';
   const btnResetMode = el('button.pbtn.primary', { type: 'button', html: dicon('sync') + '<span>Reset this button</span>' });
@@ -224,10 +236,11 @@ export async function startHoja(shell, dev, opts) {
   // colors, so there the wheel is greyed out. (Fairy used to blend the first six buttons' colors, so painting them all
   // one color flattened it; since the 2026-10-05 firmware it has its own palette.)
   const colorRow = el('div.colorrow', {}, [wheel, el('div', {}, [el('div.readout', {}, [rgbTxt, hexTxt]), swatches])]);
-  const ledPanel = el('div.panel.hoja-led', {}, [
+  const colorLbl = el('span', { text: 'Color' });
+  const ledPanel = el('div.panel.ledp', {}, [
     el('div.ptitle', { text: 'GLOBAL LED SETTINGS' }),
     el('div.lbl', { text: 'Lighting effect' }), effect,
-    el('div.lbl.split.idle-row', {}, [el('span', { text: 'LED color' }), idle.el]),
+    el('div.lbl.idle-row', {}, [colorLbl, idle.el]),
     colorRow,
     bright.el, speed.el,
   ]);
@@ -244,6 +257,7 @@ export async function startHoja(shell, dev, opts) {
     const none = selInput < 0;
     empty.classList.toggle('hidden', !none); settingsPanel.classList.toggle('hidden', none);
     column.classList.toggle('selected', !none); page0.classList.toggle('selected', !none);
+    colorLbl.textContent = none ? 'Color' : 'LED color';   // as the design words it in each state
     if (!none) {
       fn.innerHTML = '';
       fn.append(el('option', { value: -1, text: 'Nothing (disabled)' }));
@@ -254,7 +268,7 @@ export async function startHoja(shell, dev, opts) {
       amount.el.classList.toggle('off', amt == null); if (amt != null) amount.value = amt;
       const led = ledOf(selInput);
       ledBlock.classList.toggle('noled', led < 0);   // keeps its space, so the panels below don't move
-      if (led >= 0) { const c = Rgb.color(rb, led); ledDot.style.background = hex(c); ledTxt.textContent = hex(c).toUpperCase(); }
+      if (led >= 0) { const c = Rgb.color(rb, led); ledDot.style.background = pressDot.style.background = hex(c); ledTxt.textContent = pressTxt.textContent = hex(c).toUpperCase(); }
     }
     drawing.refreshTips();
   }
@@ -348,7 +362,7 @@ export async function startHoja(shell, dev, opts) {
     const rd1 = el('div.rd1'), infoL = el('p.cal-info');
     const legend = el('div.rd2.legend', { html: '<i class="lg-dot"></i>Output<i class="lg-ring"></i>Raw' });
     const bCal = pbtn('Calibrate', 'target', true, () => toggleCalibrate(right));
-    const bAngle = pbtn('Angle set', 'target', true, angleSet);
+    const bAngle = pbtn('Angle set', 'angle', true, angleSet);
     bAngle.classList.add('angle');
     const bReset = pbtn('Reset', 'sync', false, () => { st.load(st.start); st.apply(); changed(Blk.ANALOG); st.showCal('This stick\'s settings are back to how they were when you connected.'); });
     bReset.title = 'Put this stick\'s settings back to how they were when you connected';
@@ -368,6 +382,7 @@ export async function startHoja(shell, dev, opts) {
     const settingsBox = el('div.stick-set', {}, [
       el('div.angle-row', {}, [bAngle]), el('p.angle-hint', { text: 'Hold the stick in a notch, then click ANGLE SET to line that notch up with it' }),
       el('div.two.flips', {}, [fx.el, fy.el]), gate.el, dead.el, outer.el, snap.el, exp.el,
+      el('p.angle-hint.left', { text: 'Adjust how stick input responds around the centre' }),
 ]);
     exp.el.title = 'Adjust how stick input responds around the centre';
     const controls = el('div.stick-ctl', {}, [settingsBox, infoL, el('div.btnrow.bottom', {}, [bReset, bCal])]);
@@ -500,7 +515,9 @@ export async function startHoja(shell, dev, opts) {
     refreshSide(); refreshCal();
   }
   loadUi();
-  say(mismatch ? 'This firmware doesn\'t match this app. Update it (the download button, top right) before changing anything.' : 'Changes apply to the PadBox right away. Click Save to keep them after unplugging.', mismatch ? 'var(--bad)' : '');
+  say(mismatch ? 'This firmware doesn\'t match this app. Update it (the download button, top right) before changing anything.' : '', mismatch ? 'var(--bad)' : '');
+  // the demo: ?sel=<pin> opens with that button selected
+  { const q = opts.demo && /[?&]sel=(\d+)/.exec(location.search); if (q) select(inputOf(+q[1])); }
 
   dev.onRaw = p => {
     let fresh = -1;

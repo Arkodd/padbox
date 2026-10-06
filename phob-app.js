@@ -39,18 +39,18 @@ export async function startPhob(shell, dev, opts) {
   const asked = { map: 0, led: 0, settings: 0 };
   const boardName = 'GS Platform';
 
-  shell.header('PhobGCC', 'PadBox GS Platform' + (opts.demo ? '  •  demo' : ''));
+  shell.header('PhobGCC', 'PadBoxPlatform', 'PadBox GS Platform' + (opts.demo ? '  •  demo' : ''));
   shell.status(true);
   const say = (t, c) => shell.footer(t, c);
   say('Waiting for the controller...');
 
   // ---------------------------------------------------------------- header buttons (the design's icon buttons)
   const iconBtn = (cls, ic, title, onclick) => { const b = el('button.act.' + cls, { type: 'button', title, html: dicon(ic) }); b.addEventListener('click', onclick); return b; };
-  const btnUpdate = iconBtn('outline', 'download', 'Update firmware', () => firmwareUpdate({ board: boardName, current: 'PhobGCC',
+  const btnUpdate = iconBtn('outline', 'hdr-download', 'Update firmware', () => firmwareUpdate({ board: boardName, current: 'PhobGCC',
     enter: async noDrive => { await saveAll(); await new Promise(r => setTimeout(r, 300)); alive = false; await dev.send(noDrive ? 'BOOTSEL NODRIVE' : 'BOOTSEL'); await new Promise(r => setTimeout(r, 3500)); } }));
-  const btnSave = iconBtn('save', 'save', 'Save to the controller', saveAll); btnSave.disabled = true;
+  const btnSave = iconBtn('save', 'hdr-save', 'Save to the controller', saveAll); btnSave.disabled = true;
   // Disconnect: the power button (PhobGCC works as a controller again once it's unplugged and plugged back in)
-  const btnPower = iconBtn('light', 'power', 'Disconnect', async () => {
+  const btnPower = iconBtn('light', 'hdr-power', 'Disconnect', async () => {
     if (isDirty() && !await confirmBox('Unsaved changes', 'Your button map, settings or axis flips aren\'t saved yet: they\'ll be lost. Disconnect anyway?', 'DISCONNECT')) return;
     shell.lost(null);
   });
@@ -89,7 +89,7 @@ export async function startPhob(shell, dev, opts) {
   const empty = el('div.panel.empty', {}, [
     el('div.click-icon', { html: dicon('click') }),
     el('div.empty-t', { text: 'No button selected' }),
-    el('div.empty-d', { text: 'Click a button on the controller or press it on the device to configure its function and LED lighting' }),
+    el('div.empty-d', { text: 'Click a button on the controller or press\nit on the device to configure its function\nand LED lighting' }),
   ]);
   const fn = el('select.field.mono');
   OUTPUTS.forEach((o, i) => fn.append(el('option', { value: i, text: o })));
@@ -209,7 +209,7 @@ export async function startPhob(shell, dev, opts) {
   const tag = badge(); tag.el.classList.add('hidden');   // shown once a calibration starts here (the firmware doesn't say)
   const rd1 = el('div.rd1');
   const legend = el('div.rd2.legend', { html: '<i class="lg-dot"></i>Output<i class="lg-ring"></i>Raw<b class="lg-x">✕</b>Target' });
-  const setCenter = pbtn('Set center', 'target', true, () => view.reset(true));
+  const setCenter = pbtn('Set center', 'angle', true, () => view.reset(true));
   setCenter.classList.add('angle');
   // the current step: its title, what to do, how it's going, and its buttons
   const macroBtn = (text, key, steps, primary) => { const b = pbtn(text, '', primary, () => { macro = steps.slice(); macroUntil = 0; }); if (key) b.prepend(el('i.key', { text: key })); return b; };

@@ -38,20 +38,20 @@ export async function startGp(shell, dev, opts) {
   if (!m.layout) throw new Error('This PadBox (board "' + m.board + '") isn\'t supported by this app.');
   const L = m.layout;
 
-  shell.header('GP2040-CE', m.board || ('PadBox ' + L.name));
+  shell.header('GP2040-CE', 'PadBox' + L.board.replace(/^GS /, '').replace(/ /g, ''), 'PadBox ' + L.board + (s.ver && s.ver.version ? '  •  GP2040-CE ' + s.ver.version : '') + (m.board ? '  •  board config ' + m.board : '') + (opts.demo ? '  •  demo' : ''));
   shell.status(true);
 
   // ---------------------------------------------------------------- header buttons (the design's icon buttons)
   const iconBtn = (cls, ic, title, onclick) => { const b = el('button.act.' + cls, { type: 'button', title, html: dicon(ic) }); b.addEventListener('click', onclick); return b; };
-  const btnUpdate = iconBtn('outline', 'download', 'Update firmware', () => firmwareUpdate({ board: L.board, current: 'GP2040-CE', enter: noDrive => reboot(noDrive ? 3 : 2, true) }));
-  const btnSave = iconBtn('save', 'save', 'Save to the controller', () => flush()); btnSave.disabled = true;
-  const btnPreview = iconBtn('light', 'beacon', 'Restart to preview LED', () => reboot(1));
+  const btnUpdate = iconBtn('outline', 'hdr-download', 'Update firmware', () => firmwareUpdate({ board: L.board, current: 'GP2040-CE', enter: noDrive => reboot(noDrive ? 3 : 2, true) }));
+  const btnSave = iconBtn('save', 'hdr-save', 'Save to the controller', () => flush()); btnSave.disabled = true;
+  const btnPreview = iconBtn('light', 'hdr-beacon', 'Restart to preview LED', () => reboot(1));
   // Disconnect: back to the connect screen; the PadBox stays in its configuration mode until it restarts
-  const btnPower = iconBtn('light', 'power', 'Disconnect', async () => {
+  const btnPower = iconBtn('light', 'hdr-power', 'Disconnect', async () => {
     if (Object.values(dirty).some(Boolean) && !await confirmBox('Unsaved changes', 'Your changes aren\'t saved on the controller yet. Disconnect anyway?', 'DISCONNECT')) return;
     alive = false; shell.lost('Disconnected. The PadBox stays in configuration mode until you unplug it or restart it.');
   });
-  const btnExit = el('button.act.primary', { type: 'button', html: dicon('gamepad') + '<span>Restart as controller</span>' }); btnExit.addEventListener('click', () => reboot(0));
+  const btnExit = el('button.act.primary', { type: 'button', html: dicon('hdr-gamepad') + '<span>Restart as controller</span>' }); btnExit.addEventListener('click', () => reboot(0));
   shell.actions([btnUpdate, btnSave, btnPreview, btnPower, btnExit]);
   // a newer firmware on the site: say so (the build is padboxBuild; firmware from before it had none)
   if (!opts.demo || /[?&]update/.test(location.search)) updateNotice({ board: L.board, family: 'GP2040-CE', build: +(s.ver && s.ver.padboxBuild) || 0, button: btnUpdate, open: () => btnUpdate.click() });
@@ -74,11 +74,14 @@ export async function startGp(shell, dev, opts) {
   const QUIET_STICKS = { 'GS Essential': [18, 19] };
   Object.assign(QUIET_STICKS, { 'M Essential': [18, 19], 'M Platform': [18] });   // @M
   const QUIET = new Set([2, 3, 4, 5, 22, ...(QUIET_STICKS[L.board] || [])]);
+  // the GS draws its face buttons with their GameCube names, as in the redesign (X Y Z / A B R L; L1 has none, so its
+  // button is left blank); the full function is in the button's tooltip and in BUTTON SETTINGS
+  const GC = /^GS /.test(L.board) ? { B1: 'A', B2: 'B', B3: 'X', B4: 'Y', R1: 'Z', R2: 'R', L2: 'L', L1: '' } : null;
   const quiet = pin => QUIET.has(pin) && L.defaults && pin in L.defaults && actOf(pin) === L.defaults[pin];
   const drawing = buildDrawing(pin => select(pin), pin => {
     const a = act(actOf(pin));
     return (pin === TRIG ? 'Analog trigger' : m.nameOfPin(pin)) + '  →  ' + (a && a.value === 40 ? 'Custom combo: ' + (comboName(m.comboOf(pin)) || 'nothing yet') : a && a.value !== -10 ? fnName(a) : 'nothing');
-  }, pin => { const a = act(actOf(pin)); return !a || a.value === -10 || quiet(pin) ? '' : a.value === 32 ? 'Turbo' : a.value === 40 ? (comboName(m.comboOf(pin)) || 'Combo') : a.value <= 4 ? a.key : a.short; },   // D-pad: Up/Down/Left/Right, drawn as arrows
+  }, pin => { const a = act(actOf(pin)); return !a || a.value === -10 || quiet(pin) ? '' : a.value === 32 ? 'Turbo' : a.value === 40 ? (comboName(m.comboOf(pin)) || 'Combo') : a.value <= 4 ? a.key : GC && a.short in GC ? GC[a.short] : a.short; },   // D-pad: Up/Down/Left/Right, drawn as arrows
   { 'GS Platform': 'platform', 'M Essential': 'm-essential', 'M Platform': 'm-platform' }[L.board] || 'essential');   // @M
   // @GS { 'GS Platform': 'platform' }[L.board] || 'essential');
 
@@ -87,7 +90,7 @@ export async function startGp(shell, dev, opts) {
   const empty = el('div.panel.empty', {}, [
     el('div.click-icon', { html: dicon('click') }),
     el('div.empty-t', { text: 'No button selected' }),
-    el('div.empty-d', { text: 'Click a button on the controller or press it on the device to configure its function and LED lighting' }),
+    el('div.empty-d', { text: 'Click a button on the controller or press\nit on the device to configure its function\nand LED lighting' }),
   ]);
   const fn = el('select.field.mono');
   for (const a of ACTS) fn.append(el('option', { value: a.value, text: fnName(a) }));
@@ -188,12 +191,19 @@ export async function startGp(shell, dev, opts) {
   const bright = el('input.range', { type: 'range', min: 0, max: 5, step: 1 });
   const paintBright = () => { const p = +bright.max ? +bright.value / +bright.max * 100 : 0; bright.style.setProperty('--p', p + '%'); brightVal.textContent = Math.round(p) + '%'; };
   bright.addEventListener('input', () => { m.brightness = +bright.value; paintBright(); markDirty('led'); });
-  const ledPanel = el('div.panel', {}, [
+  // Idle Glow and Animation time: in the design's panel, but GP2040-CE has neither setting, so they're shown switched off
+  // (as the design draws them for an effect that doesn't use them)
+  const idle = dtoggle('Idle Glow', () => { }); idle.disabled = true;
+  idle.el.title = 'Idle Glow is a HOJA2 setting: GP2040-CE does not have it';
+  const anim = dslider('Animation time', 0, 100, () => '', () => { }); anim.value = 25; anim.disabled = true;
+  anim.el.title = 'GP2040-CE sets the animation speed itself';
+  const colorLbl = el('span', { text: 'Color' });
+  const ledPanel = el('div.panel.ledp', {}, [
     el('div.ptitle', { text: 'GLOBAL LED SETTINGS' }),
     el('div.lbl', { text: 'Lighting effect' }), effect,
-    el('div.lbl', { text: 'LED color' }),
+    el('div.lbl.idle-row', {}, [colorLbl, idle.el]),
     el('div.colorrow', {}, [wheel, el('div', {}, [el('div.readout', {}, [rgbTxt, hexTxt]), swatches])]),
-    el('div.lbl.split', {}, [el('span', { text: 'Brightness' }), brightVal]), bright,
+    el('div.dslider', {}, [el('div.lbl.split', {}, [el('span', { text: 'Brightness' }), brightVal]), bright]), anim.el,
     status,
   ]);
   const column = el('div.side-col', {}, [empty, settingsPanel, ledPanel]);
@@ -212,6 +222,7 @@ export async function startGp(shell, dev, opts) {
     const none = selPin < 0;
     empty.classList.toggle('hidden', !none); settingsPanel.classList.toggle('hidden', none);
     column.classList.toggle('selected', !none); page0.classList.toggle('selected', !none);
+    colorLbl.textContent = none ? 'Color' : 'LED color';   // as the design words it in each state
     if (!none) {
       const ph = selPin === TRIG ? null : m.phys(selPin);
       for (const o of fn.options) o.disabled = selPin === TRIG && !TRIG_OK.has(+o.value);   // what the trigger can do
@@ -219,7 +230,7 @@ export async function startGp(shell, dev, opts) {
       const isCombo = actOf(selPin) === 40, one = act(actOf(selPin));
       // a combo can be any of the buttons and directions; not Turbo, Fn or the trigger
       const canCombo = selPin !== TRIG && !(ph && ph.fixed) && (isCombo || actOf(selPin) === -10 || !!(one && one.key));
-      comboRow.classList.toggle('off', !canCombo);
+      comboRow.classList.toggle('off', !canCombo || !isCombo);   // shown for a combo only (choose "Custom combo" in Function)
       comboTxt.textContent = isCombo ? (comboName(m.comboOf(selPin)) || 'nothing yet') : one && one.key ? one.key : 'nothing';
       comboEdit.textContent = isCombo ? 'Edit' : '+ Add';
       for (const o of fn.options) if (+o.value === 40) o.disabled = selPin === TRIG;   // the trigger can't be a combo
@@ -281,7 +292,8 @@ export async function startGp(shell, dev, opts) {
     const gate = segmented(['Round Gate', 'Octagonal Gate'], v => { m.circularity = v === 0; markDirty('settings'); });
     if (idx === 1) gate.lock(true, 'This stick\'s gate is always round');
     const inner = dslider('Inner deadzone', 0, 100, v => v + '%', v => { if (idx === 0) m.innerDeadzone = v; else m.innerDeadzone2 = v; markDirty('settings'); });
-    const outer = dslider('Outer deadzone', 0, 100, v => v + '%', v => { if (idx === 0) m.outerDeadzone = v; else m.outerDeadzone2 = v; markDirty('settings'); });
+    // GP2040-CE stores how far out the stick reaches 100% (100 = all the way); shown as the deadzone at the edge (0% = none)
+    const outer = dslider('Outer deadzone', 0, 100, v => v + '%', v => { if (idx === 0) m.outerDeadzone = 100 - v; else m.outerDeadzone2 = 100 - v; markDirty('settings'); });
     const offMsg = el('div.stick-off', {}, [el('div.empty-t', { text: 'Stick disabled' }),
       el('div.empty-d', { text: 'This stick is currently disabled. Enable it to access calibration, deadzone, and other input settings.' })]);
     // while calibrating, the steps take the settings' place
@@ -307,7 +319,7 @@ export async function startGp(shell, dev, opts) {
       fx.checked = (c2.inv & 1) !== 0; fy.checked = (c2.inv & 2) !== 0;
       en.checked = idx === 0 ? m.stick1Enabled : m.stick2Enabled;
       inner.value = clamp(idx === 0 ? m.innerDeadzone : m.innerDeadzone2, 0, 100);
-      outer.value = clamp(idx === 0 ? m.outerDeadzone : m.outerDeadzone2, 0, 100);
+      outer.value = 100 - clamp(idx === 0 ? m.outerDeadzone : m.outerDeadzone2, 0, 100);
       if (idx === 0) gate.value = m.circularity ? 0 : 1; else { gate.value = 0; m.circularity2 = true; }   // saved round with the next Save
       showOn(); refresh();
     };
@@ -370,7 +382,7 @@ export async function startGp(shell, dev, opts) {
       const round = idx === 0 ? m.circularity : true;
       let px = st.outX, py = st.outY; const pm = Math.hypot(px, py); if (round && pm > 1) { px /= pm; py /= pm; }
       paintGate(cv, { round, din: (idx === 0 ? m.innerDeadzone : m.innerDeadzone2) / 100, dout: (idx === 0 ? m.outerDeadzone : m.outerDeadzone2) / 100,
-        out: [px, py], trail: st.trail, gate: st.state ? '#fe6805' : '#8a8a8a', off: !en.checked });
+        out: [px, py], trail: st.trail, gate: st.state ? '#ff6800' : '#666666', off: !en.checked });
       const r = readout(st.outX, st.outY);
       rd1.textContent = r.xy; rd2.textContent = st.state && st.status ? st.status : r.centered ? 'Centered' : r.angle;
     };
@@ -390,7 +402,7 @@ export async function startGp(shell, dev, opts) {
   const TURBO_BTNS = COMBO_PARTS.filter(p => p.kind === 'b' && p.bit <= 128).map(p => { const a = ACTS.find(x => x.key === p.name); return { value: p.bit, text: a ? fnName(a) : p.name, short: p.name }; });
   const assigned = multiSelect('Select buttons to enable Turbo', TURBO_BTNS, v => { m.turboMask = v.reduce((a, b) => a | b, 0); markDirty('settings'); });
   assigned.el.title = 'These buttons repeat by themselves while held, whenever turbo is on';
-  const inputPanel = panel('INPUT BEHAVIOR', [el('div.lbl', { text: 'SOCD cleaning mode' }), socd, el('div.gap'), fourWay.el, debounce.el,
+  const inputPanel = panel('INPUT BEHAVIOR', [el('div.lbl', { text: 'SOCD cleaning mode' }), socd, fourWay.el, debounce.el,
     el('div.btnrow.bottom', {}, [
       pbtn('Reset', 'sync', false, () => { m.socdMode = 1; m.fourWayMode = false; m.debounceDelay = 5; syncSettings(); markDirty('settings'); }),
       pbtn('Save', 'check', true, () => flush()),
@@ -402,7 +414,7 @@ export async function startGp(shell, dev, opts) {
       pbtn('Save', 'check', true, () => flush()),
     ])]);
   const turboOff = el('div.panel-off', {}, [el('div.off-icon', { html: dicon('bolt') }), el('div.empty-t', { text: 'Turbo mode disabled' }),
-    el('div.empty-d', { text: 'Enable Turbo Mode to repeat supported button inputs automatically while held' })]);
+    el('div.empty-d', { text: 'Enable Turbo Mode to repeat supported\nbutton inputs automatically while held' })]);
   const turboPanel = panel('TURBO', [turboOn, turboOff], 'stretch');
   turboPanel.firstChild.append(turbo.el);
   function syncTurbo() { turboOn.classList.toggle('hidden', !turbo.checked); turboOff.classList.toggle('hidden', turbo.checked); }
@@ -477,7 +489,7 @@ export async function startGp(shell, dev, opts) {
   // (GP2040-CE's /api/getConfig), to a file and the backup history; restoring sends it back (/api/setConfig)
   const backup = backupPage({
     controller: 'GP2040-CE', board: L.board, firmware: s.ver && s.ver.version ? String(s.ver.version) : '',
-    mode: () => profileName(clamp(m.profileNumber, 1, 4)),   // the button profile in use
+    modeTitle: 'Profiles', mode: () => '4',   // the design's "Profiles" column: this app keeps all four button profiles
     exportData: () => dev.get('/api/getConfig'),
     fileName: name => 'PadBox ' + L.board + ' - GP2040-CE - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
     check: d => !d || typeof d !== 'object' || Array.isArray(d) ? 'This file isn\'t a PadBox configuration file.'
@@ -493,7 +505,9 @@ export async function startGp(shell, dev, opts) {
   shell.tabs(tabNames, i => pages.forEach((p, k) => p.classList.toggle('hidden', k !== i)));
   refreshSide(); syncSettings(); sticks.forEach(s => s.sync && s.sync());
   if (L.m) trRefresh();   // @M
-  say('Changes are sent to the PadBox when you click Save.');
+  // the demo: ?sel=<pin> opens with that button selected
+  shell.footer('');
+  { const q = opts.demo && /[?&]sel=(\d+)/.exec(location.search); if (q) select(+q[1]); }
 
   // ---------------------------------------------------------------- save / restart
   async function flush() {

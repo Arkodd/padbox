@@ -27,17 +27,20 @@ import { dicon } from './icons.js';
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const PAGES = {
-  CONTROLLER: ['controller', 'gamepad', 'Assign functions to each button and configure LED lighting'],
-  STICKS: ['sticks', 'stick', 'Calibrate stick input and adjust deadzones and stick behavior'],
-  SETTINGS: ['settings', 'gear', 'Manage Turbo mode and other advanced controller settings'],
-  'BACKUP & RESTORE': ['backup', 'cloud', 'Export your controller configuration or import a saved configuration file'],
-  CALIBRATION: ['calibration', 'stick', 'Calibrate the stick notch by notch, with PhobGCC\'s own calibration'],
+  CONTROLLER: ['controller', 'nav-gamepad', 'Assign functions to each button and configure LED lighting'],
+  STICKS: ['sticks', 'nav-stick', 'Calibrate stick input and adjust deadzones and stick behavior'],
+  SETTINGS: ['settings', 'nav-gear', 'Manage Turbo mode and other advanced controller settings'],
+  'BACKUP & RESTORE': ['backup', 'nav-cloud', 'Export your controller configuration or import a saved configuration file'],
+  CALIBRATION: ['calibration', 'nav-stick', 'Calibrate the stick notch by notch, with PhobGCC\'s own calibration'],
   TRIGGER: ['trigger', 'trigger', 'Calibrate the analog trigger\'s range'],   // @M
   GYRO: ['gyro', 'gyro', 'See the motion sensor live and set its sensitivity'],   // @M
   RUMBLE: ['rumble', 'rumble', 'Turn the rumble on or off and set its strength'],   // @M
 };
 let current = null, connecting = false;
 
+
+// the Arkodd logo as the design draws it (vector, from its pages)
+{ const img = document.querySelector('#head .logo'); if (img) { const t = document.createElement('template'); t.innerHTML = dicon('logo', 'logo'); t.content.firstChild.setAttribute('aria-label', 'Arkodd'); img.replaceWith(t.content.firstChild); } }
 
 // fit the design's 1046 x 653 frame into the window
 function fit() { const s = Math.min(innerWidth / 1046, innerHeight / 653); document.documentElement.style.setProperty('--zoom', s); }
@@ -80,13 +83,16 @@ function openMenu(btn, i, items) {
     b.addEventListener('click', e => { e.stopPropagation(); closeMenu(); it.pick(); });
     return b;
   }));
-  flyout.style.top = ($('nav').offsetTop + btn.offsetTop) + 'px';
+  // level with the button (the side menu is centred with a transform, so measured on screen, in the frame's units)
+  const z = parseFloat(getComputedStyle($('stage')).zoom) || 1;
+  flyout.style.top = ((btn.getBoundingClientRect().top - $('stage').getBoundingClientRect().top) / z) + 'px';
   $('stage').append(flyout);
 }
 addEventListener('mousedown', e => { if (flyout && !flyout.contains(e.target) && !(e.target.closest && e.target.closest('#nav .has-menu'))) closeMenu(); });
 
 const shell = {
-  header(title, board) { $('title').textContent = title; $('board').textContent = board || ''; $('who').classList.remove('hidden'); },
+  // board: written as the design does ("PadBoxEssential"); more: the firmware version and such, shown on hover
+  header(title, board, more) { $('title').textContent = title; $('board').textContent = board || ''; $('who').title = more || ''; $('who').classList.remove('hidden'); },
   status(on) { $('who').classList.toggle('off', !on); $('state').textContent = on ? 'Connected' : 'Not connected'; },
   actions(nodes) { const a = $('actions'); a.innerHTML = ''; for (const n of nodes || []) a.append(n); },
   // subs: optional subtitles that replace PAGES' ({ SETTINGS: '...' }); menus: a flyout menu beside a side-menu button
@@ -97,7 +103,9 @@ const shell = {
     if (!names) return;
     closeMenu(); subOver = {};
     const btns = names.map((n, i) => {
-      const b = el('button', { type: 'button', title: n.charAt(0) + n.slice(1).toLowerCase(), html: dicon(PAGES[n][1]) });
+      // a button with a menu (HOJA2's modes): the design's own icon for it, the gamepad moved left with an arrow beside it
+      const ic = menus && menus[i] && PAGES[n][1] === 'nav-gamepad' ? 'nav-gamepad-menu' : PAGES[n][1];
+      const b = el('button', { type: 'button', title: n.charAt(0) + n.slice(1).toLowerCase(), html: dicon(ic) });
       if (menus && menus[i]) b.classList.add('has-menu');
       b.addEventListener('click', () => { const was = !!flyout && flyout.dataset.i === String(i); select(i); if (menus && menus[i] && !was) openMenu(b, i, menus[i]); });
       nav.append(b);
