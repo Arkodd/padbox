@@ -209,8 +209,7 @@ export async function startPhob(shell, dev, opts) {
   const gateSeg = segmented(['Round Gate', 'Octagonal Gate'], v => { view.octagon = v === 1; });
   gateSeg.value = 1;
   // flips: bit 0 left X, 1 left Y ("I <mask>"). Sent right away: the firmware applies and saves a flip as soon as it gets
-  // it. It mirrors the stick's RAW reading (the firmware's readAx / readAy), so the calibration, this gate and the output
-  // all agree - and a calibration made before the flip has to be redone (onFrame says so once it's confirmed)
+  // it. It mirrors the finished output, so the calibration stays valid (onFrame confirms it)
   const flips = [dtoggle('Flip X axis', flipChanged), dtoggle('Flip Y axis', flipChanged)];
   let invOther = 0;   // the C-stick's flip bits, kept as they are
   function flipChanged() {
@@ -221,18 +220,18 @@ export async function startPhob(shell, dev, opts) {
   }
   const tag = badge(); tag.el.classList.add('hidden');   // shown once a calibration starts here (the firmware doesn't say)
   const rd1 = el('div.rd1');
-  const legend = el('div.rd2.legend', { html: '<i class="lg-dot"></i>Output<i class="lg-ring"></i>Raw<b class="lg-x">✕</b>Target' });
-  const setCenter = pbtn('Set center', 'angle', true, () => view.reset(true));
-  setCenter.classList.add('angle');
+  const legend = el('div.rd2.legend', { html: '<i class="lg-dot"></i>Output<b class="lg-x">✕</b>Target' });
   // the current step: its title, what to do, how it's going, and its buttons
   const macroBtn = (text, key, steps, primary) => { const b = pbtn(text, '', primary, () => { macro = steps.slice(); macroUntil = 0; }); if (key) b.prepend(el('i.key', { text: key })); return b; };
-  const holdBtn = (cls, title, m) => { const b = el('button.hold.' + cls, { type: 'button', title, html: dicon(cls === 'ccw' ? 'minus' : 'plus') }); b.addEventListener('pointerdown', () => { holdMask |= m; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { holdMask &= ~m; }); return b; };
+  // m: the button it holds, or a function giving it at the moment it's pressed
+  const holdBtn = (cls, title, m) => { const b = el('button.hold.' + cls, { type: 'button', title, html: dicon(cls === 'ccw' ? 'minus' : 'plus') }); let held = 0; b.addEventListener('pointerdown', () => { held = typeof m === 'function' ? m() : m; holdMask |= held; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { holdMask &= ~held; held = 0; }); return b; };
+  const oneFlip = () => view.inv === 1 || view.inv === 2;   // exactly one axis flipped: turning directions are mirrored
   const stepT = el('div.cal-t'), stepD = el('div.cal-d'), stepS = el('div.cal-s'), prog = el('div.phob-prog', {}, [el('i')]);
   const bUndo = macroBtn('Undo', 'Z', [[BZ, 200]], false), bSkip = macroBtn('Skip', 'START', [[BS, 200]], false), bAdv = macroBtn('Advance', 'A', [[BA, 200]], true);
   // while lining a notch up: back to the angle it was captured at (B)
   const bResetNotch = macroBtn('Reset notch', 'B', [[BB, 200]], false);
   bResetNotch.title = 'Put this notch back to the angle it was captured at';
-  const angleRow = el('div.angle-off', {}, [holdBtn('ccw', 'Rotate counter-clockwise (hold)', BY), el('span', { text: 'Angle offset' }), holdBtn('cw', 'Rotate clockwise (hold)', BX)]);
+  const angleRow = el('div.angle-off', {}, [holdBtn('ccw', 'Rotate counter-clockwise (hold)', () => oneFlip() ? BX : BY), el('span', { text: 'Angle offset' }), holdBtn('cw', 'Rotate clockwise (hold)', () => oneFlip() ? BY : BX)]);
   const calBox = el('div.cal-box.hidden', {}, [el('div.cal-head', {}, [stepT, angleRow]), stepD, stepS, prog, el('div.btnrow.cal-btns', {}, [bUndo, bResetNotch, bSkip, bAdv])]);
   const bCal = pbtn('Calibrate', 'target', true, () => {
     if (!frame || frame.step >= 0) return;
@@ -249,8 +248,7 @@ export async function startPhob(shell, dev, opts) {
   });
   const lockTag = el('span.lock-tag');
   const stickPanel = panel('STICK', [el('div.phob-body', {}, [
-    el('div.phob-left', {}, [el('div.gate-wrap', {}, [view.canvas]), el('div.rd', {}, [rd1, legend]), el('div.angle-row', {}, [setCenter]),
-      el('p.angle-hint', { text: 'Let go of the stick, then click Set center if the stick reads off-center or the plot is cluttered' })]),
+    el('div.phob-left', {}, [el('div.gate-wrap', {}, [view.canvas]), el('div.rd', {}, [rd1, legend])]),
     el('div.phob-right', {}, [el('div.two.flips', {}, [flips[0].el, flips[1].el]), gateSeg.el, calBox, el('div.btnrow.cal-main', {}, [bLock, bCal])]),
   ])], 'phob-wide');
   stickPanel.firstChild.append(tag.el, lockTag);
@@ -291,8 +289,6 @@ export async function startPhob(shell, dev, opts) {
       g.lineWidth = 1.3; g.lineJoin = 'round'; g.strokeStyle = '#fe6805'; shape(view.octagon ? R : R - 1.5, view.octagon); g.stroke();
       if (v.active && !isNaN(v.aim)) { const a = v.aim * Math.PI / 180; g.setLineDash([4, 4]); g.lineWidth = 1; g.strokeStyle = 'rgba(255,210,60,.6)'; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); g.setLineDash([]); }
       g.fillStyle = 'rgba(40,166,255,.5)';
-      for (const [x, y] of v.trail) g.fillRect(c + x / v.range * R - 1, c - y / v.range * R - 1, 2, 2);
-      if (!isNaN(v.cx)) { g.beginPath(); g.arc(c + (v.rawX - v.cx) / v.range * R, c - (v.rawY - v.cy) / v.range * R, 6, 0, Math.PI * 2); g.lineWidth = 1; g.strokeStyle = '#e6e6e6'; g.stroke(); }
       g.beginPath(); g.arc(c + clamp(v.outX, -1.2, 1.2) * R, c - clamp(v.outY, -1.2, 1.2) * R, 4, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill();
       // the target: where PhobGCC wants the stick for this step (it shows it on the C-stick's output while calibrating)
       if (v.hasTarget) {
@@ -302,7 +298,13 @@ export async function startPhob(shell, dev, opts) {
     };
     return v;
   }
-  function notchName(n) { return { 0: 'right', 2: 'up-right', 4: 'up', 6: 'up-left', 8: 'left', 10: 'down-left', 12: 'down', 14: 'down-right' }[n] || 'in-between'; }
+  // the notch's name as the gate shows it: mirrored by the flips, like the output and the target
+  function notchName(n) {
+    if (view.inv & 1) n = (24 - n) % 16;
+    if (view.inv & 2) n = (16 - n) % 16;
+    return notchLabel(n);
+  }
+  function notchLabel(n) { return { 0: 'right', 2: 'up-right', 4: 'up', 6: 'up-left', 8: 'left', 10: 'down-left', 12: 'down', 14: 'down-right' }[n] || 'in-between'; }
   // the calibration box, from each frame: getting ready, the 32 capture steps (16 notches, each centre then edge), the
   // 12 notch adjustments, saving
   function showStep(f) {
@@ -437,7 +439,7 @@ export async function startPhob(shell, dev, opts) {
     const freshPress = f.phys & ~phys;
     phys = f.phys;
     if (freshPress && curPage === page0) { for (let b = 0; b < 21; b++) if (freshPress & (1 << b)) { if (pinOf(b) >= 0) select(b); break; } }   // pressing a button selects it
-    if ((f.inv & 3) !== view.inv) { view.inv = f.inv & 3; view.trail = []; view.reset(true); }   // a flip: the raw reading is mirrored now
+    view.inv = f.inv & 3;
     view.setRaw(f.rawAx, f.rawAy);
     view.active = f.step >= 0 && f.stick === 0;
     view.aim = NaN; view.aimCenter = false;
@@ -445,10 +447,16 @@ export async function startPhob(shell, dev, opts) {
     view.outX = (f.ax - 127) / 100; view.outY = (f.ay - 127) / 100;
     // while calibrating, the C-stick's output is the target
     view.hasTarget = view.active; view.tx = (f.cx - 127) / 100; view.ty = (f.cy - 127) / 100;
+    // the flip is on the output, so the target (PhobGCC's, unflipped) is drawn flipped too: lining the output dot up with
+    // it then gives the same calibration whatever the flips, and the stick ends up where the dot showed
+    if (view.inv & 1) { view.tx = -view.tx; if (!isNaN(view.aim)) view.aim = (540 - view.aim) % 360; }
+    if (view.inv & 2) { view.ty = -view.ty; if (!isNaN(view.aim)) view.aim = (360 - view.aim) % 360; }
+    // the aim help reads the output too
+    { const m = Math.hypot(view.outX, view.outY); let a = Math.atan2(view.outY, view.outX) * 180 / Math.PI; if (a < 0) a += 360; view.ang = a; view.pct = Math.min(100, m * 100); }
     if (curPage === page1) { const r = readout(view.outX, view.outY); rd1.textContent = r.xy + (r.angle ? '     ' + r.angle : ''); }
     showStep(f);
     invOther = f.inv & 12;
-    if (wanted.inv >= 0 && f.inv === wanted.inv) { wanted.inv = -1; say('Axis flipped and saved. Click Calibrate to calibrate the stick again in this orientation.', 'var(--warn)'); view.reset(true); }
+    if (wanted.inv >= 0 && f.inv === wanted.inv) { wanted.inv = -1; say('Axis flip saved in the controller. No need to recalibrate.', 'var(--good)'); view.reset(true); }
     else if (wanted.inv < 0 && pending.inv < 0) { flips[0].checked = (f.inv & 1) !== 0; flips[1].checked = (f.inv & 2) !== 0; }
     if (f.saveState === 2) say('Warning: the controller couldn\'t save its settings.', 'var(--bad)');
     // ask for what we don't know yet; resend what wasn't confirmed
