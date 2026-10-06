@@ -56,8 +56,10 @@ export async function startHoja(shell, dev, opts) {
   const fw = info ? (info[704] | (info[705] << 8) | (info[706] << 16) | (info[707] << 24)) >>> 0 : 0;
   // which board, from its product name ("PadBox GS Essent", "PadBox GS Platfo"), or from whether it has a right stick
   const isM = name.startsWith('PadBox M ');   // @M
-  if (name && !name.startsWith('PadBox GS ') && !isM) throw new Error('This PadBox ("' + name + '") isn\'t supported by this app.');   // @M
-  // @GS if (name && !name.startsWith('PadBox GS ')) throw new Error('This PadBox ("' + name + '") isn\'t supported by this app.');
+  // a PadBox on the HOJA2 it shipped with ("Padbox GS-C"): the connect screen opens "Update an older PadBox"
+  const older = () => { const e = new Error('This PadBox runs an older HOJA2 ("' + name + '"). Install the latest firmware to set it up here.'); e.legacy = 'hoja'; return e; };
+  if (name && !name.startsWith('PadBox GS ') && !isM) throw older();   // @M
+  // @GS if (name && !name.startsWith('PadBox GS ')) throw older();
   const platform = /platf/i.test(name) || (!/essen/i.test(name) && !!ins && ins[32 * 10] === IN.Unused);
   const types = ins ? Array.from({ length: INPUTS }, (_, i) => ins[i * 10]) : defaultInputTypes(platform, !isM);   // @M
   // @GS const types = ins ? Array.from({ length: INPUTS }, (_, i) => ins[i * 10]) : defaultInputTypes(platform, true);

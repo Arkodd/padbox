@@ -12,7 +12,7 @@
 import { el, icon, button, dialog, esc, sleep, setButtonText } from './ui.js';
 
 const FAMILIES = { 'GS Essential': ['HOJA2', 'GP2040-CE'], 'GS Platform': ['HOJA2', 'GP2040-CE', 'PhobGCC'] };
-const BOOT_IDS = [{ vendorId: 0x2e8a, productId: 0x0003 }, { vendorId: 0x2e8a, productId: 0x000f }];   // RP2040, RP2350
+export const BOOT_IDS = [{ vendorId: 0x2e8a, productId: 0x0003 }, { vendorId: 0x2e8a, productId: 0x000f }];   // RP2040, RP2350
 const CHIP_FAMILIES = { RP2040: [0xe48bff56], RP2350: [0xe48bff59, 0xe48bff5a] };
 
 // RP2040 / RP2350 / null, from the family ID in every 512-byte UF2 block.
@@ -29,13 +29,13 @@ export function uf2Chip(data) {
   return a === b ? null : a ? 'RP2040' : 'RP2350';
 }
 
-const bootChip = dev => dev.productId === 0x0003 ? 'RP2040' : 'RP2350';
+export const bootChip = dev => dev.productId === 0x0003 ? 'RP2040' : 'RP2350';
 // whether this browser has already written firmware straight into this chip's bootloader (so it doesn't need the drive)
 const PICOBOOT_KEY = chip => 'padbox-picoboot-ok-' + chip;
 const NODRIVE_BAD_KEY = chip => 'padbox-nodrive-failed-' + chip;
 const onWindows = () => /Windows/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.userAgent);
 const picobootWorked = chip => { try { return localStorage.getItem(PICOBOOT_KEY(chip)) === '1'; } catch (e) { return false; } };
-const rememberPicoboot = chip => { try { localStorage.setItem(PICOBOOT_KEY(chip), '1'); } catch (e) { } };
+export const rememberPicoboot = chip => { try { localStorage.setItem(PICOBOOT_KEY(chip), '1'); } catch (e) { } };
 // the drive-less bootloader: only where it can be reached, and never again on a computer where it once wasn't
 function useNoDrive(chip) {
   if (!navigator.usb || !picobootWorked(chip)) return false;
@@ -45,7 +45,7 @@ function useNoDrive(chip) {
 const isBoot = dev => BOOT_IDS.some(f => f.vendorId === dev.vendorId && f.productId === dev.productId);
 
 // The bootloader, if this site was already allowed to use it; waits up to ms for it to show up.
-async function findBoot(ms) {
+export async function findBoot(ms) {
   if (!navigator.usb) return null;
   const end = performance.now() + ms;
   for (;;) {

@@ -23,6 +23,7 @@ const HOJA_FILTERS = [
 const isGp = d => d.vendorId === 0xcafe;
 const isHoja = d => HOJA_FILTERS.some(f => f.vendorId === d.vendorId && f.productId === d.productId);
 import { dicon } from './icons.js';
+import { legacyUpdate } from './js/legacy-update.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -144,10 +145,13 @@ function showConnect(problem) {
   document.body.dataset.page = 'connect';
   const btn = button('CONNECT', { primary: true, cls: 'big', icon: 'usb', disabled: !navigator.usb, onclick: pick });
   const serBtn = button('CONNECT PHOBGCC', { cls: 'big', icon: 'serial', disabled: !navigator.serial, onclick: pickSerial });
+  // a PadBox still on the firmware it shipped with (from before this app): install the latest without opening it
+  const oldBtn = button('UPDATE AN OLDER PADBOX', { cls: 'big', icon: 'download', onclick: () => legacyUpdate() });
   shell.content(el('div.connect2', {}, [
     el('h1', { text: 'CONNECT' }),
     el('p', { text: 'Plug the PadBox GS in with a USB data cable (for GP2040-CE, hold Start while plugging it in), then click CONNECT and choose it in the list. PhobGCC (GS Platform): hold Start while plugging it in, then click CONNECT PHOBGCC and choose "PadBox GS Calibrator".' }),
-    el('div.connect-btns', {}, [btn, serBtn]),
+    el('div.connect-btns', {}, [btn, serBtn, oldBtn]),
+    el('p.old', { text: 'Your PadBox won’t connect, or still has the firmware it came with (HOJA2 "Padbox GS-C", GP2040-CE 0.8 or the original PhobGCC)? Click UPDATE AN OLDER PADBOX: it installs the latest firmware without opening the controller.' }),
     el('p.demo', { html: 'No controller at hand? Try the demo: GP2040-CE on the <a href="?demo=gp">GS Essential</a> or <a href="?demo=gp-platform">GS Platform</a>, HOJA2 on the <a href="?demo=hoja-essential">GS Essential</a> or <a href="?demo=hoja-platform">GS Platform</a>, PhobGCC on the <a href="?demo=phob">GS Platform</a>' }),
     problem ? el('p.problem' + (/^Updated to /.test(problem) ? '.good' : ''), { text: problem }) : null,   // after an update: in green
   ]));
@@ -179,6 +183,8 @@ async function open(d) {
   }
   catch (e) {
     const t = (e && e.message) || String(e);
+    // a PadBox on its original firmware: straight to "Update an older PadBox"
+    if (e && e.legacy) { try { await d.close(); } catch (x) { } current = null; connecting = false; showConnect(t); legacyUpdate({ now: e.legacy }); return; }
     // only one program or tab can use the PadBox at a time
     showConnect(/unable to claim|access denied|busy/i.test(t)
       ? 'The PadBox is busy: another browser tab or program is using it (another PadBox Calibrator tab, the public site, or the PadBox Suite). Close it, then click CONNECT again.'
