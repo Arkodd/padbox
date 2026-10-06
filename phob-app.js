@@ -192,6 +192,7 @@ export async function startPhob(shell, dev, opts) {
     if (!alive) return clearInterval(drawTick);
     drawing.set(pinOf(sel), pin => lit(BIT[pin]));
     drawing.setLeds(pin => { const li = ledOf(BIT[pin]); return li >= 0 && led ? hex(ledRgbRaw(li)) : null; });
+    try { drawing.setSticks([[view.outX, view.outY]]); } catch (e) { }   // the orange dot follows the stick (once the STICKS view exists)
   }, 30);
 
   // ---------------------------------------------------------------- STICKS page

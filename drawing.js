@@ -102,15 +102,14 @@ export function buildDrawing(onPick, tip, label, board) {
   });
   dpadLabels = [[2, 263.7, 211], [3, 263.7, 327], [5, 206, 268.7], [4, 322, 268.7]].map(([pin, x, y]) => [pin, x + B.dpad[0], y + B.dpad[1]]);
 
-  // sticks: a dark ring with the cap inside; clicking one = its click (L3 / R3), if it has one. The redesign (GS Essential
-  // Redesign) draws them still, so the GS has no live dot on them (the STICKS page shows where they are).
+  // sticks: a dark ring with the cap inside; clicking one = its click (L3 / R3), if it has one. On every PadBox an orange
+  // dot on the cap follows the real stick (setSticks), so it's easy to see the sticks work.
   const dots = [];   // the live position of each stick
   B.sticks.forEach(([pin, x, y, sz]) => {
     const g = el('g', {}, svg);
     if (pin >= 0) add(pin, g);
     el('circle', { cx: x, cy: y, r: 54 * sz, fill: C.stickRing }, g);
     el('circle', { cx: x, cy: y, r: 44 * sz, fill: C.btn, stroke: C.stickInner, 'stroke-width': '3' }, g);
-    if (!B.m) return;
     const dot = el('circle', { cx: x, cy: y, r: 15 * sz, fill: C.pressed, stroke: C.edge, 'stroke-width': '3', 'pointer-events': 'none' }, svg);
     dots.push({ dot, x, y, travel: 34 * sz });
   });
