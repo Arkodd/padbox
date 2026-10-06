@@ -13,6 +13,11 @@ import { dicon } from './icons.js';
 import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, readout, backupPage, toast, updateNotice } from './parts.js';
 
 const BA = 1, BB = 2, BX = 4, BY = 8, BZ = 16, BL = 32, BR = 64, BS = 128;
+// How far the raw reading moves from the centre with the stick pushed all the way (raw units, the ADC's 0..1). The raw
+// ring is drawn at this scale, or at the furthest reach seen if that's more. It used to start from almost nothing, so
+// right after a reset a small push already put the ring on the gate's edge: lining it up with the yellow cross then
+// recorded a half-way push as a notch, and the calibration came out wrong.
+const RAW_SPAN = 0.3;
 const CAL_ORDER = [0, 1, 8, 9, 16, 17, 24, 25, 4, 5, 12, 13, 20, 21, 28, 29, 2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31];
 const ADJ_ORDER = [2, 6, 10, 14, 1, 3, 5, 7, 9, 11, 13, 15];
 const OUTPUTS = ['A', 'B', 'X', 'Y', 'Z', 'L', 'R', 'Start', 'D-pad Up', 'D-pad Down', 'D-pad Left', 'D-pad Right', '(nothing)'];
@@ -254,7 +259,7 @@ export async function startPhob(shell, dev, opts) {
 
   function makeView() {
     const canvas = el('canvas.gate.phob-gate-cv');
-    const v = { canvas, octagon: false, active: false, outX: 0, outY: 0, hasTarget: false, tx: 0, ty: 0, aim: NaN, aimCenter: false, rawX: 0.5, rawY: 0.5, cx: NaN, cy: NaN, range: 0.05, trail: [], ang: 0, pct: 0, inv: 0 };
+    const v = { canvas, octagon: false, active: false, outX: 0, outY: 0, hasTarget: false, tx: 0, ty: 0, aim: NaN, aimCenter: false, rawX: 0.5, rawY: 0.5, cx: NaN, cy: NaN, range: RAW_SPAN, trail: [], ang: 0, pct: 0, inv: 0 };
     v.setRaw = (x, y) => {
       if (isNaN(v.cx)) { v.cx = x; v.cy = y; }
       v.rawX = x; v.rawY = y;
@@ -264,7 +269,9 @@ export async function startPhob(shell, dev, opts) {
       v.ang = ang; v.pct = v.range > 0 ? 100 * m / v.range : 0;
       if (m > 0.6 * v.range) { v.trail.push([dx, dy]); if (v.trail.length > 5000) v.trail.shift(); }
     };
-    v.reset = recenter => { v.trail = []; v.range = 0.05; if (recenter) { v.cx = v.rawX; v.cy = v.rawY; } };
+    // the trace and (optionally) the centre start over; the scale keeps the furthest reach seen, so the ring only meets
+    // the gate's edge when the stick really is at its edge
+    v.reset = recenter => { v.trail = []; if (recenter) { v.cx = v.rawX; v.cy = v.rawY; } };
     // the gate in the design's look: a grey ring, the gate's shape in orange, spokes, a soft orange middle; the trace in
     // blue, the raw reading as a light ring, the output as an orange dot, PhobGCC's target as a yellow cross
     v.paint = () => {
@@ -322,7 +329,7 @@ export async function startPhob(shell, dev, opts) {
       const e = CAL_ORDER[f.step], notch = e >> 1, n = (f.step >> 1) + 1;
       title = 'CAPTURE THE CROSS (' + n + '/16)'; p = f.step / 44;
       if (!(e & 1)) text = 'Let go of the stick so it rests in the middle, then press Advance (A)';
-      else if (notch % 2 === 0) text = 'Push the stick to the yellow cross (the ' + notchName(notch) + ' notch) then press Advance (A)';
+      else if (notch % 2 === 0) text = 'Push the stick all the way to the edge, in its ' + notchName(notch) + ' notch (toward the yellow cross), hold it there and press Advance (A)';
       else text = 'In-between notch: if your gate has none here, leave the stick in the middle, then press Advance (A)';
       if (view.active && !isNaN(view.aim)) { let err = view.ang - view.aim; while (err > 180) err -= 360; while (err < -180) err += 360; sub = `aim ${Math.round(view.aim)}°   now ${Math.round(view.ang)}° (${err >= 0 ? '+' : ''}${Math.round(err)}°)   ${Math.round(view.pct)}% out`; }
       else if (view.active && view.aimCenter) sub = `now ${Math.round(view.pct)}% out of the middle`;
