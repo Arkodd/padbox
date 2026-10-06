@@ -203,10 +203,17 @@ export async function startPhob(shell, dev, opts) {
   view.octagon = true;   // octagonal by default, like a GameCube stick's gate
   const gateSeg = segmented(['Round Gate', 'Octagonal Gate'], v => { view.octagon = v === 1; });
   gateSeg.value = 1;
-  // flips: bit 0 left X, 1 left Y ("I <mask>", saved in the controller, no need to recalibrate)
+  // flips: bit 0 left X, 1 left Y ("I <mask>", no need to recalibrate). Sent right away: the firmware applies and saves
+  // a flip as soon as it gets it, so there's nothing to wait for (it used to wait for the header's Save, which was easy
+  // to miss); each frame then confirms it (onFrame: "Axis flip saved")
   const flips = [dtoggle('Flip X axis', flipChanged), dtoggle('Flip Y axis', flipChanged)];
   let invOther = 0;   // the C-stick's flip bits, kept as they are
-  function flipChanged() { pending.inv = invOther | (flips[0].checked ? 1 : 0) | (flips[1].checked ? 2 : 0); staged(); }
+  function flipChanged() {
+    pending.inv = -1;
+    wanted.inv = invOther | (flips[0].checked ? 1 : 0) | (flips[1].checked ? 2 : 0); wanted.at = performance.now(); wanted.tries = 1;
+    dev.send('I ' + wanted.inv);
+    say('Flipping the axis...', 'var(--warn)');
+  }
   const tag = badge(); tag.el.classList.add('hidden');   // shown once a calibration starts here (the firmware doesn't say)
   const rd1 = el('div.rd1');
   const legend = el('div.rd2.legend', { html: '<i class="lg-dot"></i>Output<i class="lg-ring"></i>Raw<b class="lg-x">✕</b>Target' });
