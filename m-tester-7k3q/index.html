@@ -10,6 +10,8 @@
   <link rel="icon" href="./assets/app.png">
   <link rel="stylesheet" href="./css/app.css">
   <link rel="stylesheet" href="v2.css">
+  <!-- the frame's scale, set before the first layout: a phone would otherwise lay the page out wider than its screen -->
+  <script>(function () { var v = window.visualViewport, w = v ? v.width : innerWidth, h = v ? v.height : innerHeight; document.documentElement.style.setProperty("--zoom", Math.min(w / 1046, h / 653)); })();</script>
 </head>
 <body>
   <div id="stage">

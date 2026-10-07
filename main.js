@@ -42,8 +42,9 @@ let current = null, connecting = false;
 { const img = document.querySelector('#head .logo'); if (img) { const t = document.createElement('template'); t.innerHTML = dicon('logo', 'logo'); t.content.firstChild.setAttribute('aria-label', 'Arkodd'); img.replaceWith(t.content.firstChild); } }
 
 // fit the design's 1046 x 653 frame into the window
-function fit() { const s = Math.min(innerWidth / 1046, innerHeight / 653); document.documentElement.style.setProperty('--zoom', s); }
-addEventListener('resize', fit); fit();
+// (the visual viewport: on a phone, innerWidth can be the wider layout the browser falls back to, not the screen)
+function fit() { const v = window.visualViewport, w = v ? v.width * v.scale : innerWidth, h = v ? v.height * v.scale : innerHeight; document.documentElement.style.setProperty('--zoom', Math.min(w / 1046, h / 653)); }
+addEventListener('resize', fit); if (window.visualViewport) visualViewport.addEventListener('resize', fit); fit();
 
 // Tooltips in the design ("Backup idea.png"): a light grey box with an arrow pointing at the element, below it (above
 // it near the bottom of the window). Any element with a title gets one; the title moves to data-tip so the browser

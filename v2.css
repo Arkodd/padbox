@@ -15,6 +15,8 @@
   --techno: "Xirod", "Poppins", sans-serif;
 }
 html, body { height: 100%; }
+/* nothing may widen the page past the screen (a phone would then lay it out wider and scale it down) */
+html { overflow: hidden; }
 /* one background for the whole window (not only the design frame), so there is no seam at the frame's sides */
 body { background: radial-gradient(90% 80% at 50% 75%, #2e2e2e 0%, #2a2a2a 45%, #232323 100%) fixed #232323; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 
