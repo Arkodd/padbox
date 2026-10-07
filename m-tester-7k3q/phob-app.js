@@ -392,18 +392,20 @@ export async function startPhob(shell, dev, opts) {
   const sChanged = () => { clearTimeout(setTimer); setTimer = setTimeout(() => { pending.settings = vals.slice(); staged(); }, 200); };
   const signed = x => x > 0 ? '+' + x : String(x), plain = x => String(x), pctF = x => x + '%';
   const SL = (cap, min, max, f, idx, tip) => { const s = dslider(cap, min, max, f, v => { vals[idx] = v; sChanged(); }); s.idx = idx; if (tip) s.el.title = tip; return s; };
-  const sliders = [
-    SL('Snapback X', -10, 10, signed, 4, 'Less snapback when you let the stick go'), SL('Snapback Y', -10, 10, signed, 5, 'Less snapback when you let the stick go'),
-    SL('Smoothing X', 0, 18, plain, 6, 'Higher = smoother but slower'), SL('Smoothing Y', 0, 18, plain, 7, 'Higher = smoother but slower'),
-    SL('Waveshaping X', -24, 24, signed, 10, 'The stick\'s response during fast movement'), SL('Waveshaping Y', -24, 24, signed, 11, 'The stick\'s response during fast movement'),
-    SL('Cardinal snapping', -2, 6, signed, 0, 'Snaps near-cardinal inputs to true up / down / left / right'), SL('Analog scaler', 90, 110, pctF, 2, 'The output at the gate edge, as a percent of the calibrated size'),
-  ];
-  const resetSet = list => { if (!settings0) return; for (const s of list) { vals[s.idx] = settings0[s.idx]; s.value = vals[s.idx]; } sChanged(); };
-  const card = (title, list, note) => panel(title, [...list.map(s => s.el), el('p.hint.wrap', { text: note }),
-    el('div.btnrow.bottom', {}, [pbtn('Reset', 'sync', false, () => resetSet(list)), pbtn('Save', 'check', true, () => { clearTimeout(setTimer); pending.settings = vals.slice(); saveAll(); })])], 'stretch');
+  // the design's five boxes (GS Platform, Settings): a title, what it does, and its sliders (X and Y side by side)
+  const sliders = [];
+  const box = (title, text, list) => { sliders.push(...list); return panel(title, [el('p.setdesc', { text }), el('div.setsl' + (list.length > 1 ? '.two' : ''), {}, list.map(x => x.el))], 'setbox'); };
   const page2 = el('div.page.hidden.dpage.settings.phobset', {}, [
-    card('STICK RESPONSE', sliders.slice(0, 4), 'Snapback: less bounce when you let the stick go. Smoothing: higher is smoother but slower.'),
-    card('STICK SHAPING', sliders.slice(4), 'Waveshaping: the response during fast movement. Cardinal snapping: near-cardinal inputs snap to the axis.'),
+    box('SNAPBACK FILTER', 'Ignores the false input that appears when the stick bounces past the centre on release',
+      [SL('Horizontal (X)', -10, 10, signed, 4), SL('Vertical (Y)', -10, 10, signed, 5)]),
+    box('CARDINAL SNAPPING', 'Snaps inputs that are almost straight up, down, left or right to the exact direction',
+      [SL('Strength', -2, 6, plain, 0)]),
+    box('SMOOTHING', 'Reduces jitter at rest. Higher values are smoother but slightly slower to respond',
+      [SL('Horizontal (X)', 0, 18, plain, 6), SL('Vertical (Y)', 0, 18, plain, 7)]),
+    box('OUTPUT RANGE', 'Sets the maximum output at the gate edge, as a percentage of the calibrated range',
+      [SL('Strength', 90, 110, pctF, 2)]),
+    box('FAST-MOVEMENT RESPONSE', 'Changes how the stick responds during fast movements (waveshaping)',
+      [SL('Horizontal (X)', -24, 24, signed, 10), SL('Vertical (Y)', -24, 24, signed, 11)]),
   ]);
   function showSettings(v) { for (let i = 0; i < 19; i++) vals[i] = v[i]; for (const s of sliders) s.value = vals[s.idx]; }
 
@@ -437,7 +439,7 @@ export async function startPhob(shell, dev, opts) {
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   let curPage = page0;
   shell.tabs(['CONTROLLER', 'STICKS', 'SETTINGS', 'BACKUP & RESTORE'], i => { curPage = pages[i]; pages.forEach((p, k) => p.classList.toggle('hidden', k !== i)); },
-    { SETTINGS: 'Fine-tune how the stick responds' });
+    { SETTINGS: 'Manage stick smoothing and other advanced stick settings' });
   refreshSide(); showAllColor(allColor);
 
   const ints = (line, n) => { const p = line.split(','); if (p.length !== n + 1) return null; const v = p.slice(1).map(Number); return v.some(isNaN) ? null : v; };

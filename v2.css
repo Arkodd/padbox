@@ -787,3 +787,11 @@ dialog select.combo option { color: #222; background: #eee; }
 .notchviz.on .notchviz-top .pbtn { visibility: visible; }
 .notchviz .melee-rd { display: none; margin-top: 8px; font-size: 10px; color: #cfcfcf; white-space: pre; font-variant-numeric: tabular-nums; }
 .notchviz.on .melee-rd { display: block; }
+
+/* PhobGCC settings: the design's five boxes (title, description, X and Y sliders side by side) */
+.dpage.settings.phobset .panel.setbox { height: 116.4px; box-sizing: border-box; padding: 12px 13.5px 0; }
+.dpage.settings.phobset .panel.setbox .ptitle { margin: 0 0 4.5px; }
+.dpage.settings.phobset .setdesc { margin: 0; font-size: 8.17px; line-height: 14.3px; color: #a7a7a7; height: 28.6px; }
+.dpage.settings.phobset .setsl { margin-top: 13px; }
+.dpage.settings.phobset .setsl.two { gap: 10.8px; }
+.dpage.settings.phobset .setsl .dslider { margin-top: 0; }
