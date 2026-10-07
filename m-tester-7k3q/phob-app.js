@@ -287,13 +287,7 @@ export async function startPhob(shell, dev, opts) {
       g.beginPath(); g.arc(c, c, R * 0.5, 0, Math.PI * 2); g.stroke();
       g.strokeStyle = '#7a7a7a'; shape(R, false); g.stroke();
       g.lineWidth = 1.3; g.lineJoin = 'round'; g.strokeStyle = '#fe6805';
-      if (v.calibrating) {
-        // while calibrating: a fixed model of the 16 notches PhobGCC works with - a regular 16-sided gate
-        // (the design's calibrating page)
-        g.beginPath();
-        for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8, rad = R; g[i ? 'lineTo' : 'moveTo'](c + rad * Math.cos(a), c - rad * Math.sin(a)); }
-        g.closePath(); g.stroke();
-      } else { shape(view.octagon ? R : R - 1.5, view.octagon); g.stroke(); }
+      shape(view.octagon ? R : R - 1.5, view.octagon); g.stroke();
       if (v.active && !isNaN(v.aim)) { const a = v.aim * Math.PI / 180; g.setLineDash([4, 4]); g.lineWidth = 1; g.strokeStyle = 'rgba(255,210,60,.6)'; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); g.setLineDash([]); }
       g.fillStyle = 'rgba(40,166,255,.5)';
       g.beginPath(); g.arc(c + clamp(v.outX, -1.2, 1.2) * R, c - clamp(v.outY, -1.2, 1.2) * R, 4, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill();
@@ -449,7 +443,6 @@ export async function startPhob(shell, dev, opts) {
     view.inv = f.inv & 3;
     view.setRaw(f.rawAx, f.rawAy);
     view.active = f.step >= 0 && f.stick === 0;
-    view.calibrating = f.step >= 0;
     view.aim = NaN; view.aimCenter = false;
     if (view.active && f.step < 32) { const e = CAL_ORDER[f.step]; if (!(e & 1)) view.aimCenter = true; else if ((e >> 1) % 2 === 0) view.aim = (e >> 1) * 22.5; }
     view.outX = (f.ax - 127) / 100; view.outY = (f.ay - 127) / 100;
