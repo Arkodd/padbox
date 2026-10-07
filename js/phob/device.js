@@ -79,7 +79,7 @@ export class PhobDemo {
     else if (c === 'L') { if (v.length > 1) this.led = v; this.emit('LC,' + this.led.join(',')); }
     else if (c === 'S') { if (v.length > 1) this.settings = v; this.emit('S,' + this.settings.join(',')); }
     else if (c === 'I') this.inv = v[0] & 15;
-    else if (c === 'V') this.emit('V,PadBox GS Calibrator');
+    else if (c === 'V') this.emit('V,PadBox GS Configurator');
     else if (c === 'B') this.buttons(v[0] | 0);
   }
   // a rough copy of the button-combo wizard, enough to make the buttons do something

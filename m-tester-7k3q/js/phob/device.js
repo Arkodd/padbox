@@ -87,7 +87,7 @@ export class PhobDemo {
     else if (c === 'S') { if (v.length > 1) this.settings = v; this.emit('S,' + this.settings.join(',')); }
     else if (c === 'I') this.inv = v[0] & 15;
     else if (c === 'V') this.emit('V,PadBox ' + (this.gs ? 'GS' : this.board === 'M Platform' ? 'M Platform' : 'M') + ' Calibrator');   // @M
-    // @GS else if (c === 'V') this.emit('V,PadBox GS Calibrator');
+    // @GS else if (c === 'V') this.emit('V,PadBox GS Configurator');
     // @M{
     else if (c === 'T' && !this.gs) {
       const T = this.trig, raw = Math.round(600 + (0.5 + 0.5 * Math.sin(this.t * 1.1)) * 2800), k = rest[0];

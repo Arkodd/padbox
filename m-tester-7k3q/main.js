@@ -155,7 +155,7 @@ function showConnect(problem) {
   const oldBtn = button('UPDATE AN OLDER PADBOX', { cls: 'big', icon: 'download', onclick: () => legacyUpdate() });
   shell.content(el('div.connect2', {}, [
     el('h1', { text: 'CONNECT' }),
-    el('p', { text: 'Plug the PadBox GS in with a USB data cable (for GP2040-CE, hold Start while plugging it in), then click CONNECT and choose it in the list. PhobGCC (GS Platform): hold Start while plugging it in, then click CONNECT PHOBGCC and choose "PadBox GS Calibrator".' }),
+    el('p', { text: 'Plug the PadBox GS in with a USB data cable (for GP2040-CE, hold Start while plugging it in), then click CONNECT and choose it in the list. PhobGCC (GS Platform): hold Start while plugging it in, then click CONNECT PHOBGCC and choose "PadBox GS Configurator" ("PadBox GS Calibrator" on older PhobGCC firmware).' }),
     el('div.connect-btns', {}, [btn, serBtn, oldBtn]),
     el('p.guide', {}, ['New to the PadBox? Read the ', el('a', { href: GUIDE, target: '_blank', rel: 'noopener', text: 'PadBox GS owner\'s guide' }), ': the buttons, the console modes, and how to use this page.']),
     el('p.old', { text: 'Your PadBox won’t connect, or still has the firmware it came with (HOJA "Padbox GS-C", GP2040-CE 0.8 or the original PhobGCC)? Click UPDATE AN OLDER PADBOX: it installs the latest firmware without opening the controller.' }),
