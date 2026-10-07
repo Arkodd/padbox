@@ -4,7 +4,7 @@
 
 import { el, icon, button, card, toggle, slider, combo, setItems, swatchRow, pickColor, hex, readable, image, clamp, sleep, download, openFile, confirmBox, setButtonText, dialog } from './js/ui.js';
 import { Model, ACTS, act, COMBO_PARTS, comboName } from './js/gp/model.js';
-import { firmwareUpdate } from './js/update.js';
+import { firmwareUpdate, padboxName } from './js/update.js';
 import { buildDrawing } from './drawing.js';
 import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, paintGate, readout, multiSelect, backupPage, updateNotice } from './parts.js';
 import { dicon } from './icons.js';
@@ -38,7 +38,8 @@ export async function startGp(shell, dev, opts) {
   if (!m.layout) throw new Error('This PadBox (board "' + m.board + '") isn\'t supported by this app.');
   const L = m.layout;
 
-  shell.header('GP2040-CE', 'PadBox' + L.board.replace(/^GS /, '').replace(/ /g, ''), 'PadBox ' + L.board + (s.ver && s.ver.version ? '  •  GP2040-CE ' + s.ver.version : '') + (m.board ? '  •  board config ' + m.board : '') + (opts.demo ? '  •  demo' : ''));
+  // the board as the design writes it: "PadBoxPlatform"; the E2T PadBox GS: "E2TPadBoxGS"
+  shell.header('GP2040-CE', L.locked ? padboxName(L.board).replace(/ /g, '') : 'PadBox' + L.board.replace(/^GS /, '').replace(/ /g, ''), padboxName(L.board) + (s.ver && s.ver.version ? '  •  GP2040-CE ' + s.ver.version : '') + (m.board ? '  •  board config ' + m.board : '') + (opts.demo ? '  •  demo' : ''));
   shell.status(true);
 
   // ---------------------------------------------------------------- header buttons (the design's icon buttons)
@@ -81,7 +82,7 @@ export async function startGp(shell, dev, opts) {
     const a = act(actOf(pin));
     return (pin === TRIG ? 'Analog trigger' : m.nameOfPin(pin)) + '  →  ' + (a && a.value === 40 ? 'Custom combo: ' + (comboName(m.comboOf(pin)) || 'nothing yet') : a && a.value !== -10 ? fnName(a) : 'nothing');
   }, pin => { const a = act(actOf(pin)); return !a || a.value === -10 || quiet(pin) ? '' : a.value === 32 ? 'Turbo' : a.value === 40 ? (comboName(m.comboOf(pin)) || 'Combo') : a.value <= 4 ? a.key : GC && a.short in GC ? GC[a.short] : a.short; },   // D-pad: Up/Down/Left/Right, drawn as arrows
-  { 'GS Platform': 'platform' }[L.board] || 'essential');
+  { 'GS Platform': 'platform', 'E2T GS': 'e2t' }[L.board] || 'essential');
 
   // the right-hand column: BUTTON SETTINGS (or "No button selected"), then GLOBAL LED SETTINGS
   const status = el('p.hint2');
@@ -432,7 +433,7 @@ export async function startGp(shell, dev, opts) {
     controller: 'GP2040-CE', board: L.board, firmware: s.ver && s.ver.version ? String(s.ver.version) : '',
     modeTitle: 'Profiles', mode: () => '4',   // the design's "Profiles" column: this app keeps all four button profiles
     exportData: () => dev.get('/api/getConfig'),
-    fileName: name => 'PadBox ' + L.board + ' - GP2040-CE - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
+    fileName: name => padboxName(L.board) + ' - GP2040-CE - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
     check: d => !d || typeof d !== 'object' || Array.isArray(d) ? 'This file isn\'t a PadBox configuration file.'
       : d.format ? 'This is a ' + (/hoja/.test(d.format) ? 'HOJA' : 'different') + ' configuration file: it only goes back onto a PadBox running that firmware.' : '',
     restore: async d => { await dev.post('/api/setConfig', d); return 'Restored. Click Restart as controller to apply everything.'; },

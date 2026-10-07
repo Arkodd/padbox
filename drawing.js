@@ -43,6 +43,16 @@ const BOARDS = {
     bumperLabel: [289.9, 40.8],
   },
 };
+// The E2T PadBox GS (its tracing: assets/e2t_gs_trace.png): the GS Platform's body with the D-pad and the stick swapped,
+// as on the GS Essential - the D-pad in the top-left bulge, the stick below it - each moved exactly into the other's
+// place (185, 128 apart), and without C-up, C-left and C-down (locked off by its firmware): only T2 and T1 are left there.
+BOARDS.e2t = Object.assign({}, BOARDS.platform, {
+  name: 'E2T PadBox GS', css: 'platform pd-e2t',
+  round: BOARDS.platform.round.filter(([pin]) => ![27, 26, 18].includes(pin)),
+  sticks: [[-1, 244 + 185, 262 + 128, 56 / 58]],   // its only stick, where the GS Platform has its D-pad; no click
+  dpad: [166 - 185, 123 - 128],   // the D-pad where the GS Platform has its stick
+});
+
 
 
 function el(name, attrs, parent) {
@@ -57,7 +67,7 @@ function el(name, attrs, parent) {
 // they do what they're for, so the apps return '' for those).
 export function buildDrawing(onPick, tip, label, board) {
   const B = BOARDS[board] || BOARDS.essential, k = B.R / 79;   // k: the round buttons' size against the Essential's
-  const svg = el('svg', { viewBox: B.viewBox || '0 0 1530 1200', class: 'pad-drawing pd-' + (BOARDS[board] ? board : 'essential'), role: 'img', 'aria-label': B.name });
+  const svg = el('svg', { viewBox: B.viewBox || '0 0 1530 1200', class: 'pad-drawing pd-' + (B.css || (BOARDS[board] ? board : 'essential')), role: 'img', 'aria-label': B.name });
   const defs = el('defs', {}, svg);
   const parts = {};   // pin -> [shapes]
   const add = (pin, shape) => {

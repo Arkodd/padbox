@@ -4,7 +4,7 @@
 
 import { el, button, dialog, confirmBox, download, openFile } from './js/ui.js';
 import { dicon } from './icons.js';
-import { famName } from './js/update.js';
+import { famName, padboxName } from './js/update.js';
 
 export function panel(title, kids, cls) { return el('div.panel' + (cls ? '.' + cls : ''), {}, [el('div.ptitle', {}, [el('span.pt', { text: title })]), ...kids]); }
 
@@ -172,7 +172,7 @@ export function backupPage(o) {
       const tr = el('tr' + (ok ? '.can' : ''), { title: ok ? 'Click to restore this backup onto the controller' : '' }, [
         el('td.nm', { text: e.name }), el('td', { text: e.mode || (e.profiles != null ? e.profiles + (e.profiles === 1 ? ' profile' : ' profiles') : '') }), el('td', { text: niceDate(e.created) }),
         el('td', { text: (e.size / 1024).toFixed(2) + ' Kb' }), el('td', { text: famName(e.controller) }), el('td', { text: e.firmware || '' }),
-        el('td.' + (ok ? 'valid' : 'other'), { text: ok ? 'Valid' : 'Other PadBox', title: ok ? '' : 'Made on a PadBox ' + e.board + ' with ' + famName(e.controller) + ': it can only go back onto that one.' }),
+        el('td.' + (ok ? 'valid' : 'other'), { text: ok ? 'Valid' : 'Other PadBox', title: ok ? '' : 'Made on a' + (/^E2T /.test(e.board) ? 'n ' : ' ') + padboxName(e.board) + ' with ' + famName(e.controller) + ': it can only go back onto that one.' }),
         el('td.acts', {}, [
           act('pencil', 'Rename', 'ed', ev => { ev.stopPropagation(); rename(e); }),
           act('trash', 'Delete', 'del', ev => { ev.stopPropagation(); remove(e); }),
@@ -251,7 +251,7 @@ export async function updateNotice(o) {
   let latest = 0;
   try {
     const r = await fetch('./firmware/versions.json', { cache: 'no-store' });
-    if (r.ok) latest = +(await r.json())['PadBox ' + o.board + ' - ' + o.family] || 0;
+    if (r.ok) latest = +(await r.json())[padboxName(o.board) + ' - ' + o.family] || 0;
   } catch (e) { }
   if (!latest || (o.build && o.build >= latest)) return false;
   o.button.classList.add('has-update');
@@ -263,7 +263,7 @@ export async function updateNotice(o) {
   const now = el('button.pbtn.primary', { type: 'button', html: dicon('download') + '<span>Update now</span>' });
   const note = el('div.update-note', {}, [
     el('div.un-head', {}, [el('i.un-ic', { html: dicon('download') }), el('div.un-t', { text: 'Firmware update available' })]),
-    el('div.un-d', { text: 'A newer ' + famName(o.family) + ' firmware (' + when(latest) + ') is available for your PadBox ' + o.board + '. Update it to get the latest fixes and features.' }),
+    el('div.un-d', { text: 'A newer ' + famName(o.family) + ' firmware (' + when(latest) + ') is available for your ' + padboxName(o.board) + '. Update it to get the latest fixes and features.' }),
     el('div.btnrow', {}, [later, now]),
   ]);
   later.addEventListener('click', () => note.remove());

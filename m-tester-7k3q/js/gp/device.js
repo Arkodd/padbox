@@ -68,12 +68,13 @@ export class GpUsb {
 
 // ------------------------------------------------------------------ a fake controller for trying the app (?demo=gp or ?demo=gp-platform)
 export class GpDemo {
-  constructor(platform, gs = true) {
-    this.platform = platform; this.gs = gs;
+  constructor(platform, gs = true, e2t = false) {
+    this.platform = platform || e2t; this.gs = gs; this.e2t = e2t;   // e2t: the E2T PadBox GS (a GS Platform)
     const pins = {};
-    const acts = platform
+    const acts = this.platform
       ? { 10: 7, 11: 8, 12: 12, 13: 11, 6: 5, 7: 6, 8: 10, 9: 9, 17: 14, 16: 13, 20: 15, 21: 16, 22: 17, 15: 17, 2: 1, 3: 2, 5: 3, 4: 4, 27: 18, 26: -10, 19: -10, 18: -10 }
       : { 10: 7, 11: 8, 12: 10, 13: 9, 6: 5, 7: 6, 8: 12, 9: 11, 17: 14, 16: 13, 20: 15, 21: 16, 22: 18, 18: 17, 19: 18, 15: 17, 2: 1, 3: 2, 5: 3, 4: 4 };
+    if (e2t) Object.assign(acts, { 27: -10, 19: 18 });   // C-up, C-left and C-down are locked off; T2 (C-right) is R3
     for (let p = 0; p < 30; p++) pins['pin' + String(p).padStart(2, '0')] = { action: acts[p] != null ? acts[p] : -10, customButtonMask: 0, customDpadMask: 0 };
     this.pins = pins; this.profiles = { alternativePinMappings: [] };
     // @M{
@@ -97,8 +98,8 @@ export class GpDemo {
   handle(path, body) {
     const c = o => JSON.parse(JSON.stringify(o));
     switch (path) {
-      case '/api/getFirmwareVersion': return { version: 'demo', boardConfigLabel: (this.gs ? 'PadboxGS' : 'PadboxM') + (this.platform ? 'Platform' : 'Essential') };   // @M
-      // @GS case '/api/getFirmwareVersion': return { version: 'demo', boardConfigLabel: this.platform ? 'PadboxGSPlatform' : 'PadboxGSEssential' };
+      case '/api/getFirmwareVersion': return { version: 'demo', boardConfigLabel: this.e2t ? 'E2TPadboxGS' : (this.gs ? 'PadboxGS' : 'PadboxM') + (this.platform ? 'Platform' : 'Essential') };   // @M
+      // @GS case '/api/getFirmwareVersion': return { version: 'demo', boardConfigLabel: this.e2t ? 'E2TPadboxGS' : this.platform ? 'PadboxGSPlatform' : 'PadboxGSEssential' };
       case '/api/getPinMappings': return c(this.pins);
       case '/api/setPinMappings': this.pins = c(body); return c(body);
       case '/api/getProfileOptions': return c(this.profiles);

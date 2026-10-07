@@ -11,7 +11,10 @@
 
 import { el, icon, button, dialog, esc, sleep, setButtonText } from './ui.js';
 
-const FAMILIES = { 'GS Essential': ['HOJA2', 'GP2040-CE'], 'GS Platform': ['HOJA2', 'GP2040-CE', 'PhobGCC'] };
+const FAMILIES = { 'GS Essential': ['HOJA2', 'GP2040-CE'], 'GS Platform': ['HOJA2', 'GP2040-CE', 'PhobGCC'], 'E2T GS': ['GP2040-CE'] };
+// The E2T PadBox GS (a GS Platform whose GP2040-CE locks three C-stick buttons off) only ever gets its own GP2040-CE: any
+// other firmware would bring those buttons back, so its update window offers nothing else (no other family, no other file).
+const LOCKED_FIRMWARE = new Set(['E2T GS']);
 export const BOOT_IDS = [{ vendorId: 0x2e8a, productId: 0x0003 }, { vendorId: 0x2e8a, productId: 0x000f }];   // RP2040, RP2350
 const CHIP_FAMILIES = { RP2040: [0xe48bff56], RP2350: [0xe48bff59, 0xe48bff5a] };
 
@@ -115,12 +118,16 @@ export async function picobootFlash(dev, data, progress) {
 
 // a firmware family as customers see it: "HOJA", not the internal 'HOJA2' (its files and versions keep that name)
 export const famName = f => f === 'HOJA2' ? 'HOJA' : f;
+// a board as customers see it, and the start of its firmware files' names: "PadBox GS Platform", "E2T PadBox GS"
+export const padboxName = board => /^E2T /.test(board || '') ? 'E2T PadBox ' + board.slice(4) : 'PadBox ' + (board || '');
+// the boards with an RP2040: the PadBox GS and the E2T PadBox GS
+const isRp2040 = board => /^(GS|E2T) /.test(board || '');
 
 export function firmwareUpdate({ board, current, enter }) {
   const fams = FAMILIES[board] || [];
   const choice = el('select.combo', { style: { width: '100%' } });
   for (const f of fams) choice.append(el('option', { value: f, text: famName(f) + (f === current ? '  (the one running now - reinstall / update)' : '  (switch to it)') }));
-  choice.append(el('option', { value: '', text: 'Another .uf2 file...' }));
+  if (!LOCKED_FIRMWARE.has(board)) choice.append(el('option', { value: '', text: 'Another .uf2 file...' }));
   choice.value = current;
   let other = null;
   const info = el('p.hint', { style: { margin: '12px 0 0' } });
@@ -145,7 +152,7 @@ export function firmwareUpdate({ board, current, enter }) {
   const go = button('UPDATE', { primary: true, icon: 'download' });
   const close = button('CANCEL', { icon: '', onclick: () => d.close() });
   const body = el('div', {}, [el('div.caption', { text: 'Firmware to install', style: { marginTop: 0 } }), choice, info, meter, status]);
-  const d = dialog('Update firmware', board ? 'PadBox ' + board + (current ? '  •  running ' + famName(current) : '') : 'PadBox', 'download', body, [go, close]);
+  const d = dialog('Update firmware', board ? padboxName(board) + (current ? '  •  running ' + famName(current) : '') : 'PadBox', 'download', body, [go, close]);
   const say = (t, c) => { status.textContent = t; status.style.color = c || 'var(--soft)'; };
   const progress = p => { meter.classList.remove('hidden'); meter.firstChild.style.width = p + '%'; };
   const reconnect = 'Then reconnect: plug it in (hold Start for GP2040-CE or PhobGCC) and click CONNECT.';
@@ -160,7 +167,7 @@ export function firmwareUpdate({ board, current, enter }) {
         if (!other) return say('Choose a .uf2 file first.', 'var(--warn)');
         data = new Uint8Array(await other.arrayBuffer()); name = other.name;
       } else {
-        const r = await fetch(new URL('../firmware/PadBox ' + board + ' - ' + choice.value + '.uf2', import.meta.url));   // next to js/, whichever page opened this
+        const r = await fetch(new URL('../firmware/' + padboxName(board) + ' - ' + choice.value + '.uf2', import.meta.url));   // next to js/, whichever page opened this
         if (!r.ok) throw new Error('not found');
         data = new Uint8Array(await r.arrayBuffer()); name = choice.value;
       }
@@ -187,7 +194,7 @@ export function firmwareUpdate({ board, current, enter }) {
     // first time on this computer: the browser needs one click to allow the bootloader
     stage = 'pick'; go.disabled = false; close.disabled = false;
     setButtonText(go, 'INSTALL', 'download');
-    say('The PadBox is in update mode.\nClick INSTALL and choose "' + (board && board.startsWith('GS') ? 'RP2 Boot' : 'RP2 Boot / RP2350 Boot') + '" in the list (only needed the first time).\n\nIf it isn\'t listed: unplug the PadBox, hold Start + Select while plugging it back in, then click INSTALL.');
+    say('The PadBox is in update mode.\nClick INSTALL and choose "' + (isRp2040(board) ? 'RP2 Boot' : 'RP2 Boot / RP2350 Boot') + '" in the list (only needed the first time).\n\nIf it isn\'t listed: unplug the PadBox, hold Start + Select while plugging it back in, then click INSTALL.');
   });
 
   async function pickAndInstall() {
@@ -224,7 +231,7 @@ export function firmwareUpdate({ board, current, enter }) {
   }
 
   function offerDownload(why) {
-    const board2040 = board && board.startsWith('GS');
+    const board2040 = isRp2040(board);
     if (board2040 && uf2Chip(data) !== 'RP2040') {
       stage = 'done'; close.disabled = false;
       return say('That firmware is for a different chip (' + uf2Chip(data) + ') than the PadBox GS (RP2040). Nothing was changed.', 'var(--bad)');

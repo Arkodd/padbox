@@ -103,6 +103,28 @@ export function gsPlatform() {
   };
 }
 
+// The E2T PadBox GS (configs/E2TPadboxGS): a GS Platform whose firmware locks three C-stick buttons off for good -
+// C-up (CY+, GPIO27), C-left (CX-, GPIO26) and C-down (CY-, GPIO18). They aren't buttons here: not drawn, not
+// selectable, no LED settings. The two buttons left there are called T1 (the GS Platform's "A" button, GPIO15, L3)
+// and T2 (C-right, GPIO19), which is R3 by default - the function C-up has on the GS Platform. Its D-pad and stick
+// are swapped against the GS Platform's, as on the GS Essential (assets/e2t_gs_trace.png): each sits where the other
+// is on the GS Platform, 185, 128 apart.
+export const E2T_LOCKED = [27, 26, 18];
+const E2T_NAMES = { 15: 'T1', 19: 'T2' };
+export function e2tGs() {
+  const L = gsPlatform(), off = new Set(E2T_LOCKED);
+  L.defaults[27] = -10; L.defaults[19] = 18;
+  const rename = o => (o.pin in E2T_NAMES ? Object.assign(o, { name: E2T_NAMES[o.pin] }) : o);
+  return Object.assign(L, {
+    name: 'E2T GS', board: 'E2T GS', image: 'assets/e2t_gs_trace.png',
+    phys: L.phys.filter(p => !off.has(p.pin)).map(rename),
+    spots: L.spots.filter(s => !off.has(s.pin)).map(rename)
+      .map(s => (s.kind === 1 ? Object.assign(s, { x: s.x - 185, y: s.y - 128 }) : s)),   // the D-pad's arms
+    sticks: L.sticks.map(st => Object.assign(st, { x: st.x + 185, y: st.y + 128 })),
+    locked: E2T_LOCKED,
+  });
+}
+
 // @M{
 // ------------------------------------------------------------------ the PadBox M (configs/PadboxMEssential, PadboxMPlatform)
 // GPIO numbers from GPIO PADBOX M.xlsx; LED chain on the board: 1P 2P 3P 4P 4K 3K 2K 1K. Positions in the 1530 x 1200
@@ -160,6 +182,7 @@ export function mPlatform() {
 
 export function layoutFor(boardLabel) {
   const b = (boardLabel || '').toLowerCase();
+  if (b.includes('e2tpadboxgs')) return e2tGs();   // before the GS checks: its label has "PadboxGS" in it too
   if (b.includes('padboxgsplatform')) return gsPlatform();
   if (b.includes('padboxgs')) return gsEssential();
   if (b.includes('platform')) return mPlatform();   // @M

@@ -2,7 +2,7 @@
 // visit. Bump VERSION when publishing a new version: the old copy is then replaced on the next visit.
 // The files are the published site's (tools/build-gs.js): the calibrator in the new design at the root, using the
 // device and model modules in js/.
-const VERSION = 'padbox-web-36';
+const VERSION = 'padbox-web-37';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css', 'v2.css',
   'main.js', 'gp-app.js', 'hoja-app.js', 'phob-app.js', 'drawing.js', 'icons.js', 'ref-icons.js', 'parts.js', 'gs-essential-shapes.js',
@@ -10,6 +10,7 @@ const FILES = [
   'assets/logo.png', 'assets/app.png', 'fonts/Poppins-Regular.ttf', 'fonts/Poppins-SemiBold.ttf', 'fonts/Xirod.otf',
   'firmware/versions.json', 'firmware/PadBox GS Essential - HOJA2.uf2', 'firmware/PadBox GS Essential - GP2040-CE.uf2',
   'firmware/PadBox GS Platform - HOJA2.uf2', 'firmware/PadBox GS Platform - GP2040-CE.uf2', 'firmware/PadBox GS Platform - PhobGCC.uf2',
+  'firmware/E2T PadBox GS - GP2040-CE.uf2',
 ];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
