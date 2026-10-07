@@ -7,11 +7,11 @@ import { sleep } from '../ui.js';
 
 export const Blk = { GAMEPAD: 0, HOVER: 1, ANALOG: 2, RGB: 3, TRIGGER: 4, IMU: 5, HAPTIC: 6, USER: 7, INPUT: 8, MAX: 9 };
 export const BlkSize = [64, 256, 1024, 256, 64, 32, 8, 64, 2048];
-export const Rpt = { READ_CONFIG_BLOCK: 1, WRITE_CONFIG_BLOCK: 2, READ_STATIC_BLOCK: 3, CONFIG_COMMAND: 4, INPUT_COMMAND: 5, INPUT_GYRO: 253, INPUT_JOYSTICKS: 254, INPUT_RAW: 255 };
+export const Rpt = { READ_CONFIG_BLOCK: 1, WRITE_CONFIG_BLOCK: 2, READ_STATIC_BLOCK: 3, CONFIG_COMMAND: 4, INPUT_COMMAND: 5, ANALOG_DUMP: 250, INPUT_GYRO: 253, INPUT_JOYSTICKS: 254, INPUT_RAW: 255 };
 export const DeviceInfo = { Block: 0, Size: 802, InputBlock: 1, InputSize: 360 };
 
 class HojaProtocol {
-  constructor() { this.chain = Promise.resolve(); this.pending = null; this.onRaw = null; this.onSticks = null; this.onFrame = null; this.onLost = null; }
+  constructor() { this.chain = Promise.resolve(); this.pending = null; this.onRaw = null; this.onSticks = null; this.onSnap = null; this.onFrame = null; this.onLost = null; }
   // packet in, from the device
   dispatch(p) {
     const id = p[0];
@@ -30,6 +30,10 @@ class HojaProtocol {
       if (!this.onSticks) return;
       const u = o => (((p[o] << 8) | p[o + 1]) - 2048) / 2048;
       this.onSticks(u(15), u(17), u(19), u(21), u(23), u(25), u(27), u(29));
+    } else if (id === Rpt.ANALOG_DUMP) {
+      // a snapback capture (snapback.c): [1] the axis (0 LX, 1 LY, 2 RX, 3 RY), [2..63] 62 samples 0.5 ms apart
+      // after the filter, each (value + 2048) >> 4 (128 = the centre)
+      if (this.onSnap && p[1] <= 3) this.onSnap(p[1], Array.from(p.subarray(2, 64), v => (v - 128) / 128));
     } else if (id === Rpt.INPUT_RAW) {
       if (this.onFrame) this.onFrame(p);
       if (this.onRaw) this.onRaw(p);
@@ -80,7 +84,7 @@ export class HojaUsb extends HojaProtocol {
     for (const itf of d.configuration.interfaces)
       for (const a of itf.alternates)
         if (a.interfaceClass === 0xff && a.interfaceSubclass === 0 && a.interfaceProtocol === 0 && a.endpoints.length === 2) found = { itf, a };
-    if (!found) throw new Error('This isn\'t a PadBox with the HOJA2 firmware (no HOJA2 configuration interface). If it runs GP2040-CE or PhobGCC, hold Start while plugging it in.');
+    if (!found) throw new Error('This isn\'t a PadBox with the HOJA firmware (no HOJA configuration interface). If it runs GP2040-CE or PhobGCC, hold Start while plugging it in.');
     this.itfNum = found.itf.interfaceNumber;
     await d.claimInterface(this.itfNum);
     this.epIn = found.a.endpoints.find(e => e.direction === 'in').endpointNumber;
@@ -131,6 +135,14 @@ export class HojaDemo extends HojaProtocol {
   async close() { clearInterval(this.timer); }
   frame() {
     this.t += 0.02;
+    // the demo's snapback capture: every 4 s, a stick let go from full right that bounces past the centre and settles
+    const now = performance.now();
+    if (this.mode === Rpt.INPUT_JOYSTICKS && now > (this.snapAt || (this.snapAt = now + 2000))) {
+      this.snapAt = now + 4000; this.snapN = (this.snapN || 0) + 1;
+      const d = new Uint8Array(64), ax = this.snapN % 4; d[0] = Rpt.ANALOG_DUMP; d[1] = ax;
+      for (let i = 0; i < 62; i++) { const ms = i * 0.5, v = 0.92 * Math.exp(-ms / 6) * Math.cos(ms / 3.2) + (Math.random() - 0.5) * 0.02; d[2 + i] = Math.max(0, Math.min(255, Math.round(128 + v * 128))); }
+      setTimeout(() => this.dispatch(d), 0);
+    }
     const f = new Uint8Array(64), a = this.t * 0.5;
     const lx = Math.round(Math.sin(a) * 1400), ly = Math.round(Math.cos(a) * 1400), rx = Math.round(Math.cos(a * 1.3) * 900), ry = Math.round(Math.sin(a * 1.3) * 900);
     const be = (o, v) => { f[o] = (v >> 8) & 255; f[o + 1] = v & 255; };

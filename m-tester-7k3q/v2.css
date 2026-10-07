@@ -795,3 +795,30 @@ dialog select.combo option { color: #222; background: #eee; }
 .dpage.settings.phobset .setsl { margin-top: 13px; }
 .dpage.settings.phobset .setsl.two { gap: 10.8px; }
 .dpage.settings.phobset .setsl .dslider { margin-top: 0; }
+
+/* HOJA2 SNAPBACK page: Filter mode, Filter cutoff and the analyzer, a panel per stick */
+.dpage.snappage { display: grid; grid-template-columns: 348.94px 348.94px; gap: 17.98px; align-content: start; }
+#main .dpage.snappage { overflow-y: auto; overflow-x: hidden; scrollbar-width: none; padding-bottom: 13px; box-sizing: border-box; }
+#main .dpage.snappage::-webkit-scrollbar { display: none; }
+.dpage.snappage.one { display: block; }
+.panel.snapback { padding: 12px 13.5px 13px; }
+.dpage.snappage.one .panel.snapback { width: 775.51px; box-sizing: border-box; display: grid; grid-template-columns: 1fr 1.4fr; column-gap: 22px; }
+.dpage.snappage.one .panel.snapback > .ptitle { grid-column: 1 / -1; }
+.panel.snapback .snap-sub { margin: 2px 0 4px; font-size: 8.17px; line-height: 11.5px; color: #9a9a9a; }
+.panel.snapback .lbl { font-size: 10px; color: #dcdcdc; margin-top: 4px; }
+.panel.snapback .seg { margin-top: 5px; height: 24px; }
+.panel.snapback .snap-hint { margin: 5px 0 0; font-size: 8.17px; line-height: 11.5px; color: #9a9a9a; min-height: 23px; }
+.panel.snapback .dslider { margin-top: 6px; }
+.panel.snapback .snap-an { margin-top: 12px; padding-top: 10px; border-top: 1px solid #3a3a3a; }
+.dpage.snappage.one .panel.snapback .snap-an { margin-top: 0; padding-top: 0; border-top: 0; }
+.panel.snapback .snap-head { display: flex; justify-content: space-between; align-items: center; }
+.panel.snapback .snap-state { font-size: 8.5px; color: #9a9a9a; }
+.panel.snapback .snap-state::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #7a7a7a; margin-right: 5px; }
+.panel.snapback .snap-state.got::before { background: var(--good); }
+.panel.snapback .snap-stats { display: flex; justify-content: space-between; margin-top: 6px; min-height: 22px; }
+.panel.snapback .snap-stats div { display: flex; flex-direction: column; font-size: 7.5px; color: #9a9a9a; }
+.panel.snapback .snap-stats b { font-size: 10px; color: #ececec; font-weight: 600; font-variant-numeric: tabular-nums; }
+.panel.snapback canvas.snap-plot { display: block; width: 100%; height: 150px; margin-top: 4px; }
+.panel.snapback .snap-hist { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; min-height: 18px; }
+.panel.snapback .snap-cap { font: 400 7.5px/1 "Poppins", sans-serif; color: #cfcfcf; background: #2f2f2f; border: 1px solid #4a4a4a; border-radius: 9px; padding: 4px 7px; cursor: pointer; white-space: pre; }
+.panel.snapback .snap-cap.on { border-color: var(--orange); color: #fff; }

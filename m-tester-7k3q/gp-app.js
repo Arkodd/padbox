@@ -194,7 +194,7 @@ export async function startGp(shell, dev, opts) {
   // Idle Glow and Animation time: in the design's panel, but GP2040-CE has neither setting, so they're shown switched off
   // (as the design draws them for an effect that doesn't use them)
   const idle = dtoggle('Idle Glow', () => { }); idle.disabled = true;
-  idle.el.title = 'Idle Glow is a HOJA2 setting: GP2040-CE does not have it';
+  idle.el.title = 'Idle Glow is a HOJA setting: GP2040-CE does not have it';
   const anim = dslider('Animation time', 0, 100, () => '', () => { }); anim.value = 25; anim.disabled = true;
   anim.el.title = 'GP2040-CE sets the animation speed itself';
   const colorLbl = el('span', { text: 'Color' });
@@ -495,7 +495,7 @@ export async function startGp(shell, dev, opts) {
     exportData: () => dev.get('/api/getConfig'),
     fileName: name => 'PadBox ' + L.board + ' - GP2040-CE - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
     check: d => !d || typeof d !== 'object' || Array.isArray(d) ? 'This file isn\'t a PadBox configuration file.'
-      : d.format ? 'This is a ' + (/hoja/.test(d.format) ? 'HOJA2' : 'different') + ' configuration file: it only goes back onto a PadBox running that firmware.' : '',
+      : d.format ? 'This is a ' + (/hoja/.test(d.format) ? 'HOJA' : 'different') + ' configuration file: it only goes back onto a PadBox running that firmware.' : '',
     restore: async d => { await dev.post('/api/setConfig', d); return 'Restored. Click Restart as controller to apply everything.'; },
   });
   const page3 = backup.page;

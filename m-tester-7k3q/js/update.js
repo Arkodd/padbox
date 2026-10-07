@@ -114,10 +114,13 @@ export async function picobootFlash(dev, data, progress) {
   }
 }
 
+// a firmware family as customers see it: "HOJA", not the internal 'HOJA2' (its files and versions keep that name)
+export const famName = f => f === 'HOJA2' ? 'HOJA' : f;
+
 export function firmwareUpdate({ board, current, enter }) {
   const fams = FAMILIES[board] || [];
   const choice = el('select.combo', { style: { width: '100%' } });
-  for (const f of fams) choice.append(el('option', { value: f, text: f + (f === current ? '  (the one running now - reinstall / update)' : '  (switch to it)') }));
+  for (const f of fams) choice.append(el('option', { value: f, text: famName(f) + (f === current ? '  (the one running now - reinstall / update)' : '  (switch to it)') }));
   choice.append(el('option', { value: '', text: 'Another .uf2 file...' }));
   choice.value = current;
   let other = null;
@@ -143,7 +146,7 @@ export function firmwareUpdate({ board, current, enter }) {
   const go = button('UPDATE', { primary: true, icon: 'download' });
   const close = button('CANCEL', { icon: '', onclick: () => d.close() });
   const body = el('div', {}, [el('div.caption', { text: 'Firmware to install', style: { marginTop: 0 } }), choice, info, meter, status]);
-  const d = dialog('Update firmware', board ? 'PadBox ' + board + (current ? '  •  running ' + current : '') : 'PadBox', 'download', body, [go, close]);
+  const d = dialog('Update firmware', board ? 'PadBox ' + board + (current ? '  •  running ' + famName(current) : '') : 'PadBox', 'download', body, [go, close]);
   const say = (t, c) => { status.textContent = t; status.style.color = c || 'var(--soft)'; };
   const progress = p => { meter.classList.remove('hidden'); meter.firstChild.style.width = p + '%'; };
   const reconnect = 'Then reconnect: plug it in (hold Start for GP2040-CE or PhobGCC) and click CONNECT.';

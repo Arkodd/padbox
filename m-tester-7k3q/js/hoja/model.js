@@ -42,6 +42,10 @@ export const Analog = {
   setInv: (b, off, v) => set16(b, off, (u16(b, off) & ~1) | (v ? 1 : 0)),
   deadzone: (b, right) => u16(b, right ? 684 : 682), setDeadzone: (b, right, v) => set16(b, right ? 684 : 682, v),
   outer: (b, right) => u16(b, right ? 690 : 688), setOuter: (b, right, v) => set16(b, right ? 690 : 688, v),
+  // snapback: the filter's mode (l/r_snapback_type: 0 low-pass, 1 auto, 2 off, as HOJA-LIB-RP2040-latest's snapback.c
+  // runs them - anything else is low-pass too) and the
+  // low-pass cutoff (l/r_snapback_intensity, tenths of a Hz; the firmware keeps it within 300..1500 = 30..150 Hz)
+  snapType: (b, right) => b[right ? 687 : 686], setSnapType: (b, right, v) => { b[right ? 687 : 686] = v; },
   snap: (b, right) => u16(b, right ? 694 : 692), setSnap: (b, right, v) => set16(b, right ? 694 : 692, v),
   exp: (b, right) => b[right ? 697 : 696], setExp: (b, right, v) => { b[right ? 697 : 696] = v; },
   disabled: (b, right) => b[right ? 700 : 699] === 1, setDisabled: (b, right, v) => { b[right ? 700 : 699] = v ? 1 : 0; },

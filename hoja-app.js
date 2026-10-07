@@ -44,7 +44,7 @@ export async function startHoja(shell, dev, opts) {
   const fw = info ? (info[704] | (info[705] << 8) | (info[706] << 16) | (info[707] << 24)) >>> 0 : 0;
   // which board, from its product name ("PadBox GS Essent", "PadBox GS Platfo"), or from whether it has a right stick
   // a PadBox on the HOJA2 it shipped with ("Padbox GS-C"): the connect screen opens "Update an older PadBox"
-  const older = () => { const e = new Error('This PadBox runs an older HOJA2 ("' + name + '"). Install the latest firmware to set it up here.'); e.legacy = 'hoja'; return e; };
+  const older = () => { const e = new Error('This PadBox runs an older HOJA ("' + name + '"). Install the latest firmware to set it up here.'); e.legacy = 'hoja'; return e; };
   if (name && !name.startsWith('PadBox GS ')) throw older();
   const platform = /platf/i.test(name) || (!/essen/i.test(name) && !!ins && ins[32 * 10] === IN.Unused);
   const types = ins ? Array.from({ length: INPUTS }, (_, i) => ins[i * 10]) : defaultInputTypes(platform, true);
@@ -53,7 +53,7 @@ export async function startHoja(shell, dev, opts) {
   const BOARD = platform ? PLATFORM : ESSENTIAL;
   const mismatch = B[Blk.ANALOG][0] !== VERSIONS.analog || B[Blk.GAMEPAD][0] !== VERSIONS.gamepad || B[Blk.RGB][0] !== VERSIONS.rgb || B[Blk.INPUT][0] !== VERSIONS.input;
 
-  shell.header('HOJA2', 'PadBox' + lay.name.replace(/^GS /, '').replace(/ /g, ''), 'PadBox ' + lay.name + (fw ? '  •  firmware ' + fw.toString(16).toUpperCase() : '') + (opts.demo ? '  •  demo' : ''));
+  shell.header('HOJA', 'PadBox' + lay.name.replace(/^GS /, '').replace(/ /g, ''), 'PadBox ' + lay.name + (fw ? '  •  firmware ' + fw.toString(16).toUpperCase() : '') + (opts.demo ? '  •  demo' : ''));
   shell.status(true);
 
   // ---------------------------------------------------------------- changes: live to RAM, Save to flash
@@ -94,7 +94,7 @@ export async function startHoja(shell, dev, opts) {
   // the design's other two buttons. HOJA2 works as a controller while it's being set up, and shows LED changes right
   // away, so there's nothing to restart: the LED button sends any change still waiting, and "Restart as controller"
   // saves and closes the connection (the PadBox carries on as a controller)
-  const btnPreview = iconBtn('light', 'hdr-beacon', 'Preview LED on the PadBox (HOJA2 shows LED changes right away)', async () => { clearTimeout(liveTimer); await pushLive(); say('The PadBox shows your LED settings now.', 'var(--good)'); });
+  const btnPreview = iconBtn('light', 'hdr-beacon', 'Preview LED on the PadBox (HOJA shows LED changes right away)', async () => { clearTimeout(liveTimer); await pushLive(); say('The PadBox shows your LED settings now.', 'var(--good)'); });
   const btnExit = el('button.act.primary', { type: 'button', title: 'Save and finish: the PadBox carries on as a controller', html: dicon('hdr-gamepad') + '<span>Restart as controller</span>' });
   btnExit.addEventListener('click', async () => {
     if (dirty.size) { await save(); if (dirty.size) return; }
@@ -183,7 +183,7 @@ export async function startHoja(shell, dev, opts) {
     pickColor(Rgb.color(B[Blk.RGB], led), c => { Rgb.setColor(B[Blk.RGB], led, c); changed(Blk.RGB); refreshSide(); });
   });
   const pressDot = el('i.dot'), pressTxt = el('span');
-  const pressField = el('button.field.color', { type: 'button', disabled: true, title: 'HOJA2 lights a pressed button in its own color (Reactive effect)' }, [pressDot, pressTxt]);
+  const pressField = el('button.field.color', { type: 'button', disabled: true, title: 'HOJA lights a pressed button in its own color (Reactive effect)' }, [pressDot, pressTxt]);
   const ledBlock = el('div.led-block', {}, [
     el('div.lbl', { text: 'LED color' }),
     el('div.two', {}, [ledFieldBtn, pressField]),
@@ -326,7 +326,12 @@ export async function startHoja(shell, dev, opts) {
   const sticks = [makeStick(false, hasRight ? 'LEFT STICK' : 'STICK'), makeStick(true, hasRight ? 'RIGHT STICK' : 'C-STICK')];
   if (!hasRight) { const c = sticks[0].card; c.classList.add('wide'); const body = c.querySelector('.stick-body'), rd = body.querySelector('.rd');
     rd.after(c.querySelector('.angle-row'), c.querySelector('p.angle-hint:not(.left)')); }
-  const page1 = el('div.page.hidden.dpage.sticks.hoja' + (hasRight ? '' : '.one'), {}, (hasRight ? sticks : sticks.slice(0, 1)).map(s => s.card));
+  const shownSticks = hasRight ? sticks : sticks.slice(0, 1);
+  const page1 = el('div.page.hidden.dpage.sticks.hoja' + (hasRight ? '' : '.one'), {}, shownSticks.map(s => s.card));
+  // SNAPBACK: its own page, a panel per stick (as in HOJA3's configurator)
+  const pageSnap = el('div.page.hidden.dpage.snappage' + (hasRight ? '' : '.one'), {}, shownSticks.map(s => s.snapCard));
+  // a snapback capture goes to its stick's analyzer (LX / LY: the left stick, RX / RY: the right)
+  dev.onSnap = (axis, samples) => { const s = sticks[axis >= 2 ? 1 : 0]; if (s.present) s.snap(axis, samples); };
   function refreshCal(msg, color) {
     for (const s of sticks) s.showCal(msg, color);
   }
@@ -380,39 +385,106 @@ export async function startHoja(shell, dev, opts) {
     const dz = v => (v * 100 / 2047).toFixed(1) + '%';
     const dead = dslider('Inner deadzone', 0, 400, dz, v => { Analog.setDeadzone(A(), right, v); changed(Blk.ANALOG); });
     const outer = dslider('Outer deadzone', 0, 400, dz, v => { Analog.setOuter(A(), right, v); changed(Blk.ANALOG); });
-    const snap = dslider('Snapback filter', 0, 255, v => v === 0 ? 'Off' : String(v), v => { Analog.setSnap(A(), right, v); changed(Blk.ANALOG); });
     const exp = dslider('Curve', 50, 300, v => (v / 100).toFixed(2), v => { Analog.setExp(A(), right, clamp(v - 49, 1, 251)); changed(Blk.ANALOG); });
     const offMsg = el('div.stick-off', {}, [el('div.off-icon', { html: dicon('nav-stick') }), el('div.empty-t', { text: 'Stick disabled' }),
       el('div.empty-d', { text: 'This stick is currently disabled. Enable it to access calibration, deadzone, and other input settings.' })]);
     // while calibrating, the steps take the settings' place
     const settingsBox = el('div.stick-set', {}, [
       el('div.angle-row', {}, [bAngle]), el('p.angle-hint', { text: 'Hold the stick in a notch, then click ANGLE SET to line that notch up with it' }),
-      el('div.two.flips', {}, [fx.el, fy.el]), gate.el, dead.el, outer.el, snap.el, exp.el,
+      el('div.two.flips', {}, [fx.el, fy.el]), gate.el, dead.el, outer.el, exp.el,
       el('p.angle-hint.left', { text: 'Adjust how stick input responds around the centre' }),
 ]);
     exp.el.title = 'Adjust how stick input responds around the centre';
+    // SNAPBACK: the filter that stops the stick bouncing past the centre when you let go (HOJA's snapback.c), and the
+    // analyzer: the firmware records each flick's first 31 ms after you let go and sends it (dev.onSnap)
+    const MODES = ['Low-pass', 'Auto', 'Off'];   // = l/r_snapback_type 0, 1, 2 (HOJA-LIB-RP2040-latest's snapback.c, which the PadBox builds with)
+    const MODE_TIP = ['Low-pass: smooths fast movement near the centre (set how strongly with the cutoff)',
+      'Auto: spots the moment you let go and holds back the rebound only then', 'Off: the stick\'s raw output, to see its natural snapback'];
+    const snapMode = segmented(MODES, i => { Analog.setSnapType(A(), right, i); changed(Blk.ANALOG); showMode(); });
+    const modeHint = el('p.snap-hint');
+    // the cutoff: 30..150 Hz in 0.5 Hz steps (the slider counts half-hertz; stored in tenths)
+    const cutoff = dslider('Filter cutoff', 60, 300, v => (v / 2).toFixed(1) + ' Hz', v => { Analog.setSnap(A(), right, v * 5); changed(Blk.ANALOG); });
+    cutoff.el.title = 'Lower removes more bounce but adds a touch of delay to fast flicks near the centre; higher feels snappier but lets more rebound through. Default 60 Hz';
+    const showMode = () => { const m = snapMode.value; cutoff.disabled = m !== 0; modeHint.textContent = MODE_TIP[m]; };
+    const snapCv = el('canvas.snap-plot'), snapStats = el('div.snap-stats'), snapHist = el('div.snap-hist'), snapState = el('span.snap-state', { text: 'Listening' });
+    const snapCard = panel(right ? (hasRight ? 'RIGHT STICK SNAPBACK' : 'C-STICK SNAPBACK') : (hasRight ? 'LEFT STICK SNAPBACK' : 'SNAPBACK'), [
+      el('div.snap-set', {}, [el('p.snap-sub', { text: 'Stops the stick bouncing past the centre when you let it go. Changes apply right away: click Save to keep them.' }), el('div.lbl', { text: 'Filter mode' }), snapMode.el, modeHint, cutoff.el]),
+      el('div.snap-an', {}, [el('div.snap-head', {}, [el('div.lbl', { text: 'Analyzer' }), snapState]),
+        el('p.snap-hint', { text: 'Push the stick all the way to one side and let it snap back: the plot shows what it does in the 31 ms after you let go.' }),
+        snapStats, snapCv, snapHist]),
+    ], 'snapback');
     const controls = el('div.stick-ctl', {}, [settingsBox, infoL, el('div.btnrow.bottom', {}, [bReset, bCal])]);
     const absent = el('div.empty-d', { text: 'The C-stick is made of buttons, so there\'s nothing to calibrate.', style: { padding: '90px 0', textAlign: 'center' } });
     const body = el('div.stick-body', {}, [el('div.gate-wrap', {}, [cv]), el('div.rd', {}, [rd1, legend]), controls, offMsg]);
     const c = panel(title, [body, absent], 'stick');
     c.firstChild.append(tag.el, en.el);   // the badge and "Enabled" on the title row
     body.classList.toggle('hidden', !present); absent.classList.toggle('hidden', present); en.el.classList.toggle('hidden', !present); tag.el.classList.toggle('hidden', !present);
-    const st = { card: c, bCal, right, present, x: 0, y: 0, rx: 0, ry: 0, trail: [], start: null };
+    const st = { card: c, snapCard, bCal, right, present, x: 0, y: 0, rx: 0, ry: 0, trail: [], start: null };
+    // the analyzer: the latest capture drawn, its numbers, the last few to go back to
+    const caps = [];
+    let shown = null;
+    function drawSnap() {
+      const z = parseFloat(getComputedStyle(document.getElementById('stage')).zoom) || 1, r = snapCv.getBoundingClientRect();
+      const W = r.width / z, H = r.height / z; if (W < 10) return;
+      const dpr = (window.devicePixelRatio || 1) * z;
+      if (snapCv.width !== Math.round(W * dpr)) { snapCv.width = Math.round(W * dpr); snapCv.height = Math.round(H * dpr); }
+      const g = snapCv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+      const L = 30, T = 6, PW = W - L - 6, PH = H - T - 16, X = ms => L + ms / 31 * PW, Y = v => T + (1 - v) / 2 * PH;
+      g.font = '7px Poppins, sans-serif'; g.fillStyle = '#8a8a8a'; g.lineWidth = 1;
+      for (const v of [1, 0.5, 0, -0.5, -1]) { g.strokeStyle = v === 0 ? '#5a5a5a' : '#3a3a3a'; g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(L + PW, Y(v)); g.stroke(); g.textAlign = 'right'; g.fillText((v > 0 ? '+' : '') + v * 100 + '%', L - 4, Y(v) + 2.5); }
+      for (let ms = 0; ms <= 30; ms += 5) { g.strokeStyle = '#3a3a3a'; g.beginPath(); g.moveTo(X(ms), T); g.lineTo(X(ms), T + PH); g.stroke(); g.textAlign = 'center'; g.fillText(ms + ' ms', X(ms), T + PH + 11); }
+      // the settle band: within 5 % of the centre
+      g.fillStyle = 'rgba(52,222,131,.12)'; g.fillRect(L, Y(0.05), PW, Y(-0.05) - Y(0.05));
+      if (!shown) { g.fillStyle = '#8a8a8a'; g.textAlign = 'center'; g.font = '9px Poppins, sans-serif'; g.fillText('Flick the stick...', L + PW / 2, T + PH / 2 - 6); return; }
+      const s = shown.samples;
+      g.beginPath(); g.moveTo(X(0), Y(0)); s.forEach((v, i) => g.lineTo(X(i * 0.5), Y(v))); g.lineTo(X((s.length - 1) * 0.5), Y(0)); g.closePath();
+      g.fillStyle = 'rgba(254,104,5,.16)'; g.fill();
+      g.beginPath(); s.forEach((v, i) => g[i ? 'lineTo' : 'moveTo'](X(i * 0.5), Y(v))); g.strokeStyle = '#fe6805'; g.lineWidth = 1.5; g.stroke();
+    }
+    // overshoot: how far it swings past the centre, the other way; settled: from when it stays within 5 % of the centre
+    function stats(s) {
+      const max = Math.max(...s), min = Math.min(...s), dir = Math.sign(s[0]) || 1;
+      const over = Math.max(0, ...s.map(v => -dir * v));
+      let last = -1; s.forEach((v, i) => { if (Math.abs(v) > 0.05) last = i; });
+      return { over, settled: last === s.length - 1 ? null : (last + 1) * 0.5, max, min };
+    }
+    function showCap(c) {
+      shown = c;
+      const a = stats(c.samples), pc = v => Math.round(v * 100) + '%';
+      snapStats.innerHTML = '';
+      for (const [k, v] of [['Axis', c.name], ['Overshoot', pc(a.over)], ['Settled', a.settled == null ? '> 31 ms' : a.settled.toFixed(1) + ' ms'], ['Peak +', pc(Math.max(0, a.max))], ['Peak −', pc(Math.max(0, -a.min))]])
+        snapStats.append(el('div', {}, [el('span', { text: k }), el('b', { text: v })]));
+      for (const b of snapHist.children) b.classList.toggle('on', b.cap === c);
+      drawSnap();
+    }
+    st.snap = (axis, samples) => {
+      const c = { name: ['LX', 'LY', 'RX', 'RY'][axis], samples, mode: MODES[snapMode.value], time: new Date() };
+      caps.unshift(c); caps.length = Math.min(caps.length, 6);
+      snapHist.innerHTML = '';
+      for (const k of caps) { const b = el('button.snap-cap', { type: 'button', text: k.name + '  ' + k.time.toTimeString().slice(3, 8) + '  ' + k.mode }); b.cap = k; b.addEventListener('click', () => showCap(k)); snapHist.append(b); }
+      snapState.textContent = 'Captured'; snapState.classList.add('got');
+      showCap(c);
+    };
+    st.drawSnap = drawSnap;
+    new ResizeObserver(() => drawSnap()).observe(snapCv);   // drawn once the page shows it (and when the window changes)
     st.calibrated = () => calibrating && (calSticks & (right ? 2 : 1)) !== 0;   // this stick is being calibrated
     function showOn() { const on = en.checked; controls.classList.toggle('hidden', !on); offMsg.classList.toggle('hidden', on); }
     // this stick's settings: read from B (or from a copy kept at connect, for Reset)
     const read = () => ({ on: !Analog.disabled(A(), right), fx: Analog.inv(A(), right ? 6 : 2), fy: Analog.inv(A(), right ? 8 : 4),
-      dead: clamp(Analog.deadzone(A(), right), 0, 400), outer: clamp(Analog.outer(A(), right), 0, 400), snap: clamp(Analog.snap(A(), right), 0, 255), exp: clamp(Analog.exp(A(), right) + 49, 50, 300) });
+      dead: clamp(Analog.deadzone(A(), right), 0, 400), outer: clamp(Analog.outer(A(), right), 0, 400), exp: clamp(Analog.exp(A(), right) + 49, 50, 300),
+      // the mode as the firmware runs it (anything but 1 or 2 is low-pass there: snapback.c's default branch); the
+      // cutoff as it's used (kept within 30..150 Hz)
+      mode: [1, 2].includes(Analog.snapType(A(), right)) ? Analog.snapType(A(), right) : 0, cut: clamp(Math.round(Analog.snap(A(), right) / 5), 60, 300) });
     st.load = v => {
       v = v || read(); if (!st.start) st.start = v;
       en.checked = v.on; fx.checked = v.fx; fy.checked = v.fy;
-      dead.value = v.dead; outer.value = v.outer; snap.value = v.snap; exp.value = v.exp;
+      dead.value = v.dead; outer.value = v.outer; exp.value = v.exp; snapMode.value = v.mode; cutoff.value = v.cut; showMode();
       showOn();
     };
     st.apply = () => {
       Analog.setDisabled(A(), right, !en.checked);
       Analog.setInv(A(), right ? 6 : 2, fx.checked); Analog.setInv(A(), right ? 8 : 4, fy.checked);
-      Analog.setDeadzone(A(), right, dead.value); Analog.setOuter(A(), right, outer.value); Analog.setSnap(A(), right, snap.value); Analog.setExp(A(), right, clamp(exp.value - 49, 1, 251));
+      Analog.setDeadzone(A(), right, dead.value); Analog.setOuter(A(), right, outer.value); Analog.setSnapType(A(), right, snapMode.value); Analog.setSnap(A(), right, cutoff.value * 5); Analog.setExp(A(), right, clamp(exp.value - 49, 1, 251));
     };
     st.showCal = (msg, color) => {
       const mine = st.calibrated();
@@ -467,13 +539,13 @@ export async function startHoja(shell, dev, opts) {
     return { format: 'padbox-hoja2-backup', version: 1, board: lay.name, firmware: fw ? fw.toString(16).toUpperCase() : '', created: new Date().toISOString(), blocks };
   };
   const checkFile = f => {
-    if (!f || f.format !== 'padbox-hoja2-backup' || !f.blocks) return 'This file isn\x27t a HOJA2 configuration file. GP2040-CE and PhobGCC files only go back onto those firmwares.';
+    if (!f || f.format !== 'padbox-hoja2-backup' || !f.blocks) return 'This file isn\x27t a HOJA configuration file. GP2040-CE and PhobGCC files only go back onto those firmwares.';
     if (f.board !== lay.name) return 'This configuration is from a PadBox ' + f.board + ', and this is a PadBox ' + lay.name + ': their buttons differ, so it can\x27t be restored here.';
     if (calibrating) return 'Finish the stick calibration first.';
     for (const [k, b] of Object.entries(BACKUP_BLOCKS)) {
       let d; try { d = unb64(f.blocks[k] || ''); } catch (e) { d = null; }
       if (!d || d.length !== B[b].length) return 'This configuration is incomplete or damaged (' + k + ' settings).';
-      if (d[0] !== B[b][0]) return 'This configuration was made with a different HOJA2 version (' + k + ' settings), so it can\x27t be restored on this firmware.';
+      if (d[0] !== B[b][0]) return 'This configuration was made with a different HOJA version (' + k + ' settings), so it can\x27t be restored on this firmware.';
     }
     return '';
   };
@@ -493,14 +565,14 @@ export async function startHoja(shell, dev, opts) {
   const backup = backupPage({
     controller: 'HOJA2', board: lay.name, firmware: fw ? fw.toString(16).toUpperCase() : '', mode: () => (MODE_MENU.find(x => x[0] === curMode) || MODE_MENU[0])[1],
     exportData: async () => { clearTimeout(liveTimer); await pushLive(); return file(); },
-    fileName: name => 'PadBox ' + lay.name + ' - HOJA2 - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
+    fileName: name => 'PadBox ' + lay.name + ' - HOJA - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
     check: checkFile, restore: restoreFile,
   });
   const page2 = backup.page;
 
 
   // ---------------------------------------------------------------- the side menu, load, live reports
-  const tabNames = ['CONTROLLER', 'STICKS', 'BACKUP & RESTORE'], pages = [page0, page1, page2];
+  const tabNames = ['CONTROLLER', 'STICKS', 'SNAPBACK', 'BACKUP & RESTORE'], pages = [page0, page1, pageSnap, page2];
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   let curTab = 0, curName = 'CONTROLLER';
   shell.tabs(tabNames, i => {

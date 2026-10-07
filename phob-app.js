@@ -410,7 +410,7 @@ export async function startPhob(shell, dev, opts) {
         map: (pending.map || map).slice(), led: led.slice(), settings: (pending.settings || vals).slice(), inv: pending.inv >= 0 ? pending.inv : frame.inv & 15 };
     },
     fileName: name => 'PadBox GS Platform - PhobGCC - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
-    check: d => !d || d.format !== 'padbox-phob-backup' ? 'This file isn\'t a PhobGCC configuration file. GP2040-CE and HOJA2 files only go back onto those firmwares.'
+    check: d => !d || d.format !== 'padbox-phob-backup' ? 'This file isn\'t a PhobGCC configuration file. GP2040-CE and HOJA files only go back onto those firmwares.'
       : d.board !== boardName ? 'This configuration is from a PadBox ' + d.board + ', not a PadBox ' + boardName + '.'
       : !Array.isArray(d.map) || d.map.length !== 42 || !Array.isArray(d.led) || d.led.length !== N_LEDS * 3 + 1 || !Array.isArray(d.settings) || d.settings.length !== 19 ? 'This configuration is incomplete or damaged.'
       : frame && frame.step >= 0 ? 'Finish the stick calibration first.' : '',

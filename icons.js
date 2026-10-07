@@ -23,6 +23,8 @@ const I = {
     + '<path fill="currentColor" d="M7.85 13.2v-.9a1.5 1.5 0 0 1 1.5-1.5h5.25a1.5 1.5 0 0 1 1.5 1.5v.9zM6 16.1V15a1.2 1.2 0 0 1 1.2-1.2h9.6A1.2 1.2 0 0 1 18 15v1.1z"/></g>',
   // the trigger, motion sensor (a gyroscope) and rumble pages
   trigger: '<path fill="currentColor" d="M6.5 20.5v-9a5.5 5.5 0 0 1 11 0v9z"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M9.5 3.5c1.6-1 3.4-1 5 0"/>',
+  // SNAPBACK: a stick let go - a wave that swings past the centre line and settles
+  snap: '<g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12h1.8c1.6 0 2.2-8 4-8s2.2 13.5 4.4 13.5 2.3-8 3.9-8 1.9 4.2 3 4.2 1.4-1.7 2.4-1.7"/></g>',
   gyro: '<g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.2"/><ellipse cx="12" cy="12" rx="8.2" ry="3.3" transform="rotate(-30 12 12)"/></g><circle cx="12" cy="12" r="2.4" fill="currentColor"/>',
   rumble: '<rect x="8" y="3.5" width="8" height="17" rx="2.2" fill="currentColor"/><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4.8 8v8M2.2 10v4M19.2 8v8M21.8 10v4"/></g>',
   refresh: line('<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 8.9"/><path d="M4.5 4.6v4.3h4.3"/>'),

@@ -32,6 +32,7 @@ const PAGES = {
   STICKS: ['sticks', 'nav-stick', 'Calibrate stick input and adjust deadzones and stick behavior'],
   SETTINGS: ['settings', 'nav-gear', 'Manage Turbo mode and other advanced controller settings'],
   'BACKUP & RESTORE': ['backup', 'nav-cloud', 'Export your controller configuration or import a saved configuration file'],
+  SNAPBACK: ['snapback', 'snap', 'Tune the snapback filter and see how the stick settles when you let it go'],
   CALIBRATION: ['calibration', 'nav-stick', 'Calibrate the stick notch by notch, with PhobGCC\'s own calibration'],
 };
 let current = null, connecting = false;
@@ -148,8 +149,8 @@ function showConnect(problem) {
     el('h1', { text: 'CONNECT' }),
     el('p', { text: 'Plug the PadBox GS in with a USB data cable (for GP2040-CE, hold Start while plugging it in), then click CONNECT and choose it in the list. PhobGCC (GS Platform): hold Start while plugging it in, then click CONNECT PHOBGCC and choose "PadBox GS Calibrator".' }),
     el('div.connect-btns', {}, [btn, serBtn, oldBtn]),
-    el('p.old', { text: 'Your PadBox won’t connect, or still has the firmware it came with (HOJA2 "Padbox GS-C", GP2040-CE 0.8 or the original PhobGCC)? Click UPDATE AN OLDER PADBOX: it installs the latest firmware without opening the controller.' }),
-    el('p.demo', { html: 'No controller at hand? Try the demo: GP2040-CE on the <a href="?demo=gp">GS Essential</a> or <a href="?demo=gp-platform">GS Platform</a>, HOJA2 on the <a href="?demo=hoja-essential">GS Essential</a> or <a href="?demo=hoja-platform">GS Platform</a>, PhobGCC on the <a href="?demo=phob">GS Platform</a>' }),
+    el('p.old', { text: 'Your PadBox won’t connect, or still has the firmware it came with (HOJA "Padbox GS-C", GP2040-CE 0.8 or the original PhobGCC)? Click UPDATE AN OLDER PADBOX: it installs the latest firmware without opening the controller.' }),
+    el('p.demo', { html: 'No controller at hand? Try the demo: GP2040-CE on the <a href="?demo=gp">GS Essential</a> or <a href="?demo=gp-platform">GS Platform</a>, HOJA on the <a href="?demo=hoja-essential">GS Essential</a> or <a href="?demo=hoja-platform">GS Platform</a>, PhobGCC on the <a href="?demo=phob">GS Platform</a>' }),
     problem ? el('p.problem' + (/^Updated to /.test(problem) ? '.good' : ''), { text: problem }) : null,   // after an update: in green
   ]));
 }

@@ -8,12 +8,12 @@
 // The bootloader can't tell an Essential from a Platform, so the customer says which one they have.
 
 import { el, dialog, button, setButtonText, sleep } from './ui.js';
-import { BOOT_IDS, bootChip, uf2Chip, findBoot, picobootFlash, rememberPicoboot } from './update.js';
+import { BOOT_IDS, bootChip, uf2Chip, findBoot, picobootFlash, rememberPicoboot, famName } from './update.js';
 
 const BOARDS = { 'GS Essential': ['HOJA2', 'GP2040-CE'], 'GS Platform': ['HOJA2', 'GP2040-CE', 'PhobGCC'] };
 // what's on it now -> how it gets into update mode
 const NOW = {
-  hoja: { text: 'HOJA2 (older version, "Padbox GS-C")', family: 'HOJA2', auto: true,
+  hoja: { text: 'HOJA (older version, "Padbox GS-C")', family: 'HOJA2', auto: true,
     how: 'Plug the PadBox in as usual, then click RESTART IN UPDATE MODE and choose it in the list ("Padbox GS-C", "HOJA Gamepad" or a Nintendo / Xbox controller).',
     manual: 'If it isn\'t listed or doesn\'t restart: unplug it, hold L + Start, plug it back in while holding them, then click INSTALL.' },
   gp: { text: 'GP2040-CE (version 0.8)', family: 'GP2040-CE',
@@ -41,7 +41,7 @@ export function legacyUpdate(o = {}) {
     for (const [k, v] of Object.entries(NOW)) if (!v.platform || board === 'GS Platform') nowSel.append(el('option', { value: k, text: v.text }));
     nowSel.value = NOW[now] && (!NOW[now].platform || board === 'GS Platform') ? now : 'hoja';
     famSel.innerHTML = '';
-    for (const f of BOARDS[board]) famSel.append(el('option', { value: f, text: f }));
+    for (const f of BOARDS[board]) famSel.append(el('option', { value: f, text: famName(f) }));
     famSel.value = BOARDS[board].includes(fam) ? fam : BOARDS[board].includes(NOW[nowSel.value].family) ? NOW[nowSel.value].family : BOARDS[board][0];
     const n = NOW[nowSel.value];
     how.textContent = n.how + (n.manual ? '\n' + n.manual : '');
@@ -132,7 +132,7 @@ export function legacyUpdate(o = {}) {
     catch (e) { return offerDownload('The browser couldn\'t reach the PadBox in update mode (' + e.message + ').'); }
     rememberPicoboot('RP2040');
     progress(100); stage = 'done'; go.classList.add('hidden'); close.disabled = false; setButtonText(close, 'CLOSE', '');
-    say('Done: the PadBox restarts on ' + name + ' by itself.\nTo set it up: ' + (name === 'HOJA2' ? 'plug it in' : 'hold Start while plugging it in') + ', then click CONNECT.', 'var(--good)');
+    say('Done: the PadBox restarts on ' + famName(name) + ' by itself.\nTo set it up: ' + (name === 'HOJA2' ? 'plug it in' : 'hold Start while plugging it in') + ', then click CONNECT.', 'var(--good)');
   }
 
   function offerDownload(why) {
@@ -143,7 +143,7 @@ export function legacyUpdate(o = {}) {
   function download() {
     const a = el('a', { href: URL.createObjectURL(new Blob([data])), download: 'PADBOX.UF2' }); a.click();
     progress(100);
-    say('Downloaded. Drag PADBOX.UF2 onto the RPI-RP2 drive: the PadBox restarts on ' + name + ' by itself.\nTo set it up afterwards: ' + (name === 'HOJA2' ? 'plug it in' : 'hold Start while plugging it in') + ', then click CONNECT.', 'var(--good)');
+    say('Downloaded. Drag PADBOX.UF2 onto the RPI-RP2 drive: the PadBox restarts on ' + famName(name) + ' by itself.\nTo set it up afterwards: ' + (name === 'HOJA2' ? 'plug it in' : 'hold Start while plugging it in') + ', then click CONNECT.', 'var(--good)');
     setButtonText(close, 'CLOSE', '');
   }
   return d;
