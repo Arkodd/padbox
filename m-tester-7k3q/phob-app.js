@@ -248,7 +248,7 @@ export async function startPhob(shell, dev, opts) {
   });
   const lockTag = el('span.lock-tag');
   // the notch visualizer (as in SmashScope): roll the stick around the gate and its outline is traced, so each notch
-  // shows as a dip or a bump; the grey marks are where firefox notches go (Melee |X| or |Y| = 0.3250)
+  // shows as a dip or a bump
   const vizToggle = dtoggle('Notch visualizer', on => { view.viz = on; vizRow.classList.toggle('on', on); });
   const bClear = pbtn('Clear', '', false, () => view.trace.fill(null));
   bClear.title = 'Start the outline over';
@@ -314,15 +314,6 @@ export async function startPhob(shell, dev, opts) {
           else { g.moveTo(px - 0.6, py); g.lineTo(px + 0.6, py); }
         });
         g.stroke();
-        // firefox notches: Melee 0.3250 off a cardinal, on the gate's edge (asin 0.325 = 18.97 degrees)
-        g.fillStyle = '#9a9a9a';
-        for (let i = 0; i < 4; i++) for (const sgn of [-1, 1]) {
-          const a = i * 90 + sgn * 18.97, k = Math.round(((a + 360) % 360) * 2) % 720;
-          const near = [k, (k + 1) % 720, (k + 719) % 720, (k + 2) % 720, (k + 718) % 720].map(j => v.trace[j]).find(Boolean);
-          const rr = near ? Math.hypot(near[0], near[1]) : Math.cos(Math.PI / 8) / Math.cos((((a % 45) + 45) % 45 - 22.5) * Math.PI / 180);
-          const x = c + Math.cos(a * Math.PI / 180) * rr * R, y = c - Math.sin(a * Math.PI / 180) * rr * R;
-          g.fillRect(x - 2.5, y - 2.5, 5, 5);
-        }
       }
       if (v.active && !isNaN(v.aim)) { const a = v.aim * Math.PI / 180; g.setLineDash([4, 4]); g.lineWidth = 1; g.strokeStyle = 'rgba(255,210,60,.6)'; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); g.setLineDash([]); }
       g.fillStyle = 'rgba(40,166,255,.5)';
