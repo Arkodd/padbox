@@ -254,6 +254,25 @@ export async function startPhob(shell, dev, opts) {
   stickPanel.firstChild.append(tag.el, lockTag);
   const page1 = el('div.page.hidden.dpage.phobsticks', {}, [stickPanel]);
   const cal = { starting: 0, was: -1 };
+  // The stick's own gate, in output units (1 = full): one point per notch direction (k * 22.5 degrees), or null.
+  // PhobGCC doesn't report its notches, so they're taken from what the output does: in the notch-angle steps the output
+  // sits exactly on the notch being lined up when Advance is pressed, the four cardinals are full right / up / left /
+  // down, and afterwards the furthest the stick reaches in each direction refines it. Kept in this browser; drawn when
+  // the gate is octagonal and at least 8 notches are known, a perfect octagon otherwise.
+  const GATE_KEY = 'padbox-phob-gate';
+  const gate = (() => { try { const g = JSON.parse(localStorage.getItem(GATE_KEY) || 'null'); if (g && Array.isArray(g.pts) && g.pts.length === 16) return g; } catch (e) { } return { pts: new Array(16).fill(null), inv: -1 }; })();
+  const saveGate = () => { try { localStorage.setItem(GATE_KEY, JSON.stringify(gate)); } catch (e) { } };
+  const slotOf = (x, y) => { let a = Math.atan2(y, x) * 180 / Math.PI; if (a < 0) a += 360; return Math.round(a / 22.5) % 16; };
+  const putGate = (x, y, force) => { const k = slotOf(x, y), p = gate.pts[k]; if (force || !p || Math.hypot(x, y) > Math.hypot(p[0], p[1])) { gate.pts[k] = [x, y]; return true; } return false; };
+  // a flip mirrors the output, so the points are mirrored with it
+  function gateFlip(inv) {
+    if (gate.inv >= 0 && gate.inv !== inv) {
+      const d = gate.inv ^ inv, old = gate.pts.filter(Boolean); gate.pts = new Array(16).fill(null);
+      for (const [x, y] of old) putGate(d & 1 ? -x : x, d & 2 ? -y : y, true);
+    }
+    if (gate.inv !== inv) { gate.inv = inv; saveGate(); }
+  }
+  let gateLast = [0, 0], gateStep = -1, gateSaveAt = 0;
 
   function makeView() {
     const canvas = el('canvas.gate.phob-gate-cv');
@@ -286,7 +305,13 @@ export async function startPhob(shell, dev, opts) {
       for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); }
       g.beginPath(); g.arc(c, c, R * 0.5, 0, Math.PI * 2); g.stroke();
       g.strokeStyle = '#7a7a7a'; shape(R, false); g.stroke();
-      g.lineWidth = 1.3; g.lineJoin = 'round'; g.strokeStyle = '#fe6805'; shape(view.octagon ? R : R - 1.5, view.octagon); g.stroke();
+      g.lineWidth = 1.3; g.lineJoin = 'round'; g.strokeStyle = '#fe6805';
+      const known = gate.pts.filter(Boolean);
+      if (view.octagon && known.length >= 8) {
+        // the stick's own notches, in direction order (output units: 1 = the gate's radius on this drawing)
+        const pts = known.slice().sort((a, b) => Math.atan2(a[1], a[0]) - Math.atan2(b[1], b[0]));
+        g.beginPath(); pts.forEach(([x, y], i) => g[i ? 'lineTo' : 'moveTo'](c + clamp(x, -1.2, 1.2) * R, c - clamp(y, -1.2, 1.2) * R)); g.closePath(); g.stroke();
+      } else { shape(view.octagon ? R : R - 1.5, view.octagon); g.stroke(); }
       if (v.active && !isNaN(v.aim)) { const a = v.aim * Math.PI / 180; g.setLineDash([4, 4]); g.lineWidth = 1; g.strokeStyle = 'rgba(255,210,60,.6)'; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); g.setLineDash([]); }
       g.fillStyle = 'rgba(40,166,255,.5)';
       g.beginPath(); g.arc(c + clamp(v.outX, -1.2, 1.2) * R, c - clamp(v.outY, -1.2, 1.2) * R, 4, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill();
@@ -445,6 +470,17 @@ export async function startPhob(shell, dev, opts) {
     view.aim = NaN; view.aimCenter = false;
     if (view.active && f.step < 32) { const e = CAL_ORDER[f.step]; if (!(e & 1)) view.aimCenter = true; else if ((e >> 1) % 2 === 0) view.aim = (e >> 1) * 22.5; }
     view.outX = (f.ax - 127) / 100; view.outY = (f.ay - 127) / 100;
+    gateFlip(f.inv & 3);
+    if (f.stick === 0 || f.step < 0) {
+      if (f.step >= 0 && gateStep < 0) { gate.pts = new Array(16).fill(null); saveGate(); }   // a new calibration: a new gate
+      // a notch-angle step finished with Advance: the output was on that notch
+      if (gateStep >= 32 && gateStep < 32 + ADJ_ORDER.length && f.step === gateStep + 1 && Math.hypot(gateLast[0], gateLast[1]) > 0.5) putGate(gateLast[0], gateLast[1], true);
+      // the calibration is done: the cardinals are full right / up / left / down
+      if (gateStep >= 0 && f.step < 0) { for (const [x, y] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) putGate(x, y, true); saveGate(); }
+      // in use: the furthest reach in each direction (saved now and then)
+      if (f.step < 0 && Math.hypot(view.outX, view.outY) > 0.8 && putGate(view.outX, view.outY, false) && performance.now() > gateSaveAt) { gateSaveAt = performance.now() + 2000; saveGate(); }
+      gateStep = f.step; gateLast = [view.outX, view.outY];
+    }
     // while calibrating, the C-stick's output is the target
     view.hasTarget = view.active; view.tx = (f.cx - 127) / 100; view.ty = (f.cy - 127) / 100;
     // the flip is on the output, so the target (PhobGCC's, unflipped) is drawn flipped too: lining the output dot up with
