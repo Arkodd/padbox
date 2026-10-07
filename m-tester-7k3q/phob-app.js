@@ -247,9 +247,16 @@ export async function startPhob(shell, dev, opts) {
     macro = frame.locked ? [[BA | BX | BY | BS, 1300]] : [[BA | BX | BY | BS, 250]]; macroUntil = 0;
   });
   const lockTag = el('span.lock-tag');
+  // the notch visualizer (as in SmashScope): roll the stick around the gate and its outline is traced, so each notch
+  // shows as a dip or a bump; the grey marks are where firefox notches go (Melee |X| or |Y| = 0.3250)
+  const vizToggle = dtoggle('Notch visualizer', on => { view.viz = on; vizRow.classList.toggle('on', on); });
+  const bClear = pbtn('Clear', '', false, () => view.trace.fill(null));
+  bClear.title = 'Start the outline over';
+  const meleeRd = el('div.melee-rd');
+  const vizRow = el('div.notchviz', {}, [el('div.notchviz-top', {}, [vizToggle.el, bClear]), meleeRd]);
   const stickPanel = panel('STICK', [el('div.phob-body', {}, [
     el('div.phob-left', {}, [el('div.gate-wrap', {}, [view.canvas]), el('div.rd', {}, [rd1, legend])]),
-    el('div.phob-right', {}, [el('div.two.flips', {}, [flips[0].el, flips[1].el]), gateSeg.el, calBox, el('div.btnrow.cal-main', {}, [bLock, bCal])]),
+    el('div.phob-right', {}, [el('div.two.flips', {}, [flips[0].el, flips[1].el]), gateSeg.el, calBox, el('div.btnrow.cal-main', {}, [bLock, bCal]), vizRow]),
   ])], 'phob-wide');
   stickPanel.firstChild.append(tag.el, lockTag);
   const page1 = el('div.page.hidden.dpage.phobsticks', {}, [stickPanel]);
@@ -257,7 +264,15 @@ export async function startPhob(shell, dev, opts) {
 
   function makeView() {
     const canvas = el('canvas.gate.phob-gate-cv');
-    const v = { canvas, octagon: false, active: false, outX: 0, outY: 0, hasTarget: false, tx: 0, ty: 0, aim: NaN, aimCenter: false, rawX: 0.5, rawY: 0.5, cx: NaN, cy: NaN, range: RAW_SPAN, trail: [], ang: 0, pct: 0, inv: 0 };
+    const v = { canvas, octagon: false, active: false, outX: 0, outY: 0, hasTarget: false, tx: 0, ty: 0, aim: NaN, aimCenter: false, rawX: 0.5, rawY: 0.5, cx: NaN, cy: NaN, range: RAW_SPAN, trail: [], ang: 0, pct: 0, inv: 0,
+      viz: false, trace: new Array(720).fill(null) };   // trace: the furthest output point in each half-degree, or null
+    // the notch visualizer's outline: keeps the furthest point the output reaches in each direction
+    v.addTrace = (x, y) => {
+      const m = Math.hypot(x, y); if (m < 0.5) return;
+      let a = Math.atan2(y, x) * 360 / Math.PI; if (a < 0) a += 720;
+      const k = Math.round(a) % 720, p = v.trace[k];
+      if (!p || m > Math.hypot(p[0], p[1])) v.trace[k] = [x, y];
+    };
     v.setRaw = (x, y) => {
       if (isNaN(v.cx)) { v.cx = x; v.cy = y; }
       v.rawX = x; v.rawY = y;
@@ -288,6 +303,27 @@ export async function startPhob(shell, dev, opts) {
       g.strokeStyle = '#7a7a7a'; shape(R, false); g.stroke();
       g.lineWidth = 1.3; g.lineJoin = 'round'; g.strokeStyle = '#fe6805';
       shape(view.octagon ? R : R - 1.5, view.octagon); g.stroke();
+      if (v.viz) {
+        // the outline: each point joined to the next one round, unless more than 8 degrees apart (a gap stays a gap)
+        const P = ([x, y]) => [c + clamp(x, -1.2, 1.2) * R, c - clamp(y, -1.2, 1.2) * R];
+        const ks = []; for (let k = 0; k < 720; k++) if (v.trace[k]) ks.push(k);
+        g.lineWidth = 1.6; g.strokeStyle = '#4f7bff'; g.beginPath();
+        ks.forEach((k, i) => {
+          const n = ks[(i + 1) % ks.length], [px, py] = P(v.trace[k]);
+          if (ks.length > 1 && (n - k + 720) % 720 <= 16) { const [nx, ny] = P(v.trace[n]); g.moveTo(px, py); g.lineTo(nx, ny); }
+          else { g.moveTo(px - 0.6, py); g.lineTo(px + 0.6, py); }
+        });
+        g.stroke();
+        // firefox notches: Melee 0.3250 off a cardinal, on the gate's edge (asin 0.325 = 18.97 degrees)
+        g.fillStyle = '#9a9a9a';
+        for (let i = 0; i < 4; i++) for (const sgn of [-1, 1]) {
+          const a = i * 90 + sgn * 18.97, k = Math.round(((a + 360) % 360) * 2) % 720;
+          const near = [k, (k + 1) % 720, (k + 719) % 720, (k + 2) % 720, (k + 718) % 720].map(j => v.trace[j]).find(Boolean);
+          const rr = near ? Math.hypot(near[0], near[1]) : Math.cos(Math.PI / 8) / Math.cos((((a % 45) + 45) % 45 - 22.5) * Math.PI / 180);
+          const x = c + Math.cos(a * Math.PI / 180) * rr * R, y = c - Math.sin(a * Math.PI / 180) * rr * R;
+          g.fillRect(x - 2.5, y - 2.5, 5, 5);
+        }
+      }
       if (v.active && !isNaN(v.aim)) { const a = v.aim * Math.PI / 180; g.setLineDash([4, 4]); g.lineWidth = 1; g.strokeStyle = 'rgba(255,210,60,.6)'; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); g.setLineDash([]); }
       g.fillStyle = 'rgba(40,166,255,.5)';
       g.beginPath(); g.arc(c + clamp(v.outX, -1.2, 1.2) * R, c - clamp(v.outY, -1.2, 1.2) * R, 4, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill();
@@ -446,6 +482,14 @@ export async function startPhob(shell, dev, opts) {
     view.aim = NaN; view.aimCenter = false;
     if (view.active && f.step < 32) { const e = CAL_ORDER[f.step]; if (!(e & 1)) view.aimCenter = true; else if ((e >> 1) % 2 === 0) view.aim = (e >> 1) * 22.5; }
     view.outX = (f.ax - 127) / 100; view.outY = (f.ay - 127) / 100;
+    if (f.step >= 0) { if (cal.was < 0) view.trace.fill(null); }   // a calibration: the outline starts over
+    else if (view.viz) view.addTrace(view.outX, view.outY);
+    if (view.viz && curPage === page1) {
+      // Melee's coordinates: clamped to a radius of 80, truncated, in 1/80ths (as PhobVision and SmashScope show them)
+      const x = f.ax - 127, y = f.ay - 127, sc = Math.min(1, 80 / (Math.hypot(x, y) || 1));
+      const mc = n => { const t = Math.trunc(n * sc) / 80; return (t < 0 ? '-' : ' ') + Math.abs(t).toFixed(4); };
+      meleeRd.textContent = 'Melee X ' + mc(x) + '    Y ' + mc(y);
+    }
     // while calibrating, the C-stick's output is the target
     view.hasTarget = view.active; view.tx = (f.cx - 127) / 100; view.ty = (f.cy - 127) / 100;
     // the flip is on the output, so the target (PhobGCC's, unflipped) is drawn flipped too: lining the output dot up with
@@ -457,7 +501,7 @@ export async function startPhob(shell, dev, opts) {
     if (curPage === page1) { const r = readout(view.outX, view.outY); rd1.textContent = r.xy + (r.angle ? '     ' + r.angle : ''); }
     showStep(f);
     invOther = f.inv & 12;
-    if (wanted.inv >= 0 && f.inv === wanted.inv) { wanted.inv = -1; say('Axis flip saved in the controller. No need to recalibrate.', 'var(--good)'); view.reset(true); }
+    if (wanted.inv >= 0 && f.inv === wanted.inv) { wanted.inv = -1; view.trace.fill(null); say('Axis flip saved in the controller. No need to recalibrate.', 'var(--good)'); view.reset(true); }
     else if (wanted.inv < 0 && pending.inv < 0) { flips[0].checked = (f.inv & 1) !== 0; flips[1].checked = (f.inv & 2) !== 0; }
     if (f.saveState === 2) say('Warning: the controller couldn\'t save its settings.', 'var(--bad)');
     // ask for what we don't know yet; resend what wasn't confirmed

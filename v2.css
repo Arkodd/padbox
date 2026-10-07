@@ -779,3 +779,11 @@ dialog select.combo option { color: #222; background: #eee; }
 .dpage.settings.phobset .panel.stretch > .ptitle + .dslider { margin-top: 14.22px; }
 .dpage.settings.phobset .panel .hint.wrap { margin: 10px 0 0; font-size: 8.17px; line-height: 12.26px; }
 .dpage.settings.phobset .btnrow.bottom { margin-top: 13.07px; }
+
+/* PhobGCC notch visualizer (as in SmashScope) */
+.notchviz { margin-top: 14px; padding-top: 12px; border-top: 1px solid #3a3a3a; }
+.notchviz-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.notchviz-top .pbtn { height: 26px; flex: 0 0 calc(50% - 4px); visibility: hidden; }
+.notchviz.on .notchviz-top .pbtn { visibility: visible; }
+.notchviz .melee-rd { display: none; margin-top: 8px; font-size: 10px; color: #cfcfcf; white-space: pre; font-variant-numeric: tabular-nums; }
+.notchviz.on .melee-rd { display: block; }
