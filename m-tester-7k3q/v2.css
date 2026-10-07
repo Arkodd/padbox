@@ -822,3 +822,9 @@ dialog select.combo option { color: #222; background: #eee; }
 .panel.snapback .snap-hist { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; min-height: 18px; }
 .panel.snapback .snap-cap { font: 400 7.5px/1 "Poppins", sans-serif; color: #cfcfcf; background: #2f2f2f; border: 1px solid #4a4a4a; border-radius: 9px; padding: 4px 7px; cursor: pointer; white-space: pre; }
 .panel.snapback .snap-cap.on { border-color: var(--orange); color: #fff; }
+
+/* the connect page: centred in the frame (the title, the text and the buttons) */
+.connect2 { left: 50%; top: 50%; transform: translate(-50%, calc(-50% + 30px)); width: 700px; text-align: center; }
+.connect2 h1 { left: 0; right: 0; }
+.connect2 p { margin-left: auto; margin-right: auto; }
+.connect-btns { justify-content: center; }
