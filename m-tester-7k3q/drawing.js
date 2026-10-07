@@ -64,13 +64,14 @@ const BOARDS = {
   // @M}
 };
 // The E2T PadBox GS (its tracing: assets/e2t_gs_trace.png): the GS Platform's body with the D-pad and the stick swapped,
-// as on the GS Essential - the D-pad in the top-left bulge, the stick below it - each moved exactly into the other's
-// place (185, 128 apart), and without C-up, C-left and C-down (locked off by its firmware): only T2 and T1 are left there.
+// as on the GS Essential - the stick where the GS Platform has its D-pad, the D-pad in the top-left bulge where the GS
+// Essential has it (fitted to the bulge's outline: 175, 139 from the GS Platform's D-pad) - and without C-up, C-left and
+// C-down (locked off by its firmware): only T2 and T1 are left there.
 BOARDS.e2t = Object.assign({}, BOARDS.platform, {
   name: 'E2T PadBox GS', css: 'platform pd-e2t',
   round: BOARDS.platform.round.filter(([pin]) => ![27, 26, 18].includes(pin)),
   sticks: [[-1, 244 + 185, 262 + 128, 56 / 58]],   // its only stick, where the GS Platform has its D-pad; no click
-  dpad: [166 - 185, 123 - 128],   // the D-pad where the GS Platform has its stick
+  dpad: [166 - 175, 123 - 139],   // the D-pad in the top-left bulge, placed as on the GS Essential
 });
 
 // @M{

@@ -107,8 +107,8 @@ export function gsPlatform() {
 // C-up (CY+, GPIO27), C-left (CX-, GPIO26) and C-down (CY-, GPIO18). They aren't buttons here: not drawn, not
 // selectable, no LED settings. The two buttons left there are called T1 (the GS Platform's "A" button, GPIO15, L3)
 // and T2 (C-right, GPIO19), which is R3 by default - the function C-up has on the GS Platform. Its D-pad and stick
-// are swapped against the GS Platform's, as on the GS Essential (assets/e2t_gs_trace.png): each sits where the other
-// is on the GS Platform, 185, 128 apart.
+// are swapped against the GS Platform's, as on the GS Essential (assets/e2t_gs_trace.png): the stick where the GS
+// Platform has its D-pad (185, 128 away), the D-pad in the top-left bulge where the GS Essential has it (175, 139 away).
 export const E2T_LOCKED = [27, 26, 18];
 const E2T_NAMES = { 15: 'T1', 19: 'T2' };
 export function e2tGs() {
@@ -119,7 +119,7 @@ export function e2tGs() {
     name: 'E2T GS', board: 'E2T GS', image: 'assets/e2t_gs_trace.png',
     phys: L.phys.filter(p => !off.has(p.pin)).map(rename),
     spots: L.spots.filter(s => !off.has(s.pin)).map(rename)
-      .map(s => (s.kind === 1 ? Object.assign(s, { x: s.x - 185, y: s.y - 128 }) : s)),   // the D-pad's arms
+      .map(s => (s.kind === 1 ? Object.assign(s, { x: s.x - 175, y: s.y - 139 }) : s)),   // the D-pad's arms
     sticks: L.sticks.map(st => Object.assign(st, { x: st.x + 185, y: st.y + 128 })),
     locked: E2T_LOCKED,
   });
