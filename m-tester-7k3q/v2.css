@@ -830,3 +830,9 @@ dialog select.combo option { color: #222; background: #eee; }
 .connect2 h1 { left: 0; right: 0; }
 .connect2 p { margin-left: auto; margin-right: auto; }
 .connect-btns { justify-content: center; }
+
+/* the owner's guide: a button at the top right, the same size as the others; a line on the connect page */
+.act.guide { width: 32.7px; height: 32.7px; box-sizing: border-box; text-decoration: none; }
+.act.guide svg { width: 19px; height: 19px; }
+.connect2 p.guide { font-size: 13px; margin: 18px auto 0; color: #bdbdbd; }
+.connect2 p.guide a { color: var(--orange); }

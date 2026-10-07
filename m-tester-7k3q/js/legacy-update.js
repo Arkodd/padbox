@@ -53,7 +53,7 @@ export function legacyUpdate(o = {}) {
     el('p', { text: 'For a PadBox GS still on its original firmware: this installs the latest one without opening it. Your old settings aren\'t kept: set it up again afterwards.', style: { margin: 0, color: 'var(--soft)' } }),
     cap('Your PadBox'), boardSel, cap('The firmware on it now'), nowSel, cap('Install'), famSel, how, meter, status,
   ]);
-  const d = dialog('Update an older PadBox', 'Firmware from before the PadBox Calibrator', 'download', body, [go, close]);
+  const d = dialog('Update an older PadBox', 'Firmware from before the PadBox Configurator', 'download', body, [go, close]);
   const say = (t, c) => { status.textContent = t; status.style.color = c || 'var(--soft)'; };
   const progress = p => { meter.classList.remove('hidden'); meter.firstChild.style.width = p + '%'; };
   const lock = on => { for (const s of [boardSel, nowSel, famSel]) s.disabled = on; go.disabled = on; close.disabled = on; };

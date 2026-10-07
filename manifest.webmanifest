@@ -1,5 +1,5 @@
 {
-  "name": "PadBox Calibrator",
+  "name": "PadBox Configurator",
   "short_name": "PadBox",
   "description": "Set up and calibrate your Arkodd PadBox GS",
   "start_url": "./",

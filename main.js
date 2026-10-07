@@ -90,11 +90,15 @@ function openMenu(btn, i, items) {
 }
 addEventListener('mousedown', e => { if (flyout && !flyout.contains(e.target) && !(e.target.closest && e.target.closest('#nav .has-menu'))) closeMenu(); });
 
+// the owner's guide (guide/ on the same site): opens in a new tab
+const GUIDE = 'https://arkodd.github.io/padbox/guide/';
+const guideBtn = () => el('a.act.outline.guide', { href: GUIDE, target: '_blank', rel: 'noopener', title: 'Owner\'s guide: how to use your PadBox and this page', html: dicon('help') });
+
 const shell = {
   // board: written as the design does ("PadBoxEssential"); more: the firmware version and such, shown on hover
   header(title, board, more) { $('title').textContent = title; $('board').textContent = board || ''; $('who').title = more || ''; $('who').classList.remove('hidden'); },
   status(on) { $('who').classList.toggle('off', !on); $('state').textContent = on ? 'Connected' : 'Not connected'; },
-  actions(nodes) { const a = $('actions'); a.innerHTML = ''; for (const n of nodes || []) a.append(n); },
+  actions(nodes) { const a = $('actions'); a.innerHTML = ''; a.append(guideBtn()); for (const n of nodes || []) a.append(n); },
   // subs: optional subtitles that replace PAGES' ({ SETTINGS: '...' }); menus: a flyout menu beside a side-menu button
   // ({ 0: () => [{ text, sel, pick }] }, as HOJA2's controller modes in the redesign): clicking the button opens it
   tabs(names, onselect, subs, menus) {
@@ -150,6 +154,7 @@ function showConnect(problem) {
     el('h1', { text: 'CONNECT' }),
     el('p', { text: 'Plug the PadBox GS in with a USB data cable (for GP2040-CE, hold Start while plugging it in), then click CONNECT and choose it in the list. PhobGCC (GS Platform): hold Start while plugging it in, then click CONNECT PHOBGCC and choose "PadBox GS Calibrator".' }),
     el('div.connect-btns', {}, [btn, serBtn, oldBtn]),
+    el('p.guide', {}, ['New to the PadBox? Read the ', el('a', { href: GUIDE, target: '_blank', rel: 'noopener', text: 'PadBox GS owner\'s guide' }), ': the buttons, the console modes, and how to use this page.']),
     el('p.old', { text: 'Your PadBox won’t connect, or still has the firmware it came with (HOJA "Padbox GS-C", GP2040-CE 0.8 or the original PhobGCC)? Click UPDATE AN OLDER PADBOX: it installs the latest firmware without opening the controller.' }),
     el('p.demo', { html: 'No controller at hand? Try the demo: GP2040-CE on the <a href="?demo=gp">GS Essential</a> or <a href="?demo=gp-platform">GS Platform</a>, HOJA on the <a href="?demo=hoja-essential">GS Essential</a> or <a href="?demo=hoja-platform">GS Platform</a>, PhobGCC on the <a href="?demo=phob">GS Platform</a>' }),
     problem ? el('p.problem' + (/^Updated to /.test(problem) ? '.good' : ''), { text: problem }) : null,   // after an update: in green
@@ -170,7 +175,7 @@ async function openSerial(p) {
   if (connecting || current) return;
   connecting = true;
   try { const dev = new PhobSerial(p); await dev.open(); await run(dev, startPhob); }
-  catch (e) { showConnect(/busy|in use|failed to open/i.test((e && e.message) || '') ? 'The PadBox is busy: another program or browser tab is using its serial port (the PadBox Suite, or another PadBox Calibrator tab). Close it, then click CONNECT PHOBGCC again.' : (e && e.message) || String(e)); }
+  catch (e) { showConnect(/busy|in use|failed to open/i.test((e && e.message) || '') ? 'The PadBox is busy: another program or browser tab is using its serial port (the PadBox Suite, or another PadBox Configurator tab). Close it, then click CONNECT PHOBGCC again.' : (e && e.message) || String(e)); }
   connecting = false;
 }
 async function open(d) {
@@ -186,7 +191,7 @@ async function open(d) {
     if (e && e.legacy) { try { await d.close(); } catch (x) { } current = null; connecting = false; showConnect(t); legacyUpdate({ now: e.legacy }); return; }
     // only one program or tab can use the PadBox at a time
     showConnect(/unable to claim|access denied|busy/i.test(t)
-      ? 'The PadBox is busy: another browser tab or program is using it (another PadBox Calibrator tab, the public site, or the PadBox Suite). Close it, then click CONNECT again.'
+      ? 'The PadBox is busy: another browser tab or program is using it (another PadBox Configurator tab, the public site, or the PadBox Suite). Close it, then click CONNECT again.'
       : t);
     try { await d.close(); } catch (x) { }
   }

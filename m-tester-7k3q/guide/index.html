@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="How to use your Arkodd PadBox GS: the buttons, the firmwares, console modes, and the PadBox Configurator.">
+<link rel="icon" href="../assets/app.png">
+<title>PadBox GS Owner's Guide</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Poppins:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a single reading column with a sticky contents rail on wide screens; screenshots break out a little wider than the text */
+:root {
+  --bg: #f6f4f2;
+  --surface: #ffffff;
+  --ink: #1d1a18;
+  --muted: #6b625c;
+  --line: #e4ddd7;
+  --accent: #e85d00;
+  --accent-soft: #fff0e5;
+  --key: #2b2724;
+  --key-ink: #f4efea;
+  --shot-frame: #2a2726;
+  --good: #1f8a52;
+  --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --body: "Poppins", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #171514; --surface: #211e1c; --ink: #efe9e4; --muted: #a59a92; --line: #35302d;
+    --accent: #ff7a26; --accent-soft: #3a2416; --key: #3a3533; --key-ink: #f4efea; --shot-frame: #0f0e0d; --good: #3fcf86;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #171514; --surface: #211e1c; --ink: #efe9e4; --muted: #a59a92; --line: #35302d;
+  --accent: #ff7a26; --accent-soft: #3a2416; --key: #3a3533; --key-ink: #f4efea; --shot-frame: #0f0e0d; --good: #3fcf86;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.7 var(--body); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 0 80px; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; }
+@media (max-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; } nav.toc { display: none; } }
+
+/* hero */
+header.hero { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 56px 40px; }
+.eyebrow { font: 600 13px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 clamp(38px, 6vw, 64px)/1.02 var(--display); letter-spacing: -.01em; margin: 14px 0 18px; text-wrap: balance; }
+.lede { font-size: 18px; color: var(--muted); max-width: 62ch; margin: 0; }
+.quick { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.quick a { text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 7px 15px; font-size: 14px; font-weight: 500; }
+.quick a:hover, .quick a:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+.quick a.go { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* contents rail */
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; padding-top: 6px; }
+nav.toc .t { font: 600 12px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: s; }
+nav.toc li { counter-increment: s; }
+nav.toc a { display: flex; gap: 10px; text-decoration: none; color: var(--muted); font-size: 14px; line-height: 1.4; padding: 5px 0; }
+nav.toc a::before { content: counter(s, decimal-leading-zero); font: 500 12px/1.6 var(--mono); color: var(--accent); }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--ink); outline: none; }
+
+/* sections */
+main { min-width: 0; }
+section { padding-top: 56px; scroll-margin-top: 16px; }
+section:first-child { padding-top: 0; }
+h2 { font: 700 clamp(26px, 3.4vw, 34px)/1.15 var(--display); margin: 0 0 6px; text-wrap: balance; }
+h2 .n { font: 500 14px/1 var(--mono); color: var(--accent); display: block; margin-bottom: 10px; letter-spacing: .04em; }
+h3 { font: 600 20px/1.3 var(--display); margin: 34px 0 6px; }
+p { margin: 0 0 14px; max-width: 68ch; }
+.sub { color: var(--muted); font-size: 17px; }
+ul, ol.steps { max-width: 66ch; padding-left: 22px; margin: 0 0 16px; }
+li { margin: 4px 0; }
+b, strong { font-weight: 600; }
+a { color: var(--accent); }
+code, .k { font: 500 .86em/1 var(--mono); }
+/* a physical button or on-screen button name, written like a keycap */
+.k { display: inline-block; background: var(--key); color: var(--key-ink); border-radius: 5px; padding: 3px 6px 2px; white-space: nowrap; }
+.ui { font-weight: 600; white-space: nowrap; }
+
+/* steps */
+ol.steps { list-style: none; padding: 0; counter-reset: st; display: grid; gap: 12px; }
+ol.steps > li { counter-increment: st; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; margin: 0; }
+ol.steps > li::before { content: counter(st); width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font: 700 15px/30px var(--display); text-align: center; }
+
+/* callouts */
+.note { background: var(--accent-soft); border-radius: 10px; padding: 14px 18px; margin: 18px 0; max-width: 68ch; }
+.note p:last-child { margin: 0; }
+.note .t { font: 600 13px/1 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 6px; }
+
+/* screenshots */
+figure { margin: 22px 0 26px; }
+figure img { display: block; width: 100%; max-width: 100%; height: auto; border-radius: 10px; background: var(--shot-frame); box-shadow: 0 1px 0 var(--line), 0 14px 34px -18px rgba(0,0,0,.45); }
+figcaption { font-size: 14px; color: var(--muted); margin-top: 10px; max-width: 68ch; }
+
+/* tables */
+.tw { overflow-x: auto; margin: 16px 0 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font: 600 12px/1.3 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: transparent; }
+td:first-child { white-space: nowrap; }
+
+/* firmware cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 20px 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 18px 14px; min-width: 0; }
+.card h4 { font: 700 20px/1.2 var(--display); margin: 0 0 4px; }
+.card .for { font-size: 13px; color: var(--accent); font-weight: 600; margin-bottom: 10px; }
+.card p { font-size: 15px; margin-bottom: 8px; }
+
+/* button maps */
+.maps { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin: 20px 0; }
+.map svg { max-width: 640px; margin: 0 auto; }
+.map { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-width: 0; }
+.map h4 { font: 700 17px/1.2 var(--display); margin: 2px 4px 8px; }
+.map svg { display: block; width: 100%; height: auto; }
+.map .pad-label { font-family: var(--body); font-weight: 600; }
+
+/* header-button legend */
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px 22px; margin: 14px 0 20px; padding: 0; list-style: none; max-width: 760px; }
+.legend li { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; align-items: start; margin: 0; font-size: 15px; }
+.legend svg { width: 36px; height: 36px; border-radius: 7px; background: var(--key); color: var(--key-ink); padding: 8px; }
+.legend li.or svg { background: var(--accent); color: #fff; }
+
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 10px 0; max-width: 760px; }
+details summary { cursor: pointer; font-weight: 600; }
+details summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+details p { margin: 10px 0 2px; }
+footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 22px; margin-top: 64px; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+<style>body { margin: 0; } img { max-width: 100%; }</style>
+</head>
+<body>
+
+
+<header class="hero">
+  <div class="eyebrow">Arkodd · PadBox GS</div>
+  <h1>PadBox GS Owner's Guide</h1>
+  <p class="lede">Everything you need to get playing: the buttons on your PadBox, the three firmwares it can run, how to pick a console mode, and how to remap, calibrate and update it with the PadBox Configurator in your browser.</p>
+  <div class="quick">
+    <a class="go" href="https://arkodd.github.io/padbox/">Open the PadBox Configurator</a>
+    <a href="#modes">Pick a mode</a>
+    <a href="#connect">Connect</a>
+    <a href="#sticks">Calibrate the sticks</a>
+    <a href="#help">Troubleshooting</a>
+  </div>
+</header>
+
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+  <div class="t">Contents</div>
+  <ol>
+    <li><a href="#meet">Meet your PadBox</a></li>
+    <li><a href="#firmware">The three firmwares</a></li>
+    <li><a href="#modes">Picking a mode</a></li>
+    <li><a href="#connect">Connecting</a></li>
+    <li><a href="#toolbar">The top buttons</a></li>
+    <li><a href="#controller">Buttons and lights</a></li>
+    <li><a href="#sticks">Sticks</a></li>
+    <li><a href="#snapback">Snapback (HOJA)</a></li>
+    <li><a href="#settings">Settings</a></li>
+    <li><a href="#phob">PhobGCC calibration</a></li>
+    <li><a href="#backup">Backup and restore</a></li>
+    <li><a href="#update">Updating the firmware</a></li>
+    <li><a href="#older">Update an older PadBox</a></li>
+    <li><a href="#help">Troubleshooting</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="meet">
+  <h2><span class="n">01</span>Meet your PadBox GS</h2>
+  <p class="sub">The PadBox GS comes in two layouts. Both have eight face buttons, a D-pad, four menu buttons and a bumper on top.</p>
+  <ul>
+    <li><b>PadBox GS Essential</b>: two analog sticks, one on the top left and one lower down for your thumb.</li>
+    <li><b>PadBox GS Platform</b>: one analog stick on the top left, plus a <b>C-stick made of four buttons</b> and an extra <b>A</b> button under the face buttons. It's laid out for platform fighters.</li>
+  </ul>
+  <p>The face buttons have fighting-game names: the top row is <span class="k">1P</span> <span class="k">2P</span> <span class="k">3P</span> <span class="k">4P</span> (punches) and the bottom row is <span class="k">1K</span> <span class="k">2K</span> <span class="k">3K</span> <span class="k">4K</span> (kicks). This guide uses those names, because what each button does changes with the mode and your own remapping.</p>
+
+  <div class="maps">
+    <div class="map">
+      <h4>GS Essential</h4>
+      <svg viewBox="0 0 1530 1200" class="pad-drawing pd-essential" role="img" aria-label="PadBox GS Essential"><defs><clipPath id="bodyClipE"><path d="M223.4,115.4c1-.5,1.9-.9,2.9-1.2.6-.3,1.2-.6,1.8-.8.1,0,.3-.1.6-.2,43.6-17.4,111-19.2,253.8-15.1h648.6c195.7,0,354.4,149.2,354.4,452.1v97.7c0,188.4-68.4,473-252.6,473h-545.6c-127,0-224.7-135.3-224.7-290.2l2.1-134.3s.8-18.5-2.1-43.6c-1.5-12.5-5.6-26.2-9.8-40.7-19.5-67.5-121.4-107.6-154.1-85.6-18.2,12.3-35,44.8-59.5,106.3-8.5,21.4-16.4,43-24,64.7-8,23-26.1,64.1-51.9,59.5-35.6-6.2-132.5-8.6-117.2-181,12.5-141.4,44.1-277.5,79.1-352.3h0"></path><path d="M228.7,113.2c-.2,0-.4.1-.6.2-.6.2-1.2.5-1.8.8-1,.3-1.9.8-2.9,1.2-47.3,19-83.7,58.9-98.2,108.2h0c-4.4,15.1-6.8,30.9-6.8,47.3,0,92.8,75.2,168,168,168s15.6-.6,23.2-1.6c3.3,38,24,71,54.1,91.1,0,0,0,0,0,0 Z"></path></clipPath><radialGradient id="led10E" gradientUnits="userSpaceOnUse" cx="666" cy="372" r="100.6"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led11E" gradientUnits="userSpaceOnUse" cx="834" cy="296" r="100.6"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led12E" gradientUnits="userSpaceOnUse" cx="1021" cy="296" r="100.6"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led13E" gradientUnits="userSpaceOnUse" cx="1200" cy="347" r="100.6"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led6E" gradientUnits="userSpaceOnUse" cx="682" cy="557" r="100.6"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led7E" gradientUnits="userSpaceOnUse" cx="851" cy="480" r="100.6"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led8E" gradientUnits="userSpaceOnUse" cx="1037" cy="480" r="100.6"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led9E" gradientUnits="userSpaceOnUse" cx="1216" cy="531" r="100.6"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient></defs><path d="M240,109.2v-10.1s36.8-33.8,114.6-13.3v10.7 Z" fill="#3d3d3d" stroke="#c5c5c5" stroke-width="4" stroke-linejoin="round" transform="" class="pad-btn"></path><g clip-path="url(#bodyClipE)" transform=""><rect x="-100" y="-100" width="1800" height="1400" fill="#9d9d9d"></rect><path d="M228.7,113.2c-.2,0-.4.1-.6.2-.6.2-1.2.5-1.8.8-1,.3-1.9.8-2.9,1.2-47.3,19-83.7,58.9-98.2,108.2h0c-4.4,15.1-6.8,30.9-6.8,47.3,0,92.8,75.2,168,168,168s15.6-.6,23.2-1.6c3.3,38,24,71,54.1,91.1,0,0,0,0,0,0 L 364,1300 L 1700,1300 L 1700,-100 L 229,-100 Z" fill="#dfdfdf"></path></g><g transform="translate(0 0)"><path d="M263.7,257.1c-3.5,0-6.9-1.3-9.7-3.8-17.6-16.1-17.6-19.7-17.6-21.1v-34c0-6.8,5.5-12.3,12.3-12.3h29.9c6.8,0,12.3,5.5,12.3,12.3v34c0,1.4,0,5-17.6,21.1-2.8,2.5-6.2,3.8-9.7,3.8Z" fill="#3d3d3d" stroke="#262626" stroke-width="4.5" stroke-linejoin="round" class="pad-btn"></path><path d="M278.6,351.2h-29.9c-6.8,0-12.3-5.5-12.3-12.3v-34c0-1.4,0-5,17.6-21.1,5.5-5,13.8-5,19.3,0,17.6,16.1,17.6,19.7,17.6,21.1v34c0,6.8-5.5,12.3-12.3,12.3Z" fill="#3d3d3d" stroke="#262626" stroke-width="4.5" stroke-linejoin="round" class="pad-btn"></path><path d="M227.3,295.8h-34c-6.8,0-12.3-5.5-12.3-12.3v-29.9c0-6.8,5.5-12.3,12.3-12.3h34c1.4,0,5,0,21.1,17.6,5,5.5,5,13.8,0,19.3-16.1,17.6-19.7,17.6-21.1,17.6Z" fill="#3d3d3d" stroke="#262626" stroke-width="4.5" stroke-linejoin="round" class="pad-btn"></path><path d="M334,295.8h-34c-1.4,0-5,0-21.1-17.6-5-5.5-5-13.8,0-19.3,16.1-17.6,19.7-17.6,21.1-17.6h34c6.8,0,12.3,5.5,12.3,12.3v29.9c0,6.8-5.5,12.3-12.3,12.3Z" fill="#3d3d3d" stroke="#262626" stroke-width="4.5" stroke-linejoin="round" class="pad-btn"></path></g><g transform=""><g class="pad-btn"><rect x="545" y="141.4" width="23.6" height="42" rx="11.8" ry="11.8" transform="translate(176.7 -275.7) rotate(32.8)" fill="#3d3d3d"></rect></g><path d="M564.5,196.6h-22.3c-1.8,0-3.3,1.5-3.3,3.3s1.5,3.3,3.3,3.3h22.3c1.8,0,3.3-1.5,3.3-3.3s-1.5-3.3-3.3-3.3h0Z" fill="#ababab"></path><path d="M564.5,206h-22.3c-1.8,0-3.3,1.5-3.3,3.3s1.5,3.3,3.3,3.3h22.3c1.8,0,3.3-1.5,3.3-3.3s-1.5-3.3-3.3-3.3h0Z" fill="#ababab"></path><path d="M564.5,215.4h-22.3c-1.8,0-3.3,1.5-3.3,3.3h0c0,1.8,1.5,3.3,3.3,3.3h22.3c1.8,0,3.3-1.5,3.3-3.3h0c0-1.8-1.5-3.3-3.3-3.3h0Z" fill="#ababab"></path><g class="pad-btn"><rect x="607.1" y="141.4" width="23.6" height="42" rx="11.8" ry="11.8" transform="translate(186.6 -309.4) rotate(32.8)" fill="#3d3d3d"></rect></g><path d="M599,217.4c-1.7,0-3-1.4-3-3v-12.9c0-4.1,3.4-7.5,7.5-7.5h20.3c1.9,0,3.4,1.5,3.4,3.4s-1.5,3.4-3.4,3.4h-19.4c-1.3,0-2.4,1.1-2.4,2.4v11.3c0,1.7-1.4,3-3,3Z" fill="#ababab"></path><path d="M630,226.5h-20c-2.9,0-5.1-2-5.1-4.7v-10.1c0-1.2.7-2.2,1.8-2.7,1.1-.5,2.3-.2,3.2.6.5.5.9,1.3.9,2.1v8.4c0,.1.1.3.3.3h18.8c.1,0,.3-.1.3-.3v-10.1c0-.1-.1-.3-.3-.3h-15.7c-.8,0-1.5-.3-2.1-.9-.9-.9-1.2-2.3-.7-3.5.5-1.2,1.7-2,3-2h16.8c2.8,0,5,2.3,5,5v12.3c0,3.3-2.6,5.8-6.1,5.8Z" fill="#ababab"></path><g class="pad-btn"><rect x="669.2" y="141.4" width="23.6" height="42" rx="11.8" ry="11.8" transform="translate(196.5 -343) rotate(32.8)" fill="#3d3d3d"></rect></g><path d="M685.5,226h-.4c-2,0-3.6-1.6-3.6-3.6,0-4.2-2.2-6.9-5.4-6.9s-5.4,2.8-5.4,6.8-1.7,3.8-3.7,3.8h-.2c-2,0-3.6-1.6-3.6-3.6v-4.9c0-3.9,5-7.6,9.3-10.1,2.3-1.3,5.2-1.3,7.5,0,4.2,2.4,9.3,6.2,9.3,10.1v4.9c0,2-1.6,3.6-3.6,3.6Z" fill="#ababab"></path><path d="M663.9,209.8c-.1,0-.2,0-.3,0-.9,0-1.8-.5-2.3-1.2-1.2-1.5-1-3.7.5-4.9l9.8-7.8c2.7-2.2,6.6-2.2,9.3,0l9.6,7.6c1.5,1.2,1.7,3.4.5,4.9h0c-.6.7-1.4,1.2-2.3,1.2-.9,0-1.8-.2-2.5-.8l-8.1-6.4c-1-.8-2.5-.8-3.4,0l-8.3,6.6c-.6.5-1.4.8-2.2.8Z" fill="#ababab"></path><g class="pad-btn"><rect x="731.4" y="141.4" width="23.6" height="42" rx="11.8" ry="11.8" transform="translate(206.4 -376.7) rotate(32.8)" fill="#3d3d3d"></rect></g><path d="M730.2,222.8h-2.3c-7.1,0-12.8-5.8-12.8-12.8v-1.7c0-7.1,5.8-12.8,12.8-12.8h2.3c1.1,0,2.1.9,2.1,2.1v3.1c0,1.1-.9,2.1-2.1,2.1h-3.7c-.7,0-1.3.6-1.3,1.3v11.2c0,.7.6,1.3,1.3,1.3h3.7c1.1,0,2.1.9,2.1,2.1v2.1c0,1.1-.9,2.1-2.1,2.1Z" fill="#ababab"></path><path d="M741.2,222.8h-3.1c-1.1,0-2.1-.9-2.1-2.1v-2.1c0-1.1.9-2.1,2.1-2.1h4.5c.7,0,1.3-.6,1.3-1.3v-11.2c0-.7-.6-1.3-1.3-1.3h-4.5c-1.1,0-2.1-.9-2.1-2.1v-3.1c0-1.1.9-2.1,2.1-2.1h3.1c7.1,0,12.8,5.8,12.8,12.8v1.7c0,7.1-5.8,12.8-12.8,12.8Z" fill="#ababab"></path></g><g class="pad-btn"><circle cx="415" cy="422" r="54" fill="#262626"></circle><circle cx="415" cy="422" r="44" fill="#3d3d3d" stroke="#5e5e5e" stroke-width="3"></circle></g><circle cx="415" cy="422" r="15" fill="#fe6805" stroke="#262626" stroke-width="3" pointer-events="none"></circle><g class="pad-btn"><circle cx="561" cy="763" r="54" fill="#262626"></circle><circle cx="561" cy="763" r="44" fill="#3d3d3d" stroke="#5e5e5e" stroke-width="3"></circle></g><circle cx="561" cy="763" r="15" fill="#fe6805" stroke="#262626" stroke-width="3" pointer-events="none"></circle><circle cx="666" cy="372" r="100.6" fill="url(#led10E)" pointer-events="none" visibility="hidden"></circle><circle cx="834" cy="296" r="100.6" fill="url(#led11E)" pointer-events="none" visibility="hidden"></circle><circle cx="1021" cy="296" r="100.6" fill="url(#led12E)" pointer-events="none" visibility="hidden"></circle><circle cx="1200" cy="347" r="100.6" fill="url(#led13E)" pointer-events="none" visibility="hidden"></circle><circle cx="682" cy="557" r="100.6" fill="url(#led6E)" pointer-events="none" visibility="hidden"></circle><circle cx="851" cy="480" r="100.6" fill="url(#led7E)" pointer-events="none" visibility="hidden"></circle><circle cx="1037" cy="480" r="100.6" fill="url(#led8E)" pointer-events="none" visibility="hidden"></circle><circle cx="1216" cy="531" r="100.6" fill="url(#led9E)" pointer-events="none" visibility="hidden"></circle><circle cx="666" cy="372" r="77" fill="#3d3d3d" stroke="#262626" stroke-width="4" class="pad-btn"></circle><circle cx="834" cy="296" r="77" fill="#3d3d3d" stroke="#262626" stroke-width="4" class="pad-btn"></circle><circle cx="1021" cy="296" r="77" fill="#3d3d3d" stroke="#262626" stroke-width="4" class="pad-btn"></circle><circle cx="1200" cy="347" r="77" fill="#3d3d3d" stroke="#262626" stroke-width="4" class="pad-btn"></circle><circle cx="682" cy="557" r="77" fill="#3d3d3d" stroke="#262626" stroke-width="4" class="pad-btn"></circle><circle cx="851" cy="480" r="77" fill="#3d3d3d" stroke="#262626" stroke-width="4" class="pad-btn"></circle><circle cx="1037" cy="480" r="77" fill="#3d3d3d" stroke="#262626" stroke-width="4" class="pad-btn"></circle><circle cx="1216" cy="531" r="77" fill="#3d3d3d" stroke="#262626" stroke-width="4" class="pad-btn"></circle><circle cx="666" cy="372" r="78.9" fill="none" stroke-width="4.8" pointer-events="none" visibility="hidden"></circle><circle cx="834" cy="296" r="78.9" fill="none" stroke-width="4.8" pointer-events="none" visibility="hidden"></circle><circle cx="1021" cy="296" r="78.9" fill="none" stroke-width="4.8" pointer-events="none" visibility="hidden"></circle><circle cx="1200" cy="347" r="78.9" fill="none" stroke-width="4.8" pointer-events="none" visibility="hidden"></circle><circle cx="682" cy="557" r="78.9" fill="none" stroke-width="4.8" pointer-events="none" visibility="hidden"></circle><circle cx="851" cy="480" r="78.9" fill="none" stroke-width="4.8" pointer-events="none" visibility="hidden"></circle><circle cx="1037" cy="480" r="78.9" fill="none" stroke-width="4.8" pointer-events="none" visibility="hidden"></circle><circle cx="1216" cy="531" r="78.9" fill="none" stroke-width="4.8" pointer-events="none" visibility="hidden"></circle><text x="666" y="372" font-size="42" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">1P</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="834" y="296" font-size="42" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">2P</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="1021" y="296" font-size="42" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">3P</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="1200" y="347" font-size="42" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">4P</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="682" y="557" font-size="42" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">1K</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="851" y="480" font-size="42" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">2K</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="1037" y="480" font-size="42" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">3K</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="1216" y="531" font-size="42" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">4K</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="263.7" y="211" font-size="21" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none"></text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="visible" transform="translate(263.7 211) rotate(0) scale(19.95)"></path><text x="263.7" y="327" font-size="21" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none"></text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="visible" transform="translate(263.7 327) rotate(180) scale(19.95)"></path><text x="206" y="268.7" font-size="21" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none"></text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="visible" transform="translate(206 268.7) rotate(270) scale(19.95)"></path><text x="322" y="268.7" font-size="21" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none"></text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="visible" transform="translate(322 268.7) rotate(90) scale(19.95)"></path><text x="297" y="58" font-size="28" fill="#bdbdbd" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">Bumper</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#bdbdbd" pointer-events="none" visibility="hidden"></path><text x="415" y="505" font-size="30" fill="#5a5a5a" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">L3</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#5a5a5a" pointer-events="none" visibility="hidden"></path><text x="561" y="846" font-size="30" fill="#5a5a5a" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">R3</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#5a5a5a" pointer-events="none" visibility="hidden"></path></svg>
+    </div>
+    <div class="map">
+      <h4>GS Platform</h4>
+      <svg viewBox="0 0 1530 1200" class="pad-drawing pd-platform" role="img" aria-label="PadBox GS Platform"><defs><clipPath id="bodyClipP"><path d="M223.4,115.4c1-.5,1.9-.9,2.9-1.2.6-.3,1.2-.6,1.8-.8.1,0,.3-.1.6-.2,43.6-17.4,111-19.2,253.8-15.1h648.6c195.7,0,354.4,149.2,354.4,452.1v97.7c0,188.4-68.4,473-252.6,473h-545.6c-127,0-224.7-135.3-224.7-290.2l2.1-134.3s.8-18.5-2.1-43.6c-1.5-12.5-5.6-26.2-9.8-40.7-19.5-67.5-121.4-107.6-154.1-85.6-18.2,12.3-35,44.8-59.5,106.3-8.5,21.4-16.4,43-24,64.7-8,23-26.1,64.1-51.9,59.5-35.6-6.2-132.5-8.6-117.2-181,12.5-141.4,44.1-277.5,79.1-352.3h0"></path><path d="M228.7,113.2c-.2,0-.4.1-.6.2-.6.2-1.2.5-1.8.8-1,.3-1.9.8-2.9,1.2-47.3,19-83.7,58.9-98.2,108.2h0c-4.4,15.1-6.8,30.9-6.8,47.3,0,92.8,75.2,168,168,168s15.6-.6,23.2-1.6c3.3,38,24,71,54.1,91.1,0,0,0,0,0,0 Z"></path></clipPath><radialGradient id="led10P" gradientUnits="userSpaceOnUse" cx="795" cy="349" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led11P" gradientUnits="userSpaceOnUse" cx="958" cy="275" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led12P" gradientUnits="userSpaceOnUse" cx="1137" cy="275" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led13P" gradientUnits="userSpaceOnUse" cx="1310" cy="324" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led6P" gradientUnits="userSpaceOnUse" cx="815" cy="528" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led7P" gradientUnits="userSpaceOnUse" cx="977" cy="454" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led8P" gradientUnits="userSpaceOnUse" cx="1157" cy="454" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led9P" gradientUnits="userSpaceOnUse" cx="1330" cy="503" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led27P" gradientUnits="userSpaceOnUse" cx="697" cy="706" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led19P" gradientUnits="userSpaceOnUse" cx="865" cy="738" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led26P" gradientUnits="userSpaceOnUse" cx="579" cy="835" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led18P" gradientUnits="userSpaceOnUse" cx="641" cy="1002" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient><radialGradient id="led15P" gradientUnits="userSpaceOnUse" cx="760" cy="873" r="96.87407407407407"><stop offset="0.808" stop-opacity="1"></stop><stop offset="1" stop-opacity="0"></stop></radialGradient></defs><path d="M240,109.2v-10.1s36.8-33.8,114.6-13.3v10.7 Z" fill="#3d3d3d" stroke="#c5c5c5" stroke-width="4" stroke-linejoin="round" transform="matrix(1.0075 0 0 1.0075 -9.3 -17.6)" class="pad-btn"></path><g clip-path="url(#bodyClipP)" transform="matrix(1.0075 0 0 1.0075 -9.3 -17.6)"><rect x="-100" y="-100" width="1800" height="1400" fill="#9d9d9d"></rect><path d="M228.7,113.2c-.2,0-.4.1-.6.2-.6.2-1.2.5-1.8.8-1,.3-1.9.8-2.9,1.2-47.3,19-83.7,58.9-98.2,108.2h0c-4.4,15.1-6.8,30.9-6.8,47.3,0,92.8,75.2,168,168,168s15.6-.6,23.2-1.6c3.3,38,24,71,54.1,91.1,0,0,0,0,0,0 L 364,1300 L 1700,1300 L 1700,-100 L 229,-100 Z" fill="#dfdfdf"></path></g><g transform="translate(166 123)"><path d="M263.7,257.1c-3.5,0-6.9-1.3-9.7-3.8-17.6-16.1-17.6-19.7-17.6-21.1v-34c0-6.8,5.5-12.3,12.3-12.3h29.9c6.8,0,12.3,5.5,12.3,12.3v34c0,1.4,0,5-17.6,21.1-2.8,2.5-6.2,3.8-9.7,3.8Z" fill="#3d3d3d" stroke="#262626" stroke-width="4.5" stroke-linejoin="round" class="pad-btn"></path><path d="M278.6,351.2h-29.9c-6.8,0-12.3-5.5-12.3-12.3v-34c0-1.4,0-5,17.6-21.1,5.5-5,13.8-5,19.3,0,17.6,16.1,17.6,19.7,17.6,21.1v34c0,6.8-5.5,12.3-12.3,12.3Z" fill="#3d3d3d" stroke="#262626" stroke-width="4.5" stroke-linejoin="round" class="pad-btn"></path><path d="M227.3,295.8h-34c-6.8,0-12.3-5.5-12.3-12.3v-29.9c0-6.8,5.5-12.3,12.3-12.3h34c1.4,0,5,0,21.1,17.6,5,5.5,5,13.8,0,19.3-16.1,17.6-19.7,17.6-21.1,17.6Z" fill="#3d3d3d" stroke="#262626" stroke-width="4.5" stroke-linejoin="round" class="pad-btn"></path><path d="M334,295.8h-34c-1.4,0-5,0-21.1-17.6-5-5.5-5-13.8,0-19.3,16.1-17.6,19.7-17.6,21.1-17.6h34c6.8,0,12.3,5.5,12.3,12.3v29.9c0,6.8-5.5,12.3-12.3,12.3Z" fill="#3d3d3d" stroke="#262626" stroke-width="4.5" stroke-linejoin="round" class="pad-btn"></path></g><g transform="matrix(.9749 0 0 .9749 9.87 -11.51)"><g class="pad-btn"><rect x="545" y="141.4" width="23.6" height="42" rx="11.8" ry="11.8" transform="translate(176.7 -275.7) rotate(32.8)" fill="#3d3d3d"></rect></g><path d="M564.5,196.6h-22.3c-1.8,0-3.3,1.5-3.3,3.3s1.5,3.3,3.3,3.3h22.3c1.8,0,3.3-1.5,3.3-3.3s-1.5-3.3-3.3-3.3h0Z" fill="#ababab"></path><path d="M564.5,206h-22.3c-1.8,0-3.3,1.5-3.3,3.3s1.5,3.3,3.3,3.3h22.3c1.8,0,3.3-1.5,3.3-3.3s-1.5-3.3-3.3-3.3h0Z" fill="#ababab"></path><path d="M564.5,215.4h-22.3c-1.8,0-3.3,1.5-3.3,3.3h0c0,1.8,1.5,3.3,3.3,3.3h22.3c1.8,0,3.3-1.5,3.3-3.3h0c0-1.8-1.5-3.3-3.3-3.3h0Z" fill="#ababab"></path><g class="pad-btn"><rect x="607.1" y="141.4" width="23.6" height="42" rx="11.8" ry="11.8" transform="translate(186.6 -309.4) rotate(32.8)" fill="#3d3d3d"></rect></g><path d="M599,217.4c-1.7,0-3-1.4-3-3v-12.9c0-4.1,3.4-7.5,7.5-7.5h20.3c1.9,0,3.4,1.5,3.4,3.4s-1.5,3.4-3.4,3.4h-19.4c-1.3,0-2.4,1.1-2.4,2.4v11.3c0,1.7-1.4,3-3,3Z" fill="#ababab"></path><path d="M630,226.5h-20c-2.9,0-5.1-2-5.1-4.7v-10.1c0-1.2.7-2.2,1.8-2.7,1.1-.5,2.3-.2,3.2.6.5.5.9,1.3.9,2.1v8.4c0,.1.1.3.3.3h18.8c.1,0,.3-.1.3-.3v-10.1c0-.1-.1-.3-.3-.3h-15.7c-.8,0-1.5-.3-2.1-.9-.9-.9-1.2-2.3-.7-3.5.5-1.2,1.7-2,3-2h16.8c2.8,0,5,2.3,5,5v12.3c0,3.3-2.6,5.8-6.1,5.8Z" fill="#ababab"></path><g class="pad-btn"><rect x="669.2" y="141.4" width="23.6" height="42" rx="11.8" ry="11.8" transform="translate(196.5 -343) rotate(32.8)" fill="#3d3d3d"></rect></g><path d="M685.5,226h-.4c-2,0-3.6-1.6-3.6-3.6,0-4.2-2.2-6.9-5.4-6.9s-5.4,2.8-5.4,6.8-1.7,3.8-3.7,3.8h-.2c-2,0-3.6-1.6-3.6-3.6v-4.9c0-3.9,5-7.6,9.3-10.1,2.3-1.3,5.2-1.3,7.5,0,4.2,2.4,9.3,6.2,9.3,10.1v4.9c0,2-1.6,3.6-3.6,3.6Z" fill="#ababab"></path><path d="M663.9,209.8c-.1,0-.2,0-.3,0-.9,0-1.8-.5-2.3-1.2-1.2-1.5-1-3.7.5-4.9l9.8-7.8c2.7-2.2,6.6-2.2,9.3,0l9.6,7.6c1.5,1.2,1.7,3.4.5,4.9h0c-.6.7-1.4,1.2-2.3,1.2-.9,0-1.8-.2-2.5-.8l-8.1-6.4c-1-.8-2.5-.8-3.4,0l-8.3,6.6c-.6.5-1.4.8-2.2.8Z" fill="#ababab"></path><g class="pad-btn"><rect x="731.4" y="141.4" width="23.6" height="42" rx="11.8" ry="11.8" transform="translate(206.4 -376.7) rotate(32.8)" fill="#3d3d3d"></rect></g><path d="M730.2,222.8h-2.3c-7.1,0-12.8-5.8-12.8-12.8v-1.7c0-7.1,5.8-12.8,12.8-12.8h2.3c1.1,0,2.1.9,2.1,2.1v3.1c0,1.1-.9,2.1-2.1,2.1h-3.7c-.7,0-1.3.6-1.3,1.3v11.2c0,.7.6,1.3,1.3,1.3h3.7c1.1,0,2.1.9,2.1,2.1v2.1c0,1.1-.9,2.1-2.1,2.1Z" fill="#ababab"></path><path d="M741.2,222.8h-3.1c-1.1,0-2.1-.9-2.1-2.1v-2.1c0-1.1.9-2.1,2.1-2.1h4.5c.7,0,1.3-.6,1.3-1.3v-11.2c0-.7-.6-1.3-1.3-1.3h-4.5c-1.1,0-2.1-.9-2.1-2.1v-3.1c0-1.1.9-2.1,2.1-2.1h3.1c7.1,0,12.8,5.8,12.8,12.8v1.7c0,7.1-5.8,12.8-12.8,12.8Z" fill="#ababab"></path></g><g><circle cx="244" cy="262" r="52.13793103448276" fill="#262626"></circle><circle cx="244" cy="262" r="42.48275862068966" fill="#3d3d3d" stroke="#5e5e5e" stroke-width="3"></circle></g><circle cx="244" cy="262" r="14.482758620689657" fill="#fe6805" stroke="#262626" stroke-width="3" pointer-events="none"></circle><circle cx="795" cy="349" r="96.87407407407407" fill="url(#led10P)" pointer-events="none" visibility="hidden"></circle><circle cx="958" cy="275" r="96.87407407407407" fill="url(#led11P)" pointer-events="none" visibility="hidden"></circle><circle cx="1137" cy="275" r="96.87407407407407" fill="url(#led12P)" pointer-events="none" visibility="hidden"></circle><circle cx="1310" cy="324" r="96.87407407407407" fill="url(#led13P)" pointer-events="none" visibility="hidden"></circle><circle cx="815" cy="528" r="96.87407407407407" fill="url(#led6P)" pointer-events="none" visibility="hidden"></circle><circle cx="977" cy="454" r="96.87407407407407" fill="url(#led7P)" pointer-events="none" visibility="hidden"></circle><circle cx="1157" cy="454" r="96.87407407407407" fill="url(#led8P)" pointer-events="none" visibility="hidden"></circle><circle cx="1330" cy="503" r="96.87407407407407" fill="url(#led9P)" pointer-events="none" visibility="hidden"></circle><circle cx="697" cy="706" r="96.87407407407407" fill="url(#led27P)" pointer-events="none" visibility="hidden"></circle><circle cx="865" cy="738" r="96.87407407407407" fill="url(#led19P)" pointer-events="none" visibility="hidden"></circle><circle cx="579" cy="835" r="96.87407407407407" fill="url(#led26P)" pointer-events="none" visibility="hidden"></circle><circle cx="641" cy="1002" r="96.87407407407407" fill="url(#led18P)" pointer-events="none" visibility="hidden"></circle><circle cx="760" cy="873" r="96.87407407407407" fill="url(#led15P)" pointer-events="none" visibility="hidden"></circle><circle cx="795" cy="349" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="958" cy="275" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="1137" cy="275" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="1310" cy="324" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="815" cy="528" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="977" cy="454" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="1157" cy="454" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="1330" cy="503" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="697" cy="706" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="865" cy="738" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="579" cy="835" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="641" cy="1002" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="760" cy="873" r="74.14814814814815" fill="#3d3d3d" stroke="#262626" stroke-width="3.851851851851852" class="pad-btn"></circle><circle cx="795" cy="349" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><circle cx="958" cy="275" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><circle cx="1137" cy="275" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><circle cx="1310" cy="324" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><circle cx="815" cy="528" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><circle cx="977" cy="454" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><circle cx="1157" cy="454" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><circle cx="1330" cy="503" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><circle cx="697" cy="706" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><circle cx="865" cy="738" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><circle cx="579" cy="835" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><circle cx="641" cy="1002" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><circle cx="760" cy="873" r="75.97777777777779" fill="none" stroke-width="4.622222222222223" pointer-events="none" visibility="hidden"></circle><text x="795" y="349" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">1P</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="958" y="275" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">2P</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="1137" y="275" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">3P</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="1310" y="324" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">4P</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="815" y="528" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">1K</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="977" y="454" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">2K</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="1157" y="454" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">3K</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="1330" y="503" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">4K</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="697" y="706" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">C↑</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="865" y="738" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">C→</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="579" y="835" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">C←</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="641" y="1002" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">C↓</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="760" y="873" font-size="40.44444444444445" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">A</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="hidden"></path><text x="429.7" y="334" font-size="21" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none"></text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="visible" transform="translate(429.7 334) rotate(0) scale(19.95)"></path><text x="429.7" y="450" font-size="21" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none"></text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="visible" transform="translate(429.7 450) rotate(180) scale(19.95)"></path><text x="372" y="391.7" font-size="21" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none"></text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="visible" transform="translate(372 391.7) rotate(270) scale(19.95)"></path><text x="488" y="391.7" font-size="21" fill="#e4e4e4" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none"></text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#e4e4e4" pointer-events="none" visibility="visible" transform="translate(488 391.7) rotate(90) scale(19.95)"></path><text x="289.9" y="40.8" font-size="28" fill="#bdbdbd" class="pad-label" text-anchor="middle" dominant-baseline="central" pointer-events="none">Bumper</text><path d="M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z" fill="#bdbdbd" pointer-events="none" visibility="hidden"></path></svg>
+    </div>
+  </div>
+  <p>On the Platform, the four buttons marked C↑ C→ C← C↓ are the C-stick (up, right, left, down) and the button between them is an extra <b>A</b>. The four small buttons at the top are, from left to right, <b>Start</b>, <b>Select</b>, <b>Home</b> and <b>Touchpad</b>. On the Essential, pressing a stick down clicks it (L3 and R3).</p>
+</section>
+
+<section id="firmware">
+  <h2><span class="n">02</span>The three firmwares</h2>
+  <p class="sub">The firmware is the software inside the PadBox. It decides which consoles it works with and which settings you can change. You can switch between them at any time from the Configurator, for free.</p>
+  <div class="cards">
+    <div class="card"><h4>HOJA</h4><div class="for">GS Essential and GS Platform</div>
+      <p>The all-rounder. Switch, PC, GameCube, N64 and SNES modes, LED effects, stick calibration with notch alignment, and a snapback filter you can tune and test.</p>
+      <p>Connects to the Configurator by simply plugging it in.</p></div>
+    <div class="card"><h4>GP2040-CE</h4><div class="for">GS Essential and GS Platform</div>
+      <p>Popular with fighting-game players. PC (XInput), Switch, PS3, PS4, PS5, Xbox One and keyboard modes, SOCD cleaning, turbo and button profiles.</p>
+      <p>Connects to the Configurator by holding <span class="k">Start</span> while plugging it in.</p></div>
+    <div class="card"><h4>PhobGCC</h4><div class="for">GS Platform only</div>
+      <p>The GameCube firmware loved by Melee players, with PhobGCC's own notch-by-notch stick calibration, snapback filtering and smoothing.</p>
+      <p>Connects to the Configurator by holding <span class="k">Start</span> while plugging it in.</p></div>
+  </div>
+  <p>Not sure which one you have? Connect it to the Configurator: the firmware's name is written at the top left of the page.</p>
+</section>
+
+<section id="modes">
+  <h2><span class="n">03</span>Picking a mode when you plug in</h2>
+  <p class="sub">Hold one button while you plug the cable in, and keep holding it for a second. The PadBox starts in that mode. If you hold nothing, it starts in its default mode.</p>
+
+  <h3>HOJA</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Hold while plugging in</th><th>Mode</th><th>Use it for</th></tr></thead>
+    <tbody>
+      <tr><td><span class="k">1K</span></td><td>Switch Pro</td><td>Nintendo Switch, and PC games that support Switch controllers</td></tr>
+      <tr><td><span class="k">2K</span></td><td>SInput</td><td>PC (Steam)</td></tr>
+      <tr><td><span class="k">1P</span></td><td>XInput</td><td>PC and anything that takes an Xbox controller</td></tr>
+      <tr><td><span class="k">2P</span></td><td>Slippi</td><td>Super Smash Bros. Melee on Slippi (PC)</td></tr>
+      <tr><td><span class="k">D-pad ←</span></td><td>SNES</td><td>SNES consoles and adapters</td></tr>
+      <tr><td><span class="k">D-pad ↓</span></td><td>Nintendo 64</td><td>N64 consoles and adapters</td></tr>
+      <tr><td><span class="k">D-pad →</span></td><td>GameCube</td><td>GameCube and Wii consoles, GameCube adapters</td></tr>
+      <tr><td>Nothing</td><td>Your default mode</td><td>Set it on the Configurator's CONTROLLER page (see <a href="#controller">Buttons and lights</a>)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>GP2040-CE</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Hold while plugging in</th><th>Mode</th></tr></thead>
+    <tbody>
+      <tr><td><span class="k">Start</span></td><td>Configuration mode, to use the Configurator</td></tr>
+      <tr><td><span class="k">1K</span></td><td>Nintendo Switch</td></tr>
+      <tr><td><span class="k">2K</span></td><td>XInput (PC and Xbox-style controller). This is also the default.</td></tr>
+      <tr><td><span class="k">1P</span></td><td>PS4</td></tr>
+      <tr><td><span class="k">2P</span></td><td>PS5</td></tr>
+      <tr><td>Essential: <span class="k">3P</span> · Platform: <span class="k">3K</span></td><td>Xbox One</td></tr>
+      <tr><td>Essential: <span class="k">3K</span> · Platform: <span class="k">3P</span></td><td>Keyboard</td></tr>
+      <tr><td>Essential: <span class="k">4K</span> · Platform: <span class="k">4P</span></td><td>PS3</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><span class="t">Good to know</span><p>GP2040-CE remembers the last mode you picked, so you only need to hold the button once when you change console.</p></div>
+</section>
+
+<section id="connect">
+  <h2><span class="n">04</span>Connecting to the PadBox Configurator</h2>
+  <p class="sub">The Configurator is a web page, so there's nothing to install. It talks to the PadBox over USB, which needs <b>Google Chrome or Microsoft Edge on a computer</b> (Windows, macOS, Linux or ChromeOS). Safari and Firefox can't do this, and neither can phones.</p>
+  <figure><img src="img/connect.png" alt="The Configurator's connect screen with the CONNECT, CONNECT PHOBGCC and UPDATE AN OLDER PADBOX buttons" loading="lazy"><figcaption>The connect screen. Pick the button for your firmware.</figcaption></figure>
+  <ol class="steps">
+    <li><div>Open <a href="https://arkodd.github.io/padbox/">arkodd.github.io/padbox</a> in Chrome or Edge.</div></li>
+    <li><div>Plug the PadBox in with a <b>USB data cable</b>. Some cables only charge and carry no data; if nothing shows up, try another cable.
+      <ul><li><b>HOJA</b>: just plug it in.</li><li><b>GP2040-CE</b>: hold <span class="k">Start</span> while plugging it in.</li><li><b>PhobGCC</b>: hold <span class="k">Start</span> while plugging it in.</li></ul></div></li>
+    <li><div>Click <span class="ui">CONNECT</span> (HOJA and GP2040-CE) or <span class="ui">CONNECT PHOBGCC</span> (PhobGCC). A small list opens at the top of the browser: choose your PadBox and click <span class="ui">Connect</span>. For PhobGCC it's called "PadBox GS Calibrator".</div></li>
+    <li><div>The Configurator opens on the CONTROLLER page. The next time, it reconnects by itself as soon as you plug the PadBox in.</div></li>
+  </ol>
+  <div class="note"><span class="t">No controller at hand?</span><p>The connect screen has demo links for every firmware and layout. They're a good way to look around before you plug anything in.</p></div>
+</section>
+
+<section id="toolbar">
+  <h2><span class="n">05</span>The top buttons</h2>
+  <p class="sub">The same few buttons sit at the top right of every page.</p>
+  <ul class="legend">
+    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4.5v10M8.3 11l3.7 3.7 3.7-3.7M6 15.5v3.5h12v-3.5"/></svg><div><b>Update firmware.</b> Installs the latest version, or switches to another firmware. A red dot appears on it when an update is out.</div></li>
+    <li class="or"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M5.5 3.5h11l4 4v11.5a1.5 1.5 0 0 1-1.5 1.5H5.5A1.5 1.5 0 0 1 4 19V5a1.5 1.5 0 0 1 1.5-1.5zM7.5 5v4h8V5zM12 11.6a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2z"/></svg><div><b>Save.</b> Turns orange when you've changed something. Click it to store your changes in the PadBox, so they stay after you unplug it.</div></li>
+    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M7 17a5 5 0 0 1 10 0M5 19.5h14M12 5v2.5M5.6 8.4l1.7 1.7M18.4 8.4l-1.7 1.7"/></svg><div><b>Preview LED.</b> Shows your new light settings on the PadBox (GP2040-CE and HOJA).</div></li>
+    <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 3.5v7.5M7.2 6.3a7.5 7.5 0 1 0 9.6 0"/></svg><div><b>Disconnect.</b> Lets go of the PadBox so you can unplug it or use it in another program.</div></li>
+    <li class="or"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.2 7h9.6a4 4 0 0 1 3.9 3.2l1.1 5.5a2.3 2.3 0 0 1-4 1.9L16 15.6H8l-1.8 2a2.3 2.3 0 0 1-4-1.9l1.1-5.5A4 4 0 0 1 7.2 7zm1.3 2.6v1.3H7.2v1.3h1.3v1.3h1.3v-1.3h1.3v-1.3H9.8V9.6zm7.4.4a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm-1.8 1.9a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8z"/></svg><div><b>Restart as controller.</b> Restarts the PadBox as a normal controller so you can play right away (GP2040-CE and HOJA).</div></li>
+  </ul>
+  <div class="note"><span class="t">Remember to save</span><p>On HOJA and PhobGCC most changes work on the PadBox right away so you can try them; GP2040-CE applies them when you click <b>Save</b>. Either way, only <b>Save</b> keeps them after you unplug. If you close the page with unsaved changes, the browser asks you first.</p></div>
+</section>
+
+<section id="controller">
+  <h2><span class="n">06</span>Buttons and lights</h2>
+  <p class="sub">The CONTROLLER page shows your PadBox. Each button is labelled with what it does right now.</p>
+  <figure><img src="img/gp-sel.png" alt="The CONTROLLER page in GP2040-CE with the 1K button selected and its BUTTON SETTINGS panel open" loading="lazy"><figcaption>GP2040-CE: 1K is selected. Its function and its colors are on the right.</figcaption></figure>
+  <h3>Change what a button does</h3>
+  <ol class="steps">
+    <li><div>Click a button on the drawing, or simply press it on the PadBox. It turns orange and <b>BUTTON SETTINGS</b> opens on the right.</div></li>
+    <li><div>Pick its new job in <b>Function</b>. The label on the drawing changes straight away.</div></li>
+    <li><div>Click <b>Save</b>, then press the button on the PadBox to try it.</div></li>
+  </ol>
+  <p><b>Reset this button</b> puts back its original function; <b>Reset all buttons</b> does that for every button. On GP2040-CE, the <b>Profile</b> menu at the top lets you keep several layouts and switch between them.</p>
+
+  <h3>HOJA: one layout per mode</h3>
+  <figure><img src="img/hoja-ctl.png" alt="The CONTROLLER page in HOJA, Switch Pro mode, with button names like A, B, X, Y, L, R, ZL and ZR" loading="lazy"><figcaption>HOJA keeps a separate layout for each mode. The subtitle says which one you're editing.</figcaption></figure>
+  <p>HOJA remembers a different button layout for each mode, so your Switch layout and your PC layout don't get in each other's way. Click the gamepad button at the top of the left menu (it has a small arrow) to choose which mode you're editing. The mode you pick there also becomes the <b>default mode</b> the PadBox starts in when you hold no button.</p>
+
+  <h3>Lights</h3>
+  <p>Under <b>GLOBAL LED SETTINGS</b>:</p>
+  <ul>
+    <li><b>Lighting effect</b>: static color, rainbow and other animations.</li>
+    <li><b>Color</b>: drag on the wheel or click one of the color dots. The <span class="ui">+</span> saves your own color for later.</li>
+    <li><b>Brightness</b> and <b>Animation time</b> (how fast the effect moves).</li>
+  </ul>
+  <p>Each button can also have its own color, plus a second color for when it's pressed: select the button and set <b>LED color</b>.</p>
+</section>
+
+<section id="sticks">
+  <h2><span class="n">07</span>Sticks</h2>
+  <p class="sub">The STICKS page shows each stick live: the orange dot is where your stick is. Calibrate once when you get your PadBox, and again if the stick ever drifts or doesn't reach the edges.</p>
+  <figure><img src="img/gp-sticks.png" alt="The STICKS page with a left and right stick panel, each with a gate drawing, flip switches and deadzone sliders" loading="lazy"><figcaption>GP2040-CE on the GS Essential: one panel per stick.</figcaption></figure>
+  <h3>Calibrate a stick (HOJA and GP2040-CE)</h3>
+  <ol class="steps">
+    <li><div>Click <span class="ui">Calibrate</span> under the stick.</div></li>
+    <li><div><b>GP2040-CE only:</b> let go of the stick so it rests in the middle, then click <span class="ui">Next</span>.</div></li>
+    <li><div>Roll the stick <b>slowly</b> around the edge <b>3 times</b>, pressing into every corner of the gate.</div></li>
+    <li><div>Click <span class="ui">Finish</span> (GP2040-CE) or <span class="ui">Stop</span> (HOJA). The badge turns green: <b>Calibrated</b>.</div></li>
+    <li><div>Click <b>Save</b>.</div></li>
+  </ol>
+  <h3>The other stick settings</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Setting</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td>Flip X / Flip Y axis</td><td>Turns left into right, or up into down.</td></tr>
+      <tr><td>Round / Octagonal Gate</td><td>Matches the drawing to the shape of your stick's gate.</td></tr>
+      <tr><td>Inner deadzone</td><td>Ignores tiny movements around the centre. Raise it a little if a character walks on its own.</td></tr>
+      <tr><td>Outer deadzone</td><td>Lets you reach full tilt slightly before the edge.</td></tr>
+      <tr><td>Curve (HOJA)</td><td>Changes how the stick responds near the centre: above 1.00 gives finer control for small movements.</td></tr>
+      <tr><td>Angle set (HOJA)</td><td>Lines a notch up exactly: hold the stick in a notch, then click <span class="ui">Angle set</span>.</td></tr>
+      <tr><td>Enabled</td><td>Turns a stick off completely.</td></tr>
+      <tr><td>Reset</td><td>Puts this stick's settings back to how they were when you connected.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="snapback">
+  <h2><span class="n">08</span>Snapback (HOJA)</h2>
+  <p class="sub">When you flick a stick and let go, it can bounce past the centre for a few milliseconds. Games can read that bounce as a short input the other way. The SNAPBACK page (wave icon) removes it, and lets you see it.</p>
+  <figure><img src="img/hoja-snap.png" alt="The SNAPBACK page with Filter mode, Filter cutoff and an analyzer graph for each stick" loading="lazy"><figcaption>Each stick has its own filter and analyzer.</figcaption></figure>
+  <ul>
+    <li><b>Low-pass</b> (the default) smooths quick movement near the centre. <b>Filter cutoff</b> sets how strongly: lower removes more bounce but feels slightly slower, higher feels snappier. 60 Hz is a good start.</li>
+    <li><b>Auto</b> watches for the moment you let go and only blocks the bounce then.</li>
+    <li><b>Off</b> sends the stick exactly as it is.</li>
+  </ul>
+  <h3>Test it with the analyzer</h3>
+  <ol class="steps">
+    <li><div>Push the stick all the way to one side and let it snap back.</div></li>
+    <li><div>The graph shows the next 31 milliseconds. The green band is the centre: <b>Overshoot</b> is how far it bounced past, <b>Settled</b> is when it stayed in the centre.</div></li>
+    <li><div>Change the filter and flick again. Your last few flicks are kept under the graph so you can click between them and compare.</div></li>
+  </ol>
+</section>
+
+<section id="settings">
+  <h2><span class="n">09</span>Settings</h2>
+  <h3>GP2040-CE</h3>
+  <figure><img src="img/gp-settings.png" alt="The GP2040-CE SETTINGS page with Input behavior and Turbo panels" loading="lazy"></figure>
+  <ul>
+    <li><b>SOCD cleaning mode</b>: what happens when two opposite directions are held at once (left + right, up + down). Fighting-game tournaments often set a rule for this; Neutral is the safe default.</li>
+    <li><b>4-way mode</b>: no diagonals on the D-pad and left stick, for games like Pac-Man.</li>
+    <li><b>Debounce delay</b>: filters out accidental double presses. Keep it low.</li>
+    <li><b>Turbo</b>: repeats a button automatically while you hold it.</li>
+  </ul>
+  <h3>PhobGCC</h3>
+  <figure><img src="img/phob-settings.png" alt="The PhobGCC SETTINGS page with five boxes: snapback filter, cardinal snapping, smoothing, output range and fast-movement response" loading="lazy"></figure>
+  <ul>
+    <li><b>Snapback filter</b>: removes the bounce when the stick is let go.</li>
+    <li><b>Cardinal snapping</b>: makes almost-straight inputs perfectly straight up, down, left or right.</li>
+    <li><b>Smoothing</b>: reduces jitter at rest; higher is smoother but slightly slower.</li>
+    <li><b>Output range</b>: how far the stick reaches at the edge of the gate.</li>
+    <li><b>Fast-movement response</b>: how the stick reacts to very fast movements.</li>
+  </ul>
+</section>
+
+<section id="phob">
+  <h2><span class="n">10</span>PhobGCC calibration (GS Platform)</h2>
+  <p class="sub">PhobGCC calibrates the stick notch by notch, so each notch of your gate lands exactly where Melee expects it.</p>
+  <figure><img src="img/phob-sticks.png" alt="The PhobGCC STICKS page with the gate, Unlock and Calibrate buttons and the Notch visualizer switch" loading="lazy"><figcaption>The yellow ✕ shows where to point the stick at each step.</figcaption></figure>
+  <ol class="steps">
+    <li><div><b>Unlock</b> the PadBox if the badge says Locked. The button does it for you (on the PadBox it's <span class="k">1K</span> + <span class="k">1P</span> + <span class="k">2P</span> + <span class="k">Start</span> held for about a second).</div></li>
+    <li><div>Click <span class="ui">Calibrate</span>. The steps appear on the right.</div></li>
+    <li><div><b>Capture</b>: for each step, move the stick where the yellow ✕ is (the middle, or a notch) and press <span class="ui">Advance</span> (or <span class="k">1K</span>).</div></li>
+    <li><div><b>Line up each notch</b>: hold the stick in the notch named on screen and use the <span class="ui">−</span> / <span class="ui">+</span> buttons until the orange dot sits on the ✕, then press <span class="ui">Advance</span>.</div></li>
+    <li><div>When it says <b>Calibration complete</b>, it's stored in the PadBox.</div></li>
+  </ol>
+  <p><b>Notch visualizer</b>: turn it on, then roll the stick slowly around the gate. A blue outline traces your gate, so you can see each notch, along with the exact Melee coordinates.</p>
+</section>
+
+<section id="backup">
+  <h2><span class="n">11</span>Backup and restore</h2>
+  <figure><img src="img/hoja-backup.png" alt="The BACKUP & RESTORE page with export and import buttons and a backup history table" loading="lazy"></figure>
+  <ul>
+    <li><b>Export configuration to file</b> saves all your settings (buttons, lights, stick settings) to a file on your computer. Do it before trying big changes or updating the firmware.</li>
+    <li><b>Import configuration from file</b> puts a saved file back on the PadBox.</li>
+    <li><b>Backup history</b> lists the backups made in this browser: click one to restore it.</li>
+  </ul>
+  <p>A backup only goes back onto the same PadBox model with the same firmware. Stick calibration stays in the controller and isn't part of a backup.</p>
+</section>
+
+<section id="update">
+  <h2><span class="n">12</span>Updating or switching the firmware</h2>
+  <ol class="steps">
+    <li><div>Connect the PadBox and click <b>Update firmware</b> (the download arrow at the top right).</div></li>
+    <li><div>Choose what to install: the firmware it runs now (to update it) or another one (to switch).</div></li>
+    <li><div>Click install. The PadBox restarts into update mode and the browser may ask you to pick it once more ("RP2 Boot"). Don't unplug it until it says it's done.</div></li>
+    <li><div>Reconnect. If you switched firmware, use that firmware's way of connecting (see <a href="#connect">Connecting</a>).</div></li>
+  </ol>
+  <div class="note"><span class="t">PadBox from before the Configurator?</span><p>If your PadBox still has the firmware it shipped with, or won't connect at all, see the next section: <a href="#older">Update an older PadBox</a>.</p></div>
+</section>
+
+<section id="older">
+  <h2><span class="n">13</span>Update an older PadBox</h2>
+  <p class="sub">PadBoxes sold before the PadBox Configurator existed came with older firmware that the Configurator can't set up. The <b>UPDATE AN OLDER PADBOX</b> button on the connect screen installs the latest firmware on them, straight from the browser, without opening the controller or pressing anything inside it.</p>
+  <h3>Do I need it?</h3>
+  <p>Use it if your PadBox runs one of these, or if CONNECT can't find your PadBox at all:</p>
+  <ul>
+    <li><b>HOJA, older version</b>: shows up as "Padbox GS-C". If you plug one in and click CONNECT, the Configurator notices it's an older version and opens this window for you.</li>
+    <li><b>GP2040-CE version 0.8</b>.</li>
+    <li><b>The original PhobGCC</b> (GS Platform).</li>
+  </ul>
+  <div class="note"><span class="t">Before you start</span><p>Your old settings aren't carried over: after the update you'll set up your buttons, lights and sticks again in the Configurator. Use Chrome or Edge on a computer, with a USB data cable.</p></div>
+  <figure><img src="img/older.png" alt="The Update an older PadBox window with Your PadBox, The firmware on it now and Install menus, and a RESTART IN UPDATE MODE button" loading="lazy" style="max-width:604px"><figcaption>The window tells you exactly what to do for the firmware you choose.</figcaption></figure>
+  <h3>Step by step</h3>
+  <ol class="steps">
+    <li><div>Open <a href="https://arkodd.github.io/padbox/">arkodd.github.io/padbox</a> and click <span class="ui">UPDATE AN OLDER PADBOX</span>.</div></li>
+    <li><div><b>Your PadBox</b>: choose GS Essential or GS Platform. Pick carefully: in update mode the PadBox can't tell the page which one it is.</div></li>
+    <li><div><b>The firmware on it now</b>: choose what your PadBox runs today.</div></li>
+    <li><div><b>Install</b>: choose the firmware you want. It starts on the same one you have now; you can also switch to another one here.</div></li>
+    <li><div>Put the PadBox into update mode: <b>unplug it, hold the buttons for your old firmware, plug it back in while holding them, then let go and click <span class="ui">INSTALL</span>.</b>
+      <div class="tw"><table>
+        <thead><tr><th>Firmware on it now</th><th>Buttons to hold</th></tr></thead>
+        <tbody>
+          <tr><td>HOJA (older version)</td><td><span class="k">Start</span> + <span class="k">Select</span></td></tr>
+          <tr><td>GP2040-CE 0.8</td><td><span class="k">Select</span> + <span class="k">Start</span> + <span class="k">D-pad ↑</span></td></tr>
+          <tr><td>PhobGCC (original)</td><td><span class="k">Start</span> + <span class="k">Select</span></td></tr>
+        </tbody>
+      </table></div></div></li>
+    <li><div>When the browser's list opens, choose <b>"RP2 Boot"</b> and click <span class="ui">Connect</span>.</div></li>
+    <li><div>Wait while it installs, and <b>don't unplug the PadBox</b>. When it says <b>Done</b>, the PadBox restarts on its new firmware by itself.</div></li>
+    <li><div>Close the window and connect as usual (see <a href="#connect">Connecting</a>): HOJA just plugs in; for GP2040-CE and PhobGCC, hold <span class="k">Start</span> while plugging in. Then set up your PadBox and click <b>Save</b>.</div></li>
+  </ol>
+  <h3>If the browser can't install it directly</h3>
+  <p>Some computers don't let the browser write to the PadBox. The window then offers <span class="ui">DOWNLOAD FIRMWARE</span> instead. Click it, and drag the downloaded file onto the <b>RPI-RP2</b> drive that appeared on your computer when the PadBox went into update mode. The PadBox restarts on the new firmware by itself.</p>
+</section>
+
+<section id="help">
+  <h2><span class="n">14</span>Troubleshooting</h2>
+  <details><summary>Nothing appears in the list when I click CONNECT</summary>
+    <p>Use Chrome or Edge on a computer, and a USB cable that carries data. For GP2040-CE and PhobGCC, hold <span class="k">Start</span> while plugging in. Try another USB port, without a hub.</p></details>
+  <details><summary>"The PadBox is busy"</summary>
+    <p>Only one program can talk to the PadBox at a time. Close other Configurator tabs and any other controller software, then click CONNECT again.</p></details>
+  <details><summary>My changes were gone after unplugging</summary>
+    <p>Click <b>Save</b> before unplugging. The Save button is orange when there are unsaved changes.</p></details>
+  <details><summary>My character moves on its own (stick drift)</summary>
+    <p>Calibrate the stick again, letting go of it fully when asked. If it still moves, raise the <b>Inner deadzone</b> a little.</p></details>
+  <details><summary>The stick doesn't reach the edge, or diagonals feel short</summary>
+    <p>Calibrate again and press firmly into every corner while rolling the stick. You can also raise the <b>Outer deadzone</b> slightly.</p></details>
+  <details><summary>The console doesn't recognise the PadBox</summary>
+    <p>Unplug it, hold the button for that console's mode (see <a href="#modes">Picking a mode</a>) and plug it back in.</p></details>
+  <details><summary>The firmware update stopped halfway</summary>
+    <p>Unplug it, open the Configurator and use <b>UPDATE AN OLDER PADBOX</b> to install the firmware again.</p></details>
+  <footer>PadBox GS · designed and assembled in Canada by Arkodd. The Configurator lives at <a href="https://arkodd.github.io/padbox/">arkodd.github.io/padbox</a>.</footer>
+</section>
+
+</main>
+</div>
+
+</body>
+</html>
