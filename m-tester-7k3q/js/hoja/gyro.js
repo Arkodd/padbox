@@ -38,8 +38,9 @@ const len = a => Math.hypot(a[0], a[1], a[2]);
 export class ImuFusion {
   constructor() { this.reset(); }
   reset() { this.q = Q.identity(); this.started = false; }
-  // The IMU chip's axes -> the model's (X right, Y up, Z towards the player), measured on an Essential lying face up.
-  static toModel(x, y, z) { return [-x, -z, -y]; }
+  // The firmware's IMU axes -> the model's (X right, Y up, Z towards the player), measured on an Essential lying face up.
+  // The firmware flips the chip's Z (it sits under the PCB), so face up reads +1 g on Z; older firmware shows upside down.
+  static toModel(x, y, z) { return [-x, z, -y]; }
   // accel and gyro in raw counts (already corrected for the sensitivity %), oneG = the accel reading for 1 g, dt in s
   update(accel, gyro, oneG, dt) {
     const al = len(accel), a = al > 1e-3 ? accel.map(v => v / al) : [0, 1, 0];
