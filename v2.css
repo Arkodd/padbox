@@ -667,6 +667,13 @@ canvas.gate { width: 211.1px; height: 211.1px; }
 .dpage.sticks.hoja .stick-ctl .seg + .dslider { margin-top: 8.82px; }
 .angle-hint.left { text-align: left; margin-top: 4.5px; }
 .dpage.sticks.hoja .btnrow.bottom { padding-top: 0; }
+/* the two-stick panels fit the page (502 px high), so Reset and Calibrate show without scrolling: a smaller gate, tighter rows */
+.dpage.sticks.hoja .panel.stick:not(.wide) { height: 486px; }
+.dpage.sticks.hoja .panel.stick:not(.wide) .gate-wrap { padding-top: 8px; }
+.dpage.sticks.hoja .panel.stick:not(.wide) canvas.gate { width: 156px; height: 156px; }
+.dpage.sticks.hoja .panel.stick:not(.wide) .two.flips { margin-top: 10px; }
+.dpage.sticks.hoja .panel.stick:not(.wide) .seg { margin-top: 8px; }
+.dpage.sticks.hoja .panel.stick:not(.wide) .stick-ctl .dslider { margin-top: 6px; }
 .legend { gap: 3.27px; }
 .legend .lg-dot, .legend .lg-ring { width: 6.54px; height: 6.54px; box-sizing: border-box; }
 .legend .lg-ring { margin-left: 8.17px; border: .82px solid #dfdfdf; }
