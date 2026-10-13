@@ -1,6 +1,8 @@
 // Shared UI pieces for every page: the line icons (the desktop apps' Icons, as SVG on the same 24x24 grid),
 // small DOM builders for the styled controls, and colors.
 
+import { $t } from './i18n.js';
+
 const I = {
   download: '<path d="M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4 15v5h16v-5"/>',
   upload: '<path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 15v5h16v-5"/>',
@@ -151,7 +153,7 @@ export function swatchRow(colors, onpick, oncustom) {
     row.append(b);
   }
   if (oncustom) {
-    const b = el('button.swatch.custom', { type: 'button', title: 'Another color...', html: icon('plus') });
+    const b = el('button.swatch.custom', { type: 'button', title: $t('Another color...'), html: icon('plus') });
     b.addEventListener('click', () => pickColor(0xff6800, oncustom));
     row.append(b);
   }
@@ -190,8 +192,8 @@ export function dialog(title, sub, iconName, body, buttons) {
 export function confirmBox(title, text, okText) {
   return new Promise(res => {
     let d;
-    const ok = button(okText || 'CONTINUE', { primary: true, icon: '', onclick: () => { d.close(); res(true); } });
-    const no = button('CANCEL', { icon: '', onclick: () => { d.close(); res(false); } });
+    const ok = button(okText || $t('CONTINUE'), { primary: true, icon: '', onclick: () => { d.close(); res(true); } });
+    const no = button($t('CANCEL'), { icon: '', onclick: () => { d.close(); res(false); } });
     d = dialog(title, '', 'info', el('p', { text, style: { margin: 0, color: 'var(--soft)' } }), [ok, no]);
     d.addEventListener('cancel', () => res(false));
   });

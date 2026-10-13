@@ -5,6 +5,7 @@
 import { el, button, dialog, confirmBox, download, openFile } from './js/ui.js';
 import { dicon } from './icons.js';
 import { famName, padboxName, boardKey } from './js/update.js';
+import { $t, $tNodes, niceDate } from './js/i18n.js';
 
 export function panel(title, kids, cls) { return el('div.panel' + (cls ? '.' + cls : ''), {}, [el('div.ptitle', {}, [el('span.pt', { text: title })]), ...kids]); }
 
@@ -48,7 +49,7 @@ export function segmented(labels, onchange) {
 // the small colored tag beside a stick's name: Not calibrated (red), Calibrated (green), Calibrating (orange)
 export function badge() {
   const b = el('span.badge');
-  const TEXT = { no: 'Not calibrated', ok: 'Calibrated', busy: 'Calibrating' };
+  const TEXT = { no: $t('Not calibrated'), ok: $t('Calibrated'), busy: $t('Calibrating') };
   return { el: b, set(kind) { b.className = 'badge ' + kind + (b.classList.contains('hidden') ? ' hidden' : ''); b.textContent = TEXT[kind] || kind; } };
 }
 
@@ -125,8 +126,7 @@ export function multiSelect(placeholder, items, onchange) {
 //      exportData: async () => object, fileName: name => file name, check: object => problem text or '',
 //      restore: async object => message (throws on failure) }
 const STORE = 'padbox-backup-history';
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-export const niceDate = d => { d = new Date(d); const p = n => String(n).padStart(2, '0'); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`; };
+export { niceDate };   // js/i18n.js: the date as the chosen language writes it
 function loadHistory() { try { const h = JSON.parse(localStorage.getItem(STORE) || '[]'); return Array.isArray(h) ? h : []; } catch (e) { return []; } }
 function saveHistory(h) { try { localStorage.setItem(STORE, JSON.stringify(h)); return true; } catch (e) { return false; } }
 
@@ -136,7 +136,7 @@ function askName(title, text, value, ok) {
   return new Promise(res => {
     const stage = document.getElementById('stage');
     const input = el('input.field.dm-in', { type: 'text', value, maxlength: 40, spellcheck: 'false' });
-    const cancel = el('button.pbtn.outline', { type: 'button', html: '<i class="dm-x">×</i><span>Cancel</span>' });
+    const cancel = el('button.pbtn.outline', { type: 'button', html: '<i class="dm-x">×</i><span>' + $t('Cancel') + '</span>' });
     const go = el('button.pbtn.primary', { type: 'button', html: dicon('check') + '<span>' + ok + '</span>' });
     const box = el('div.panel.dmodal', { role: 'dialog', 'aria-label': title }, [el('div.ptitle', { text: title }), el('p.dm-t', { text }), input, el('div.dm-btns', {}, [cancel, go])]);
     const back = el('div.dm-back', {}, [box]);
@@ -161,21 +161,21 @@ export function backupPage(o) {
     const h = loadHistory();
     const newest = h.slice().sort((a, b) => b.created.localeCompare(a.created))[0];
     last.innerHTML = '';
-    if (newest) last.append('Your last backup was successfully saved as ', el('b', { text: newest.name }), ' on ', el('b', { text: niceDate(newest.created) }), '.');
-    else last.append('No backup saved from this browser yet. Export one to keep a copy of your settings.');
+    if (newest) last.append(...$tNodes('Your last backup was successfully saved as {0} on {1}.', el('b', { text: newest.name }), el('b', { text: niceDate(newest.created) })));
+    else last.append($t('No backup saved from this browser yet. Export one to keep a copy of your settings.'));
     rows.innerHTML = '';
-    if (!h.length) rows.append(el('tr.none', {}, [el('td', { colspan: 8, text: 'Your backups will be listed here.' })]));
+    if (!h.length) rows.append(el('tr.none', {}, [el('td', { colspan: 8, text: $t('Your backups will be listed here.') })]));
     for (const e of h.slice().sort((a, b) => b.created.localeCompare(a.created))) {
       const ok = mine(e);
       const act = (ic, title, cls, fn, off) => { const b = el('button.ia.' + cls, { type: 'button', title, html: dicon(ic) }); b.disabled = !!off; b.addEventListener('click', fn); return b; };
       // the design's row: name to status, then rename and delete; clicking the row restores it (if it's from this PadBox)
-      const tr = el('tr' + (ok ? '.can' : ''), { title: ok ? 'Click to restore this backup onto the controller' : '' }, [
-        el('td.nm', { text: e.name }), el('td', { text: e.mode || (e.profiles != null ? e.profiles + (e.profiles === 1 ? ' profile' : ' profiles') : '') }), el('td', { text: niceDate(e.created) }),
+      const tr = el('tr' + (ok ? '.can' : ''), { title: ok ? $t('Click to restore this backup onto the controller') : '' }, [
+        el('td.nm', { text: e.name }), el('td', { text: e.mode || (e.profiles != null ? (e.profiles === 1 ? $t('{0} profile', e.profiles) : $t('{0} profiles', e.profiles)) : '') }), el('td', { text: niceDate(e.created) }),
         el('td', { text: (e.size / 1024).toFixed(2) + ' Kb' }), el('td', { text: famName(e.controller) }), el('td', { text: e.firmware || '' }),
-        el('td.' + (ok ? 'valid' : 'other'), { text: ok ? 'Valid' : 'Other PadBox', title: ok ? '' : 'Made on a ' + padboxName(e.board) + ' with ' + famName(e.controller) + ': it can only go back onto that one.' }),
+        el('td.' + (ok ? 'valid' : 'other'), { text: ok ? $t('Valid') : $t('Other PadBox'), title: ok ? '' : $t('Made on a {0} with {1}: it can only go back onto that one.', padboxName(e.board), famName(e.controller)) }),
         el('td.acts', {}, [
-          act('pencil', 'Rename', 'ed', ev => { ev.stopPropagation(); rename(e); }),
-          act('trash', 'Delete', 'del', ev => { ev.stopPropagation(); remove(e); }),
+          act('pencil', $t('Rename'), 'ed', ev => { ev.stopPropagation(); rename(e); }),
+          act('trash', $t('Delete'), 'del', ev => { ev.stopPropagation(); remove(e); }),
         ]),
       ]);
       if (ok) tr.addEventListener('click', () => restoreFrom(e));
@@ -184,9 +184,9 @@ export function backupPage(o) {
   }
   async function exportNow() {
     const n = loadHistory().filter(mine).length + 1;
-    const name = await askName('EXPORT CONFIGURATION', 'Name this backup to find it in your Backup history', 'Backup ' + n, 'Export'); if (!name) return;
-    say('Exporting...', 'var(--warn)');
-    let data; try { data = await o.exportData(); } catch (e) { return say('Export failed: ' + e.message, 'var(--bad)'); }
+    const name = await askName($t('EXPORT CONFIGURATION'), $t('Name this backup to find it in your Backup history'), $t('Backup {0}', n), $t('Export')); if (!name) return;
+    say($t('Exporting...'), 'var(--warn)');
+    let data; try { data = await o.exportData(); } catch (e) { return say($t('Export failed: {0}', e.message), 'var(--bad)'); }
     const text = JSON.stringify(data, null, 1);
     download(o.fileName(name), text);
     const h = loadHistory();
@@ -195,37 +195,37 @@ export function backupPage(o) {
     while (h.length > 30) h.shift();   // the browser keeps a few MB per site: the 30 newest
     const kept = saveHistory(h);
     paint();
-    say(kept ? 'Saved to your downloads and to the backup history.' : 'Saved to your downloads. The browser\'s storage is full, so it isn\'t in the history: delete old backups to make room.', kept ? 'var(--good)' : 'var(--warn)');
+    say(kept ? $t('Saved to your downloads and to the backup history.') : $t('Saved to your downloads. The browser\'s storage is full, so it isn\'t in the history: delete old backups to make room.'), kept ? 'var(--good)' : 'var(--warn)');
   }
-  async function restoreData(data, what) {
+  async function restoreData(data, question) {
     const problem = o.check(data); if (problem) return say(problem, 'var(--bad)');
-    if (!await confirmBox('Restore configuration', 'This replaces every setting on the controller with ' + what + '. Continue?', 'RESTORE')) return;
-    say('Restoring...', 'var(--warn)');
-    try { say(await o.restore(data), 'var(--good)'); } catch (e) { say('Restoring failed: ' + e.message, 'var(--bad)'); }
+    if (!await confirmBox($t('Restore configuration'), question, $t('RESTORE'))) return;
+    say($t('Restoring...'), 'var(--warn)');
+    try { say(await o.restore(data), 'var(--good)'); } catch (e) { say($t('Restoring failed: {0}', e.message), 'var(--bad)'); }
   }
   async function importNow() {
     const text = await openFile('.json,application/json'); if (!text) return;
-    let data; try { data = JSON.parse(text); } catch (e) { return say('This file isn\'t a PadBox configuration file.', 'var(--bad)'); }
-    restoreData(data, 'the ones in this file');
+    let data; try { data = JSON.parse(text); } catch (e) { return say($t('This file isn\'t a PadBox configuration file.'), 'var(--bad)'); }
+    restoreData(data, $t('This replaces every setting on the controller with the ones in this file. Continue?'));
   }
   async function restoreFrom(e) {
-    let data; try { data = JSON.parse(e.data); } catch (x) { return say('This backup is damaged.', 'var(--bad)'); }
-    restoreData(data, 'the backup "' + e.name + '" from ' + niceDate(e.created));
+    let data; try { data = JSON.parse(e.data); } catch (x) { return say($t('This backup is damaged.'), 'var(--bad)'); }
+    restoreData(data, $t('This replaces every setting on the controller with the backup "{0}" from {1}. Continue?', e.name, niceDate(e.created)));
   }
   async function rename(e) {
-    const name = await askName('EDIT BACKUP', 'Enter a new name to find this backup in your Backup history', e.name, 'Save'); if (!name) return;
+    const name = await askName($t('EDIT BACKUP'), $t('Enter a new name to find this backup in your Backup history'), e.name, $t('Save')); if (!name) return;
     const h = loadHistory(), x = h.find(y => y.id === e.id); if (x) { x.name = name; saveHistory(h); }
     paint();
   }
   async function remove(e) {
-    if (!await confirmBox('Delete backup', 'Remove "' + e.name + '" from the backup history? A file you downloaded stays where it is.', 'DELETE')) return;
+    if (!await confirmBox($t('Delete backup'), $t('Remove "{0}" from the backup history? A file you downloaded stays where it is.', e.name), $t('DELETE'))) return;
     saveHistory(loadHistory().filter(y => y.id !== e.id)); paint();
   }
-  const head = el('thead', {}, [el('tr', {}, ['Name', o.modeTitle || 'Mode', 'Date', 'Size', 'Controller', 'Firmware', 'Status', ''].map(t => el('th', { text: t })))]);
+  const head = el('thead', {}, [el('tr', {}, [$t('Name'), o.modeTitle || $t('Mode'), $t('Date'), $t('Size'), $t('Controller'), $t('Firmware'), $t('Status'), ''].map(t => el('th', { text: t })))]);
   const cols = el('colgroup', {}, [122.58, 71.91, 120.13, 76.81, 99.7, 90.71, 68.63, null].map(w => el('col', w ? { style: { width: w + 'px' } } : {})));
   const page = el('div.page.hidden.dpage.backup', {}, [
-    panel('CONFIGURATION FILES', [last, el('div.btnrow', {}, [pbtn('Export configuration to file', 'dl-small', false, exportNow), pbtn('Import configuration from file', 'ul-small', true, importNow)]), status]),
-    panel('BACKUP HISTORY', [el('p.text', { text: 'View previously saved configurations and restore a previous setup' }), el('div.tbl', {}, [el('table.hist', {}, [cols, head, rows])])]),
+    panel($t('CONFIGURATION FILES'), [last, el('div.btnrow', {}, [pbtn($t('Export configuration to file'), 'dl-small', false, exportNow), pbtn($t('Import configuration from file'), 'ul-small', true, importNow)]), status]),
+    panel($t('BACKUP HISTORY'), [el('p.text', { text: $t('View previously saved configurations and restore a previous setup') }), el('div.tbl', {}, [el('table.hist', {}, [cols, head, rows])])]),
   ]);
   paint();
   return { page, say };
@@ -235,7 +235,7 @@ export function backupPage(o) {
 export function toast(title, text, kind) {
   const stage = document.getElementById('stage');
   for (const old of stage.querySelectorAll('.toast')) old.remove();
-  const close = el('button.toast-x', { type: 'button', text: '×', title: 'Close' });
+  const close = el('button.toast-x', { type: 'button', text: '×', title: $t('Close') });
   const t = el('div.toast.' + (kind || 'good'), {}, [el('i.toast-ic', { html: dicon('check') }), el('div', {}, [el('div.toast-t', { text: title }), el('div.toast-d', { text })]), close]);
   close.addEventListener('click', () => t.remove());
   stage.append(t);
@@ -255,15 +255,15 @@ export async function updateNotice(o) {
   } catch (e) { }
   if (!latest || (o.build && o.build >= latest)) return false;
   o.button.classList.add('has-update');
-  o.button.title = 'A firmware update is available - click to install it';
+  o.button.title = $t('A firmware update is available - click to install it');
   const stage = document.getElementById('stage');
   for (const old of stage.querySelectorAll('.update-note')) old.remove();
-  const when = d => { const x = new Date(d * 1000); return x.getDate() + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][x.getMonth()] + ' ' + x.getFullYear(); };
-  const later = el('button.pbtn.outline', { type: 'button', html: '<span>Later</span>' });
-  const now = el('button.pbtn.primary', { type: 'button', html: dicon('download') + '<span>Update now</span>' });
+  const when = d => niceDate(d * 1000, false);
+  const later = el('button.pbtn.outline', { type: 'button', html: '<span>' + $t('Later') + '</span>' });
+  const now = el('button.pbtn.primary', { type: 'button', html: dicon('download') + '<span>' + $t('Update now') + '</span>' });
   const note = el('div.update-note', {}, [
-    el('div.un-head', {}, [el('i.un-ic', { html: dicon('download') }), el('div.un-t', { text: 'Firmware update available' })]),
-    el('div.un-d', { text: 'A newer ' + famName(o.family) + ' firmware (' + when(latest) + ') is available for your ' + padboxName(o.board) + '. Update it to get the latest fixes and features.' }),
+    el('div.un-head', {}, [el('i.un-ic', { html: dicon('download') }), el('div.un-t', { text: $t('Firmware update available') })]),
+    el('div.un-d', { text: $t('A newer {0} firmware ({1}) is available for your {2}. Update it to get the latest fixes and features.', famName(o.family), when(latest), padboxName(o.board)) }),
     el('div.btnrow', {}, [later, now]),
   ]);
   later.addEventListener('click', () => note.remove());

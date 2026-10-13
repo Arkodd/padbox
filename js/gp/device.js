@@ -3,6 +3,8 @@
 //   OUT 1 BEGIN (path), OUT 2 BODY (pieces of the JSON body), OUT 3 RUN, IN 4 STATUS (found, length), IN 5 READ (offset).
 // Calls are queued: one at a time, in order.
 
+import { $t } from '../i18n.js';
+
 export const GP_FILTERS = [{ vendorId: 0xcafe }];   // GP2040-CE's web-config mode (TinyUSB's VID)
 const BODY_PIECE = 512;
 
@@ -14,7 +16,7 @@ export class GpUsb {
     if (!d.opened) await d.open();
     if (d.configuration === null) await d.selectConfiguration(1);
     const itf = d.configuration.interfaces.find(i => i.alternates.some(a => a.interfaceClass === 0xff));
-    if (!itf) throw new Error('This PadBox\'s GP2040-CE firmware is too old for the web app (no WebUSB bridge). Update it with UPDATE FIRMWARE in the PadBox Suite.');
+    if (!itf) throw new Error($t('This PadBox\'s GP2040-CE firmware is too old for the web app (no WebUSB bridge). Update it with UPDATE FIRMWARE in the PadBox Suite.'));
     this.itf = itf.interfaceNumber;
     await d.claimInterface(this.itf);
   }
@@ -45,7 +47,7 @@ export class GpUsb {
     const st = await this.guard(d.controlTransferIn(this.setup(4), 5), path);
     if (st.status !== 'ok' || !st.data || st.data.byteLength < 5) throw new Error('USB: no status for ' + path);
     const sv = new DataView(st.data.buffer, st.data.byteOffset, st.data.byteLength);
-    if (sv.getUint8(0) !== 1) throw new Error('The controller doesn\'t know ' + path + ' (older firmware?)');
+    if (sv.getUint8(0) !== 1) throw new Error($t('The controller doesn\'t know {0} (older firmware?)', path));
     const n = sv.getUint32(1, true), out = new Uint8Array(n);
     for (let off = 0; off < n;) {
       const got = await this.guard(d.controlTransferIn(this.setup(5, off), Math.min(4096, n - off)), path);

@@ -8,10 +8,11 @@ import { firmwareUpdate, padboxName } from './js/update.js';
 import { buildDrawing } from './drawing.js';
 import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, paintGate, readout, multiSelect, backupPage, updateNotice } from './parts.js';
 import { dicon } from './icons.js';
+import { $t, $tn } from './js/i18n.js';
 
-const SOCD = ['Up priority', 'Neutral (Opposite directions cancel out)', 'Second input priority', 'First input priority (Locking)', 'Bypass (No cleaning)'];
+const SOCD = [$t('Up priority'), $t('Neutral (Opposite directions cancel out)'), $t('Second input priority'), $t('First input priority (Locking)'), $t('Bypass (No cleaning)')];
 // GP2040-CE's LED effects, by number. The firmware says how many it has (getPadboxLed's "effects"); one that doesn't has the first 5.
-const EFFECTS = ['Static color', 'Rainbow', 'Chase', 'Static theme', 'Custom theme', 'Breathing', 'Rainbow wave', 'Reactive fade', 'Ripple', 'Sparkle'];
+const EFFECTS = [$t('Static color'), $t('Rainbow'), $t('Chase'), $t('Static theme'), $t('Custom theme'), $t('Breathing'), $t('Rainbow wave'), $t('Reactive fade'), $t('Ripple'), $t('Sparkle')];
 const PRESETS = [0x0000ff, 0xff6800, 0xff0000, 0x00ff00, 0xffffff, 0xa020f0, 0x00ffff];
 
 export async function startGp(shell, dev, opts) {
@@ -20,7 +21,7 @@ export async function startGp(shell, dev, opts) {
   const dirty = { pins: false, led: false, settings: false, cal: false };
 
   // ---------------------------------------------------------------- read everything
-  shell.footer('Reading settings...');
+  shell.footer($t('Reading settings...'));
   const s = {};
   try {
     s.ver = await dev.get('/api/getFirmwareVersion');
@@ -33,10 +34,10 @@ export async function startGp(shell, dev, opts) {
     s.gamepad = await dev.get('/api/getGamepadOptions');
     s.addons = await dev.get('/api/getAddonsOptions');
   } catch (e) {
-    throw new Error('The PadBox answered but didn\'t send its settings (' + e.message + '). It may run older firmware: update it, then hold Start while plugging it in again.');
+    throw new Error($t('The PadBox answered but didn\'t send its settings ({0}). It may run older firmware: update it, then hold Start while plugging it in again.', e.message));
   }
   m.load(s);
-  if (!m.layout) throw new Error('This PadBox (board "' + m.board + '") isn\'t supported by this app.');
+  if (!m.layout) throw new Error($t('This PadBox (board "{0}") isn\'t supported by this app.', m.board));
   const L = m.layout;
 
   // the board as the design writes it: "PadBoxPlatform"; the PadBox GS E2T and GS NS in full: "PadBoxGSE2T", "PadBoxGSNS"
@@ -45,22 +46,22 @@ export async function startGp(shell, dev, opts) {
 
   // ---------------------------------------------------------------- header buttons (the design's icon buttons)
   const iconBtn = (cls, ic, title, onclick) => { const b = el('button.act.' + cls, { type: 'button', title, html: dicon(ic) }); b.addEventListener('click', onclick); return b; };
-  const btnUpdate = iconBtn('outline', 'hdr-download', 'Update firmware', () => firmwareUpdate({ board: L.board, current: 'GP2040-CE', enter: noDrive => reboot(noDrive ? 3 : 2, true) }));
-  const btnSave = iconBtn('save', 'hdr-save', 'Save to the controller', () => flush()); btnSave.disabled = true;
-  const btnPreview = iconBtn('light', 'hdr-beacon', 'Restart to preview LED', () => reboot(1));
+  const btnUpdate = iconBtn('outline', 'hdr-download', $t('Update firmware'), () => firmwareUpdate({ board: L.board, current: 'GP2040-CE', enter: noDrive => reboot(noDrive ? 3 : 2, true) }));
+  const btnSave = iconBtn('save', 'hdr-save', $t('Save to the controller'), () => flush()); btnSave.disabled = true;
+  const btnPreview = iconBtn('light', 'hdr-beacon', $t('Restart to preview LED'), () => reboot(1));
   // Disconnect: back to the connect screen; the PadBox stays in its configuration mode until it restarts
-  const btnPower = iconBtn('light', 'hdr-power', 'Disconnect', async () => {
-    if (Object.values(dirty).some(Boolean) && !await confirmBox('Unsaved changes', 'Your changes aren\'t saved on the controller yet. Disconnect anyway?', 'DISCONNECT')) return;
-    alive = false; shell.lost('Disconnected. The PadBox stays in configuration mode until you unplug it or restart it.');
+  const btnPower = iconBtn('light', 'hdr-power', $t('Disconnect'), async () => {
+    if (Object.values(dirty).some(Boolean) && !await confirmBox($t('Unsaved changes'), $t('Your changes aren\'t saved on the controller yet. Disconnect anyway?'), $t('DISCONNECT'))) return;
+    alive = false; shell.lost($t('Disconnected. The PadBox stays in configuration mode until you unplug it or restart it.'));
   });
-  const btnExit = el('button.act.primary', { type: 'button', html: dicon('hdr-gamepad') + '<span>Restart as controller</span>' }); btnExit.addEventListener('click', () => reboot(0));
+  const btnExit = el('button.act.primary', { type: 'button', html: dicon('hdr-gamepad') + '<span>' + $t('Restart as controller') + '</span>' }); btnExit.addEventListener('click', () => reboot(0));
   shell.actions([btnUpdate, btnSave, btnPreview, btnPower, btnExit]);
   // a newer firmware on the site: say so (the build is padboxBuild; firmware from before it had none)
   if (!opts.demo || /[?&]update/.test(location.search)) updateNotice({ board: L.board, family: 'GP2040-CE', build: +(s.ver && s.ver.padboxBuild) || 0, button: btnUpdate, open: () => btnUpdate.click() });
 
   function markDirty(k) {
     dirty[k] = true; btnSave.disabled = false;
-    say('Unsaved changes - click Save to send them to the controller.', 'var(--warn)');
+    say($t('Unsaved changes - click Save to send them to the controller.'), 'var(--warn)');
   }
   function say(text, color) { status.textContent = text; status.style.color = color || ''; shell.footer(text, color); }
 
@@ -71,14 +72,14 @@ export async function startGp(shell, dev, opts) {
   // (/api/setCalibration "taction"): L2 or R2 stay analog, anything else is a button pressed at half pull
   const TRIG = 44, TRIG_OK = new Set([-10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
   const actOf = pin => pin === TRIG ? (m.taction ? m.taction : 11) : m.actionOf(pin);
-  const fnName = a => (a ? a.long : '').replace(/\s*\/\s*/g, '/').replace(/\s+\(/, ' (');
+  const fnName = a => $tn(a ? a.long : '').replace(/\s*\/\s*/g, '/').replace(/\s+\(/, ' (');
   // the D-pad, the bumper and the stick clicks: no label in the drawing while they have their default function
   const QUIET_STICKS = { 'GS Essential': [18, 19] };
   const QUIET = new Set([2, 3, 4, 5, 22, ...(QUIET_STICKS[L.board] || [])]);
   const quiet = pin => QUIET.has(pin) && L.defaults && pin in L.defaults && actOf(pin) === L.defaults[pin];
   const drawing = buildDrawing(pin => select(pin), pin => {
     const a = act(actOf(pin));
-    return (pin === TRIG ? 'Analog trigger' : m.nameOfPin(pin)) + '  →  ' + (a && a.value === 40 ? 'Custom combo: ' + (comboName(m.comboOf(pin)) || 'nothing yet') : a && a.value !== -10 ? fnName(a) : 'nothing');
+    return (pin === TRIG ? $t('Analog trigger') : $tn(m.nameOfPin(pin))) + '  →  ' + (a && a.value === 40 ? $t('Custom combo: {0}', comboName(m.comboOf(pin)) || $t('nothing yet')) : a && a.value !== -10 ? fnName(a) : $t('nothing'));
   }, pin => { const a = act(actOf(pin)); return !a || a.value === -10 || quiet(pin) ? '' : a.value === 32 ? 'Turbo' : a.value === 40 ? (comboName(m.comboOf(pin)) || 'Combo') : a.value <= 4 ? a.key : a.short; },   // D-pad: Up/Down/Left/Right, drawn as arrows
   { 'GS Platform': 'platform', 'GS E2T': 'e2t', 'GS NS': 'ns' }[L.board] || 'essential');
 
@@ -86,8 +87,8 @@ export async function startGp(shell, dev, opts) {
   const status = el('p.hint2');
   const empty = el('div.panel.empty', {}, [
     el('div.click-icon', { html: dicon('click') }),
-    el('div.empty-t', { text: 'No button selected' }),
-    el('div.empty-d', { text: 'Click a button on the controller or press\nit on the device to configure its function\nand LED lighting' }),
+    el('div.empty-t', { text: $t('No button selected') }),
+    el('div.empty-d', { text: $t('Click a button on the controller or press\nit on the device to configure its function\nand LED lighting') }),
   ]);
   const fn = el('select.field.mono');
   for (const a of ACTS) fn.append(el('option', { value: a.value, text: fnName(a) }));
@@ -104,7 +105,7 @@ export async function startGp(shell, dev, opts) {
   // "Custom combo": one physical button presses several controller buttons at once (GP2040-CE's customButtonMask /
   // customDpadMask), chosen in a small window; the row under Function shows them and reopens it
   const comboTxt = el('span.combo-txt');
-  const comboEdit = el('button.combo-edit', { type: 'button', text: '+ Add', title: 'Make this button press more than one button at once' });
+  const comboEdit = el('button.combo-edit', { type: 'button', text: $t('+ Add'), title: $t('Make this button press more than one button at once') });
   comboEdit.addEventListener('click', () => {
     if (selPin < 0) return;
     if (actOf(selPin) !== 40) {   // one function so far: turn it into a combo that starts with it
@@ -114,7 +115,7 @@ export async function startGp(shell, dev, opts) {
     }
     editCombo();
   });
-  const comboRow = el('div.amount-row.combo-row', {}, [el('span', { text: 'Presses' }), comboTxt, comboEdit]);
+  const comboRow = el('div.amount-row.combo-row', {}, [el('span', { text: $t('Presses') }), comboTxt, comboEdit]);
   function editCombo() {
     const pin = selPin; if (pin < 0) return;
     const c = m.comboOf(pin), boxes = [];
@@ -124,14 +125,14 @@ export async function startGp(shell, dev, opts) {
       return el('label.combo-chip', {}, [input, el('span', { text: p.name })]);
     }));
     let d;
-    const ok = button('OK', { primary: true, icon: '', onclick: () => {
+    const ok = button($t('OK'), { primary: true, icon: '', onclick: () => {
       const n = { b: 0, d: 0 };
       for (const [p, input] of boxes) if (input.checked) { if (p.kind === 'd') n.d |= p.bit; else n.b |= p.bit; }
       m.setCombo(pin, n); markDirty('pins'); d.close(); refreshSide();
     } });
-    const cancel = button('CANCEL', { icon: '', onclick: () => d.close() });
-    d = dialog('Custom combo', m.nameOfPin(pin) + ': the buttons it presses, all at once', 'gamepad',
-      [el('p', { text: 'Tick every button and direction this button should press together.', style: { margin: '0 0 12px', color: 'var(--soft)' } }), grid], [ok, cancel]);
+    const cancel = button($t('CANCEL'), { icon: '', onclick: () => d.close() });
+    d = dialog($t('Custom combo'), $t('{0}: the buttons it presses, all at once', $tn(m.nameOfPin(pin))), 'gamepad',
+      [el('p', { text: $t('Tick every button and direction this button should press together.'), style: { margin: '0 0 12px', color: 'var(--soft)' } }), grid], [ok, cancel]);
   }
   const ledField = pressedColor => {
     const dot = el('i.dot'), txt = el('span');
@@ -141,21 +142,21 @@ export async function startGp(shell, dev, opts) {
   };
   const ledU = ledField(false), ledD = ledField(true);
   const ledBlock = el('div.led-block', {}, [
-    el('div.lbl', { text: 'LED color' }),
+    el('div.lbl', { text: $t('LED color') }),
     el('div.two', {}, [ledU.f, ledD.f]),
-    el('div.noled-note', { text: 'This button has no LED' }),
-    el('div.two.caps', {}, [el('span', { text: 'Default color' }), el('span', { text: 'When pressed' })]),
+    el('div.noled-note', { text: $t('This button has no LED') }),
+    el('div.two.caps', {}, [el('span', { text: $t('Default color') }), el('span', { text: $t('When pressed') })]),
   ]);
-  const btnResetOne = el('button.pbtn.primary', { type: 'button', html: dicon('sync') + '<span>Reset this button</span>' });
+  const btnResetOne = el('button.pbtn.primary', { type: 'button', html: dicon('sync') + '<span>' + $t('Reset this button') + '</span>' });
   btnResetOne.addEventListener('click', () => { if (selPin === TRIG) setAction(TRIG, 11); else if (selPin in L.defaults) setAction(selPin, L.defaults[selPin]); });
-  const btnResetAll = el('button.pbtn.outline', { type: 'button', html: dicon('sync') + '<span>Reset all buttons</span>' });
+  const btnResetAll = el('button.pbtn.outline', { type: 'button', html: dicon('sync') + '<span>' + $t('Reset all buttons') + '</span>' });
   btnResetAll.addEventListener('click', () => { for (const k in L.defaults) m.action[k] = L.defaults[k]; if (L.m && m.taction !== 11) { m.taction = 11; markDirty('cal'); } markDirty('pins'); markDirty('led'); refreshSide(); });
   const settingsPanel = el('div.panel.hidden', {}, [
-    el('div.ptitle', { text: 'BUTTON SETTINGS' }),
-    el('div.lbl', { text: 'Function' }), fn, comboRow,
+    el('div.ptitle', { text: $t('BUTTON SETTINGS') }),
+    el('div.lbl', { text: $t('Function') }), fn, comboRow,
     ledBlock,
     btnResetOne, btnResetAll,
-    el('p.hint', { html: 'Click <b>Save</b> to apply your changes to the controller' }),
+    el('p.hint', { html: $t('Click <b>Save</b> to apply your changes to the controller') }),
   ]);
 
   // GLOBAL LED SETTINGS: GP2040-CE's own effects; the color is set on every button (like "LED color for all buttons")
@@ -164,7 +165,7 @@ export async function startGp(shell, dev, opts) {
   effect.addEventListener('change', () => { m.mode = +effect.value; markDirty('led'); });
   let allColor = 0x28a6ff;
   const wheelDot = el('i.wheel-in'), wheelKnob = el('i.wheel-knob');
-  const wheel = el('div.wheel', { title: 'Pick a color for every button' }, [wheelDot, wheelKnob]);
+  const wheel = el('div.wheel', { title: $t('Pick a color for every button') }, [wheelDot, wheelKnob]);
   const rgbTxt = el('span'), hexTxt = el('span');
   const hsvHue = c => { const r = ((c >> 16) & 255) / 255, g = ((c >> 8) & 255) / 255, b = (c & 255) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return 0; let h = mx === r ? (g - b) / d % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; return h < 0 ? h + 360 : h; };
   const hueColor = h => { const f = n => { const k = (n + h / 60) % 6; return Math.round(255 * (1 - Math.max(0, Math.min(k, 4 - k, 1)))); }; return (f(5) << 16) | (f(3) << 8) | f(1); };
@@ -181,7 +182,7 @@ export async function startGp(shell, dev, opts) {
     const c = hueColor(h); showAllColor(c); setAllLeds(c);
   });
   const swatches = el('div.sw', {}, [0xe02b2b, 0xe09c06, 0x0634e0, 0xeb2fdb].map(c => { const b = el('button', { type: 'button', title: hex(c) }); b.style.background = hex(c); b.addEventListener('click', () => { showAllColor(c); setAllLeds(c); }); return b; }));
-  const plus = el('button.plus', { type: 'button', title: 'Another color...', html: dicon('plus') });
+  const plus = el('button.plus', { type: 'button', title: $t('Another color...'), html: dicon('plus') });
   plus.addEventListener('click', () => pickColor(allColor, c => { showAllColor(c); setAllLeds(c); }));
   swatches.append(plus);
   const brightVal = el('span');
@@ -190,22 +191,22 @@ export async function startGp(shell, dev, opts) {
   bright.addEventListener('input', () => { m.brightness = +bright.value; paintBright(); markDirty('led'); });
   // Idle Glow: in the design's panel, but GP2040-CE has no such setting, so it's shown switched off. (The design's
   // Animation time is left out: GP2040-CE sets the animation speed itself.)
-  const idle = dtoggle('Idle Glow', () => { }); idle.disabled = true;
-  idle.el.title = 'Idle Glow is a HOJA setting: GP2040-CE does not have it';
-  const colorLbl = el('span', { text: 'Color' });
+  const idle = dtoggle($t('Idle Glow'), () => { }); idle.disabled = true;
+  idle.el.title = $t('Idle Glow is a HOJA setting: GP2040-CE does not have it');
+  const colorLbl = el('span', { text: $t('Color') });
   const ledPanel = el('div.panel.ledp', {}, [
-    el('div.ptitle', { text: 'GLOBAL LED SETTINGS' }),
-    el('div.lbl', { text: 'Lighting effect' }), effect,
+    el('div.ptitle', { text: $t('GLOBAL LED SETTINGS') }),
+    el('div.lbl', { text: $t('Lighting effect') }), effect,
     el('div.lbl.idle-row', {}, [colorLbl, idle.el]),
     el('div.colorrow', {}, [wheel, el('div', {}, [el('div.readout', {}, [rgbTxt, hexTxt]), swatches])]),
-    el('div.dslider', {}, [el('div.lbl.split', {}, [el('span', { text: 'Brightness' }), brightVal]), bright]),
+    el('div.dslider', {}, [el('div.lbl.split', {}, [el('span', { text: $t('Brightness') }), brightVal]), bright]),
     status,
   ]);
   const column = el('div.side-col', {}, [empty, settingsPanel, ledPanel]);
   // PROFILE: the button profile in use, which is also the one this page edits
   // (a dropdown above the right-hand panels; each profile shows its name from GP2040-CE, or "Profile n")
-  const profileName = n => { const d = n === 1 ? m.pinDoc : m.altDocs[n - 2]; const t = d && d.profileLabel ? String(d.profileLabel).trim() : ''; return t || 'Profile ' + n; };
-  const profileBar = el('select.field.profile-sel', { title: 'The button profile in use (on the controller: hold Home + Touchpad and press 1P, 2P, 3P or 4P)' });
+  const profileName = n => { const d = n === 1 ? m.pinDoc : m.altDocs[n - 2]; const t = d && d.profileLabel ? String(d.profileLabel).trim() : ''; return t || $t('Profile {0}', n); };
+  const profileBar = el('select.field.profile-sel', { title: $t('The button profile in use (on the controller: hold Home + Touchpad and press 1P, 2P, 3P or 4P)') });
   for (let n = 1; n <= 4; n++) profileBar.append(el('option', { value: n, text: profileName(n) }));
   profileBar.addEventListener('change', () => { const n = +profileBar.value; m.profileNumber = n; m.editProfile = n; markDirty('settings'); refreshSide(); });
   const page0 = el('div.page.controller', {}, [drawing.svg, profileBar, column]);
@@ -217,7 +218,7 @@ export async function startGp(shell, dev, opts) {
     const none = selPin < 0;
     empty.classList.toggle('hidden', !none); settingsPanel.classList.toggle('hidden', none);
     column.classList.toggle('selected', !none); page0.classList.toggle('selected', !none);
-    colorLbl.textContent = none ? 'Color' : 'LED color';   // as the design words it in each state
+    colorLbl.textContent = none ? $t('Color') : $t('LED color');   // as the design words it in each state
     if (!none) {
       const ph = selPin === TRIG ? null : m.phys(selPin);
       for (const o of fn.options) o.disabled = selPin === TRIG && !TRIG_OK.has(+o.value);   // what the trigger can do
@@ -226,8 +227,8 @@ export async function startGp(shell, dev, opts) {
       // a combo can be any of the buttons and directions; not Turbo, Fn or the trigger
       const canCombo = selPin !== TRIG && !(ph && ph.fixed) && (isCombo || actOf(selPin) === -10 || !!(one && one.key));
       comboRow.classList.toggle('off', !canCombo || !isCombo);   // shown for a combo only (choose "Custom combo" in Function)
-      comboTxt.textContent = isCombo ? (comboName(m.comboOf(selPin)) || 'nothing yet') : one && one.key ? one.key : 'nothing';
-      comboEdit.textContent = isCombo ? 'Edit' : '+ Add';
+      comboTxt.textContent = isCombo ? (comboName(m.comboOf(selPin)) || $t('nothing yet')) : one && one.key ? one.key : $t('nothing');
+      comboEdit.textContent = isCombo ? $t('Edit') : $t('+ Add');
       for (const o of fn.options) if (+o.value === 40) o.disabled = selPin === TRIG;   // the trigger can't be a combo
       const slot = selPin === TRIG ? -1 : m.ledSlot(ph);
       ledBlock.classList.toggle('noled', slot < 0);   // keeps its space, so the panels below don't move
@@ -271,32 +272,32 @@ export async function startGp(shell, dev, opts) {
   // in it and its reading; the axes; the gate's shape; the deadzones; then Reset and Calibrate. A stick switched off shows
   // "Stick disabled" instead of its settings.
   // the GS Platform has one stick: one wide panel, the gate on the left and its settings on the right (its design)
-  const sticks = [makeStick(0, L.noRightStick ? 'STICK' : 'LEFT STICK'), makeStick(1, 'RIGHT STICK')];
+  const sticks = [makeStick(0, L.noRightStick ? $t('STICK') : $t('LEFT STICK')), makeStick(1, $t('RIGHT STICK'))];
   if (L.noRightStick) sticks[0].card.classList.add('wide');
   const page1 = el('div.page.hidden.dpage.sticks' + (L.noRightStick ? '.one' : ''), {}, (L.noRightStick ? sticks.slice(0, 1) : sticks).map(s => s.card));
   function makeStick(idx, title) {
     const cv = el('canvas.gate'), tag = badge();
-    const en = dtoggle('Enabled', v => { if (idx === 0) m.stick1Enabled = v; else m.stick2Enabled = v; markDirty('cal'); showOn(); }, 'Disabled');
+    const en = dtoggle($t('Enabled'), v => { if (idx === 0) m.stick1Enabled = v; else m.stick2Enabled = v; markDirty('cal'); showOn(); }, $t('Disabled'));
     const rd1 = el('div.rd1'), rd2 = el('div.rd2'), infoL = el('p.cal-info');
-    const bCal = pbtn('Calibrate', 'target', true, () => begin());
-    const bNext = pbtn('Next', '', true, () => next());
-    const bCancel = pbtn('Cancel', '', false, () => end('Calibration cancelled.'));
-    const bReset = pbtn('Reset', 'sync', false, () => postCal({ ['s' + (idx + 1) + 'cal']: false }, 'Calibration removed. The stick is centred automatically at power-up again.'));
-    bReset.title = 'Remove the stored calibration'; bCal.title = 'Store the stick\'s centre and full range in the controller';
-    const fx = dtoggle('Flip X axis', () => flip()), fy = dtoggle('Flip Y axis', () => flip());
+    const bCal = pbtn($t('Calibrate'), 'target', true, () => begin());
+    const bNext = pbtn($t('Next'), '', true, () => next());
+    const bCancel = pbtn($t('Cancel'), '', false, () => end($t('Calibration cancelled.')));
+    const bReset = pbtn($t('Reset'), 'sync', false, () => postCal({ ['s' + (idx + 1) + 'cal']: false }, $t('Calibration removed. The stick is centred automatically at power-up again.')));
+    bReset.title = $t('Remove the stored calibration'); bCal.title = $t('Store the stick\'s centre and full range in the controller');
+    const fx = dtoggle($t('Flip X axis'), () => flip()), fy = dtoggle($t('Flip Y axis'), () => flip());
     // the gate: the right stick's is always round (GP2040-CE's forced circularity); the left one is round by default
     // and can be switched to octagonal (the stick then reaches the octagon's corners)
-    const gate = segmented(['Round Gate', 'Octagonal Gate'], v => { m.circularity = v === 0; markDirty('settings'); });
-    if (idx === 1) gate.lock(true, 'This stick\'s gate is always round');
-    const inner = dslider('Inner deadzone', 0, 100, v => v + '%', v => { if (idx === 0) m.innerDeadzone = v; else m.innerDeadzone2 = v; markDirty('settings'); });
+    const gate = segmented([$t('Round Gate'), $t('Octagonal Gate')], v => { m.circularity = v === 0; markDirty('settings'); });
+    if (idx === 1) gate.lock(true, $t('This stick\'s gate is always round'));
+    const inner = dslider($t('Inner deadzone'), 0, 100, v => v + '%', v => { if (idx === 0) m.innerDeadzone = v; else m.innerDeadzone2 = v; markDirty('settings'); });
     // GP2040-CE stores how far out the stick reaches 100% (100 = all the way); shown as the deadzone at the edge (0% = none)
-    const outer = dslider('Outer deadzone', 0, 100, v => v + '%', v => { if (idx === 0) m.outerDeadzone = 100 - v; else m.outerDeadzone2 = 100 - v; markDirty('settings'); });
-    const offMsg = el('div.stick-off', {}, [el('div.off-icon', { html: dicon('nav-stick') }), el('div.empty-t', { text: 'Stick disabled' }),
-      el('div.empty-d', { text: 'This stick is currently disabled. Enable it to access calibration, deadzone, and other input settings.' })]);
+    const outer = dslider($t('Outer deadzone'), 0, 100, v => v + '%', v => { if (idx === 0) m.outerDeadzone = 100 - v; else m.outerDeadzone2 = 100 - v; markDirty('settings'); });
+    const offMsg = el('div.stick-off', {}, [el('div.off-icon', { html: dicon('nav-stick') }), el('div.empty-t', { text: $t('Stick disabled') }),
+      el('div.empty-d', { text: $t('This stick is currently disabled. Enable it to access calibration, deadzone, and other input settings.') })]);
     // while calibrating, the steps take the settings' place
     const settingsBox = el('div.stick-set', {}, [el('div.two.flips', {}, [fx.el, fy.el]), gate.el, inner.el, outer.el]);
     const controls = el('div.stick-ctl', {}, [settingsBox, infoL, el('div.btnrow.bottom', {}, [bReset, bCal, bCancel, bNext])]);
-    const absent = el('div.empty-d', { text: 'No analog stick on this output.', style: { padding: '90px 0', textAlign: 'center' } });
+    const absent = el('div.empty-d', { text: $t('No analog stick on this output.'), style: { padding: '90px 0', textAlign: 'center' } });
     const body = el('div.stick-body', {}, [el('div.gate-wrap', {}, [cv]), el('div.rd', {}, [rd1, rd2]), controls, offMsg]);
     const c = panel(title, [body, absent], 'stick');
     c.firstChild.append(tag.el, en.el);   // the badge and "Enabled" on the title row
@@ -331,28 +332,28 @@ export async function startGp(shell, dev, opts) {
     function say(t, color) { if (st.state) { infoL.textContent = t || ''; infoL.style.color = color || ''; } else if (t) shell.footer(t, color); }
     const mean = q => q.reduce((a, b) => a + b, 0) / Math.max(1, q.length);
     const spread = q => q.length ? Math.max(...q) - Math.min(...q) : 0;
-    function begin() { st.state = 1; st.trail = []; st.msg = ''; say('Step 1 of 2: let go of the stick so it rests in the middle, then click Next.'); setPbtn(bNext, 'Next'); refresh(); }
+    function begin() { st.state = 1; st.trail = []; st.msg = ''; say($t('Step 1 of 2: let go of the stick so it rests in the middle, then click Next.')); setPbtn(bNext, $t('Next')); refresh(); }
     function next() {
       if (st.state === 1) {
-        if (st.hx.length < 8) { say('Not enough readings yet, wait a second and click Next again.', 'var(--warn)'); return; }
+        if (st.hx.length < 8) { say($t('Not enough readings yet, wait a second and click Next again.'), 'var(--warn)'); return; }
         const wob = Math.max(spread(st.hx), spread(st.hy));
-        if (wob > 120) { say(`The stick is still moving (${wob} counts of wobble). Let it rest and click Next again.`, 'var(--warn)'); return; }
+        if (wob > 120) { say($t('The stick is still moving ({0} counts of wobble). Let it rest and click Next again.', wob), 'var(--warn)'); return; }
         const cx = mean(st.hx), cy = mean(st.hy);
         w = { cx, cy, minX: cx, maxX: cx, minY: cy, maxY: cy };
         st.state = 2; st.trail = [];
-        say('Step 2 of 2: roll the stick slowly around the edge 3 times, touching every corner. Click Finish when the trace shows the whole gate.');
-        setPbtn(bNext, 'Finish');
+        say($t('Step 2 of 2: roll the stick slowly around the edge 3 times, touching every corner. Click Finish when the trace shows the whole gate.'));
+        setPbtn(bNext, $t('Finish'));
       } else if (st.state === 2) {
         const rx = Math.min(w.maxX - w.cx, w.cx - w.minX), ry = Math.min(w.maxY - w.cy, w.cy - w.minY);
-        if (rx < 250 || ry < 250) { say(`Not enough movement: the stick has to reach the edge on all four sides (now ${rx | 0} / ${ry | 0} counts, need at least 250). Keep rolling it.`, 'var(--warn)'); return; }
+        if (rx < 250 || ry < 250) { say($t('Not enough movement: the stick has to reach the edge on all four sides (now {0} / {1} counts, need at least 250). Keep rolling it.', rx | 0, ry | 0), 'var(--warn)'); return; }
         const k = 's' + (idx + 1);
-        postCal({ [k + 'cal']: true, [k + 'cx']: Math.round(w.cx), [k + 'cy']: Math.round(w.cy), [k + 'minx']: w.minX | 0, [k + 'maxx']: w.maxX | 0, [k + 'miny']: w.minY | 0, [k + 'maxy']: w.maxY | 0 }, 'Saved to the controller. Restart the controller to use it.');
+        postCal({ [k + 'cal']: true, [k + 'cx']: Math.round(w.cx), [k + 'cy']: Math.round(w.cy), [k + 'minx']: w.minX | 0, [k + 'maxx']: w.maxX | 0, [k + 'miny']: w.minY | 0, [k + 'maxy']: w.maxY | 0 }, $t('Saved to the controller. Restart the controller to use it.'));
       }
     }
     function end(msg, color) { st.state = 0; st.trail = []; refresh(); say(msg, color); }
     async function postCal(body, msg) {
       try { const r = await dev.post('/api/setCalibration', body); m.loadCal(r); end(msg, 'var(--good)'); sync(); }
-      catch (e) { say('Couldn\'t save: ' + e.message, 'var(--bad)'); }
+      catch (e) { say($t('Couldn\'t save: {0}', e.message), 'var(--bad)'); }
     }
     const norm = (v, c2, lo, hi) => v >= c2 ? (hi - c2 > 1 ? Math.min(1, (v - c2) / (hi - c2)) : 0) : (c2 - lo > 1 ? -Math.min(1, (c2 - v) / (c2 - lo)) : 0);
     st.feed = (x, y) => {
@@ -370,8 +371,8 @@ export async function startGp(shell, dev, opts) {
       if (inv & 1) nx = -nx; if (inv & 2) ny = -ny;
       st.outX = nx; st.outY = ny;
       if (st.state === 2 && Math.hypot(nx, ny) > 0.55) { st.trail.push([nx, ny]); if (st.trail.length > 4000) st.trail.shift(); }
-      if (st.state === 1) st.status = 'resting: ' + Math.max(spread(st.hx), spread(st.hy)) + ' counts of wobble';
-      if (st.state === 2) { const rx = Math.min(w.maxX - w.cx, w.cx - w.minX), ry = Math.min(w.maxY - w.cy, w.cy - w.minY); st.status = `reach so far: X ${rx | 0}  Y ${ry | 0} counts`; }
+      if (st.state === 1) st.status = $t('resting: {0} counts of wobble', Math.max(spread(st.hx), spread(st.hy)));
+      if (st.state === 2) { const rx = Math.min(w.maxX - w.cx, w.cx - w.minX), ry = Math.min(w.maxY - w.cy, w.cy - w.minY); st.status = $t('reach so far: X {0}  Y {1} counts', rx | 0, ry | 0); }
     };
     // the gate (parts.js paintGate): a round gate stops the dot at the circle, as the firmware does
     st.paint = () => {
@@ -381,7 +382,7 @@ export async function startGp(shell, dev, opts) {
       paintGate(cv, { round, din: (idx === 0 ? m.innerDeadzone : m.innerDeadzone2) / 100, dout: (idx === 0 ? m.outerDeadzone : m.outerDeadzone2) / 100,
         out: [px, py], trail: st.trail, gate: st.state ? '#ff6800' : '#666666', off: !en.checked });
       const r = readout(st.outX, st.outY);
-      rd1.textContent = r.xy; rd2.textContent = st.state && st.status ? st.status : r.centered ? 'Centered' : r.angle;
+      rd1.textContent = r.xy; rd2.textContent = st.state && st.status ? st.status : r.centered ? $t('Centered') : r.angle;
     };
     return st;
   }
@@ -391,28 +392,28 @@ export async function startGp(shell, dev, opts) {
   // repeat while held when turbo is on (GP2040-CE's SHMUP "always on" buttons); a button with the Turbo function can
   // still switch turbo on or off for any button while playing.
   const socd = dselect(SOCD, i => { m.socdMode = i; markDirty('settings'); });
-  const fourWay = dtoggle('4-way mode (No diagonals on the D-Pad / Left stick)', v => { m.fourWayMode = v; markDirty('settings'); });
-  const debounce = dslider('Debounce delay', 0, 50, v => v === 0 ? 'Off' : v + 'ms', v => { m.debounceDelay = v; markDirty('settings'); });
-  const rumble = dtoggle('Rumble enabled', v => { m.rumbleEnabled = v; markDirty('cal'); });
-  const turbo = dtoggle('Enabled', v => { m.turboEnabled = v; markDirty('settings'); syncTurbo(); }, 'Disabled');
-  const shots = dslider('Shot count (Higher is faster)', 2, 30, null, v => { m.turboShotCount = v; markDirty('settings'); });
+  const fourWay = dtoggle($t('4-way mode (No diagonals on the D-Pad / Left stick)'), v => { m.fourWayMode = v; markDirty('settings'); });
+  const debounce = dslider($t('Debounce delay'), 0, 50, v => v === 0 ? $t('Off') : v + 'ms', v => { m.debounceDelay = v; markDirty('settings'); });
+  const rumble = dtoggle($t('Rumble enabled'), v => { m.rumbleEnabled = v; markDirty('cal'); });
+  const turbo = dtoggle($t('Enabled'), v => { m.turboEnabled = v; markDirty('settings'); syncTurbo(); }, $t('Disabled'));
+  const shots = dslider($t('Shot count (Higher is faster)'), 2, 30, null, v => { m.turboShotCount = v; markDirty('settings'); });
   const TURBO_BTNS = COMBO_PARTS.filter(p => p.kind === 'b' && p.bit <= 128).map(p => { const a = ACTS.find(x => x.key === p.name); return { value: p.bit, text: a ? fnName(a) : p.name, short: p.name }; });
-  const assigned = multiSelect('Select buttons to enable Turbo', TURBO_BTNS, v => { m.turboMask = v.reduce((a, b) => a | b, 0); markDirty('settings'); });
-  assigned.el.title = 'These buttons repeat by themselves while held, whenever turbo is on';
-  const inputPanel = panel('INPUT BEHAVIOR', [el('div.lbl', { text: 'SOCD cleaning mode' }), socd, fourWay.el, debounce.el,
+  const assigned = multiSelect($t('Select buttons to enable Turbo'), TURBO_BTNS, v => { m.turboMask = v.reduce((a, b) => a | b, 0); markDirty('settings'); });
+  assigned.el.title = $t('These buttons repeat by themselves while held, whenever turbo is on');
+  const inputPanel = panel($t('INPUT BEHAVIOR'), [el('div.lbl', { text: $t('SOCD cleaning mode') }), socd, fourWay.el, debounce.el,
     el('div.btnrow.bottom', {}, [
-      pbtn('Reset', 'sync', false, () => { m.socdMode = 1; m.fourWayMode = false; m.debounceDelay = 5; syncSettings(); markDirty('settings'); }),
-      pbtn('Save', 'check', true, () => flush()),
+      pbtn($t('Reset'), 'sync', false, () => { m.socdMode = 1; m.fourWayMode = false; m.debounceDelay = 5; syncSettings(); markDirty('settings'); }),
+      pbtn($t('Save'), 'check', true, () => flush()),
     ])], 'stretch');
-  const turboOn = el('div.turbo-on', {}, [shots.el, el('div.lbl', { text: 'Assigned Buttons' }), assigned.el,
-    el('p.hint.wrap', { text: 'Turbo Mode automatically repeats the assigned button input while held, allowing faster repeated actions with less effort.' }),
+  const turboOn = el('div.turbo-on', {}, [shots.el, el('div.lbl', { text: $t('Assigned Buttons') }), assigned.el,
+    el('p.hint.wrap', { text: $t('Turbo Mode automatically repeats the assigned button input while held, allowing faster repeated actions with less effort.') }),
     el('div.btnrow.bottom', {}, [
-      pbtn('Reset', 'sync', false, () => { m.turboShotCount = 5; m.turboMask = 0; syncSettings(); markDirty('settings'); }),
-      pbtn('Save', 'check', true, () => flush()),
+      pbtn($t('Reset'), 'sync', false, () => { m.turboShotCount = 5; m.turboMask = 0; syncSettings(); markDirty('settings'); }),
+      pbtn($t('Save'), 'check', true, () => flush()),
     ])]);
-  const turboOff = el('div.panel-off', {}, [el('div.off-icon', { html: dicon('bolt') }), el('div.empty-t', { text: 'Turbo mode disabled' }),
-    el('div.empty-d', { text: 'Enable Turbo Mode to repeat supported\nbutton inputs automatically while held' })]);
-  const turboPanel = panel('TURBO', [turboOn, turboOff], 'stretch');
+  const turboOff = el('div.panel-off', {}, [el('div.off-icon', { html: dicon('bolt') }), el('div.empty-t', { text: $t('Turbo mode disabled') }),
+    el('div.empty-d', { text: $t('Enable Turbo Mode to repeat supported\nbutton inputs automatically while held') })]);
+  const turboPanel = panel($t('TURBO'), [turboOn, turboOff], 'stretch');
   turboPanel.firstChild.append(turbo.el);
   function syncTurbo() { turboOn.classList.toggle('hidden', !turbo.checked); turboOff.classList.toggle('hidden', turbo.checked); }
   const page2 = el('div.page.hidden.dpage.settings', {}, [inputPanel, turboPanel]);
@@ -427,12 +428,12 @@ export async function startGp(shell, dev, opts) {
   // (GP2040-CE's /api/getConfig), to a file and the backup history; restoring sends it back (/api/setConfig)
   const backup = backupPage({
     controller: 'GP2040-CE', board: L.board, firmware: s.ver && s.ver.version ? String(s.ver.version) : '',
-    modeTitle: 'Profiles', mode: () => '4',   // the design's "Profiles" column: this app keeps all four button profiles
+    modeTitle: $t('Profiles'), mode: () => '4',   // the design's "Profiles" column: this app keeps all four button profiles
     exportData: () => dev.get('/api/getConfig'),
     fileName: name => padboxName(L.board) + ' - GP2040-CE - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
-    check: d => !d || typeof d !== 'object' || Array.isArray(d) ? 'This file isn\'t a PadBox configuration file.'
-      : d.format ? 'This is a ' + (/hoja/.test(d.format) ? 'HOJA' : 'different') + ' configuration file: it only goes back onto a PadBox running that firmware.' : '',
-    restore: async d => { await dev.post('/api/setConfig', d); return 'Restored. Click Restart as controller to apply everything.'; },
+    check: d => !d || typeof d !== 'object' || Array.isArray(d) ? $t('This file isn\'t a PadBox configuration file.')
+      : d.format ? (/hoja/.test(d.format) ? $t('This is a HOJA configuration file: it only goes back onto a PadBox running that firmware.') : $t('This is a different configuration file: it only goes back onto a PadBox running that firmware.')) : '',
+    restore: async d => { await dev.post('/api/setConfig', d); return $t('Restored. Click Restart as controller to apply everything.'); },
   });
   const page3 = backup.page;
 
@@ -450,7 +451,7 @@ export async function startGp(shell, dev, opts) {
   async function flush() {
     if (!Object.values(dirty).some(Boolean)) return;
     const d = { ...dirty }; for (const k in dirty) dirty[k] = false;
-    btnSave.disabled = true; say('Saving...', 'var(--warn)');
+    btnSave.disabled = true; say($t('Saving...'), 'var(--warn)');
     try {
       if (d.pins) { await dev.post('/api/setPinMappings', m.pinsBody()); await dev.post('/api/setProfileOptions', m.profilesBody()); }
       if (d.led) {
@@ -464,23 +465,23 @@ export async function startGp(shell, dev, opts) {
       if (d.pins) {
         const back = await dev.get('/api/getPinMappings'), want = m.pinsBody();
         const off = Object.keys(want).filter(k => want[k] && typeof want[k] === 'object' && back[k] && back[k].action !== want[k].action);
-        if (off.length) throw new Error('the controller still has the old setting for ' + off.map(k => m.nameOfPin(+k.slice(3))).join(', '));
+        if (off.length) throw new Error($t('the controller still has the old setting for {0}', off.map(k => $tn(m.nameOfPin(+k.slice(3)))).join(', ')));
       }
       if (d.led) {
         const back = await dev.get('/api/getPadboxLed');
-        if (back.mode !== m.mode || back.brightness !== m.brightness) throw new Error('the controller still has the old LED effect');
+        if (back.mode !== m.mode || back.brightness !== m.brightness) throw new Error($t('the controller still has the old LED effect'));
       }
-      say('Saved and checked. Click Restart as controller to use the new buttons.', 'var(--good)');
+      say($t('Saved and checked. Click Restart as controller to use the new buttons.'), 'var(--good)');
     } catch (e) {
       for (const k in d) if (d[k]) dirty[k] = true;
-      btnSave.disabled = false; say('Saving failed: ' + e.message, 'var(--bad)');
+      btnSave.disabled = false; say($t('Saving failed: {0}', e.message), 'var(--bad)');
     }
   }
   async function reboot(mode, quiet) {
     await flush();
     alive = false;
     try { await dev.post('/api/reboot', { bootMode: mode }); } catch (e) { }
-    if (!quiet) shell.lost(mode === 2 ? 'The PadBox restarted into update mode.' : mode === 1 ? 'The PadBox is restarting to preview its LEDs. Hold Start while plugging it in to configure it again.' : 'The PadBox restarted as a controller. Hold Start while plugging it in to configure it again.');
+    if (!quiet) shell.lost(mode === 2 ? $t('The PadBox restarted into update mode.') : mode === 1 ? $t('The PadBox is restarting to preview its LEDs. Hold Start while plugging it in to configure it again.') : $t('The PadBox restarted as a controller. Hold Start while plugging it in to configure it again.'));
   }
 
   // the analog trigger (adc[4], raw 0..4095), 0..1 for the drawing: from its stored calibration, or else
@@ -526,7 +527,7 @@ export async function startGp(shell, dev, opts) {
         await sleep(15);
       } catch (e) {
         if (!alive) return;
-        if (++fails >= 3) { alive = false; shell.lost('Lost the connection to the PadBox.'); return; }
+        if (++fails >= 3) { alive = false; shell.lost($t('Lost the connection to the PadBox.')); return; }
         await sleep(200);
       }
     }

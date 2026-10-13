@@ -4,6 +4,7 @@
 // without a controller. GP2040-CE and HOJA2 are reached with WebUSB, PhobGCC with Web Serial (its USB tool mode).
 
 import { el, icon, button } from './js/ui.js';
+import { $t, $tn, $tNodes, lang, LANGS, setLang } from './js/i18n.js';
 import { GP_FILTERS, GpUsb, GpDemo } from './js/gp/device.js';
 import { startGp } from './gp-app.js';
 import { startHoja } from './hoja-app.js';
@@ -28,13 +29,13 @@ import { legacyUpdate } from './js/legacy-update.js';
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const PAGES = {
-  CONTROLLER: ['controller', 'nav-gamepad', 'Assign functions to each button and configure LED lighting'],
-  STICKS: ['sticks', 'nav-stick', 'Calibrate stick input and adjust deadzones and stick behavior'],
-  SETTINGS: ['settings', 'nav-gear', 'Manage Turbo mode and other advanced controller settings'],
-  'BACKUP & RESTORE': ['backup', 'nav-cloud', 'Export your controller configuration or import a saved configuration file'],
-  SNAPBACK: ['snapback', 'snap', 'Tune the snapback filter and see how the stick settles when you let it go'],
-  'SWITCH COLORS': ['swcolors', 'palette', 'Choose the colors the Nintendo Switch shows for your controller'],
-  CALIBRATION: ['calibration', 'nav-stick', 'Calibrate the stick notch by notch, with PhobGCC\'s own calibration'],
+  CONTROLLER: ['controller', 'nav-gamepad', $t('Assign functions to each button and configure LED lighting')],
+  STICKS: ['sticks', 'nav-stick', $t('Calibrate stick input and adjust deadzones and stick behavior')],
+  SETTINGS: ['settings', 'nav-gear', $t('Manage Turbo mode and other advanced controller settings')],
+  'BACKUP & RESTORE': ['backup', 'nav-cloud', $t('Export your controller configuration or import a saved configuration file')],
+  SNAPBACK: ['snapback', 'snap', $t('Tune the snapback filter and see how the stick settles when you let it go')],
+  'SWITCH COLORS': ['swcolors', 'palette', $t('Choose the colors the Nintendo Switch shows for your controller')],
+  CALIBRATION: ['calibration', 'nav-stick', $t('Calibrate the stick notch by notch, with PhobGCC\'s own calibration')],
 };
 let current = null, connecting = false;
 
@@ -93,13 +94,21 @@ addEventListener('mousedown', e => { if (flyout && !flyout.contains(e.target) &&
 
 // the owner's guide (guide/ on the same site): opens in a new tab
 const GUIDE = 'https://arkodd.github.io/padbox/guide/';
-const guideBtn = () => el('a.act.outline.guide', { href: GUIDE, target: '_blank', rel: 'noopener', title: 'Owner\'s guide: how to use your PadBox and this page', html: dicon('help') });
+const guideBtn = () => el('a.act.outline.guide', { href: GUIDE, target: '_blank', rel: 'noopener', title: $t('Owner\'s guide: how to use your PadBox and this page'), html: dicon('help') });
+
+// the language menu (js/i18n.js): choosing one opens the page again in it
+const langSel = () => {
+  const s = el('select.act.outline.lang', { title: $t('Language') }, LANGS.map(([value, text]) => el('option', { value, text })));
+  s.value = lang; s.addEventListener('change', () => setLang(s.value));
+  return s;
+};
+$('boardlbl').textContent = $t('Board');
 
 const shell = {
   // board: written as the design does ("PadBoxEssential")
   header(title, board) { $('title').textContent = title; $('board').textContent = board || ''; $('who').classList.remove('hidden'); },
-  status(on) { $('who').classList.toggle('off', !on); $('state').textContent = on ? 'Connected' : 'Not connected'; },
-  actions(nodes) { const a = $('actions'); a.innerHTML = ''; a.append(guideBtn()); for (const n of nodes || []) a.append(n); },
+  status(on) { $('who').classList.toggle('off', !on); $('state').textContent = on ? $t('Connected') : $t('Not connected'); },
+  actions(nodes) { const a = $('actions'); a.innerHTML = ''; a.append(langSel(), guideBtn()); for (const n of nodes || []) a.append(n); },
   // subs: optional subtitles that replace PAGES' ({ SETTINGS: '...' }); menus: a flyout menu beside a side-menu button
   // ({ 0: () => [{ text, sel, pick }] }, as HOJA2's controller modes in the redesign): clicking the button opens it
   tabs(names, onselect, subs, menus) {
@@ -110,7 +119,7 @@ const shell = {
     const btns = names.map((n, i) => {
       // a button with a menu (HOJA2's modes): the design's own icon for it, the gamepad moved left with an arrow beside it
       const ic = menus && menus[i] && PAGES[n][1] === 'nav-gamepad' ? 'nav-gamepad-menu' : PAGES[n][1];
-      const b = el('button', { type: 'button', title: n === 'CONTROLLER' ? 'Controller mode' : n.charAt(0) + n.slice(1).toLowerCase(), html: dicon(ic) });
+      const b = el('button', { type: 'button', title: n === 'CONTROLLER' ? $t('Controller mode') : $tn(n.charAt(0) + n.slice(1).toLowerCase()), html: dicon(ic) });
       if (menus && menus[i]) b.classList.add('has-menu');
       b.addEventListener('click', () => { const was = !!flyout && flyout.dataset.i === String(i); select(i); if (menus && menus[i] && !was) openMenu(b, i, menus[i]); });
       nav.append(b);
@@ -119,7 +128,7 @@ const shell = {
     const select = i => {
       btns.forEach((b, k) => b.classList.toggle('sel', k === i));
       closeMenu();
-      curName = names[i]; $('h1').textContent = names[i]; paintSub();
+      curName = names[i]; $('h1').textContent = $tn(names[i]); paintSub();
       document.body.dataset.page = PAGES[names[i]][0];
       onselect && onselect(i);
     };
@@ -136,29 +145,29 @@ const shell = {
 };
 
 // after a firmware update: back to the connect screen (js/update.js sends this once the install is done)
-addEventListener('padbox-updated', e => disconnect(e.detail.message));
+addEventListener('padbox-updated', e => disconnect(e.detail.message, true));
 
-async function disconnect(message) {
+async function disconnect(message, good) {
   const c = current; current = null;
   if (c) { try { c.app && c.app.stop(); } catch (e) { } try { await c.dev.close(); } catch (e) { } }
-  showConnect(message);
+  showConnect(message, good);
 }
 
-function showConnect(problem) {
+function showConnect(problem, good) {
   $('who').classList.add('hidden'); shell.actions([]); shell.tabs(null); shell.footer('');
   document.body.dataset.page = 'connect';
-  const btn = button('CONNECT', { primary: true, cls: 'big', icon: 'usb', disabled: !navigator.usb, onclick: pick });
-  const serBtn = button('CONNECT PHOBGCC', { cls: 'big', icon: 'serial', disabled: !navigator.serial, onclick: pickSerial });
+  const btn = button($t('CONNECT'), { primary: true, cls: 'big', icon: 'usb', disabled: !navigator.usb, onclick: pick });
+  const serBtn = button($t('CONNECT PHOBGCC'), { cls: 'big', icon: 'serial', disabled: !navigator.serial, onclick: pickSerial });
   // a PadBox still on the firmware it shipped with (from before this app): install the latest without opening it
-  const oldBtn = button('UPDATE AN OLDER PADBOX', { cls: 'big', icon: 'download', onclick: () => legacyUpdate() });
+  const oldBtn = button($t('UPDATE AN OLDER PADBOX'), { cls: 'big', icon: 'download', onclick: () => legacyUpdate() });
   shell.content(el('div.connect2', {}, [
-    el('h1', { text: 'CONNECT' }),
-    el('p', { text: 'Plug the PadBox GS in with a USB data cable (for GP2040-CE, hold Start while plugging it in), then click CONNECT and choose it in the list. PhobGCC (GS Platform): hold Start while plugging it in, then click CONNECT PHOBGCC and choose "PadBox GS Configurator" ("PadBox GS Calibrator" on older PhobGCC firmware).' }),
+    el('h1', { text: $t('CONNECT') }),
+    el('p', { text: $t('Plug the PadBox GS in with a USB data cable (for GP2040-CE, hold Start while plugging it in), then click CONNECT and choose it in the list. PhobGCC (GS Platform): hold Start while plugging it in, then click CONNECT PHOBGCC and choose "PadBox GS Configurator" ("PadBox GS Calibrator" on older PhobGCC firmware).') }),
     el('div.connect-btns', {}, [btn, serBtn, oldBtn]),
-    el('p.guide', {}, ['New to the PadBox? Read the ', el('a', { href: GUIDE, target: '_blank', rel: 'noopener', text: 'PadBox GS owner\'s guide' }), ': the buttons, the console modes, and how to use this page.']),
-    el('p.old', { text: 'Your PadBox won’t connect, or still has the firmware it came with (HOJA "Padbox GS-C", GP2040-CE 0.8 or the original PhobGCC)? Click UPDATE AN OLDER PADBOX: it installs the latest firmware without opening the controller.' }),
-    el('p.demo', { html: 'No controller at hand? Try the demo: GP2040-CE on the <a href="?demo=gp">GS Essential</a> or <a href="?demo=gp-platform">GS Platform</a>, HOJA on the <a href="?demo=hoja-essential">GS Essential</a> or <a href="?demo=hoja-platform">GS Platform</a>, PhobGCC on the <a href="?demo=phob">GS Platform</a>' }),
-    problem ? el('p.problem' + (/^Updated to /.test(problem) ? '.good' : ''), { text: problem }) : null,   // after an update: in green
+    el('p.guide', {}, $tNodes('New to the PadBox? Read the {0}: the buttons, the console modes, and how to use this page.', el('a', { href: GUIDE, target: '_blank', rel: 'noopener', text: $t('PadBox GS owner\'s guide') }))),
+    el('p.old', { text: $t('Your PadBox won’t connect, or still has the firmware it came with (HOJA "Padbox GS-C", GP2040-CE 0.8 or the original PhobGCC)? Click UPDATE AN OLDER PADBOX: it installs the latest firmware without opening the controller.') }),
+    el('p.demo', { html: $t('No controller at hand? Try the demo: GP2040-CE on the <a href="?demo=gp">GS Essential</a> or <a href="?demo=gp-platform">GS Platform</a>, HOJA on the <a href="?demo=hoja-essential">GS Essential</a> or <a href="?demo=hoja-platform">GS Platform</a>, PhobGCC on the <a href="?demo=phob">GS Platform</a>') }),
+    problem ? el('p.problem' + (good ? '.good' : ''), { text: problem }) : null,   // after an update: in green
   ]));
 }
 
@@ -176,7 +185,7 @@ async function openSerial(p) {
   if (connecting || current) return;
   connecting = true;
   try { const dev = new PhobSerial(p); await dev.open(); await run(dev, startPhob); }
-  catch (e) { showConnect(/busy|in use|failed to open/i.test((e && e.message) || '') ? 'The PadBox is busy: another program or browser tab is using its serial port (the PadBox Suite, or another PadBox Configurator tab). Close it, then click CONNECT PHOBGCC again.' : (e && e.message) || String(e)); }
+  catch (e) { showConnect(/busy|in use|failed to open/i.test((e && e.message) || '') ? $t('The PadBox is busy: another program or browser tab is using its serial port (the PadBox Suite, or another PadBox Configurator tab). Close it, then click CONNECT PHOBGCC again.') : (e && e.message) || String(e)); }
   connecting = false;
 }
 async function open(d) {
@@ -192,7 +201,7 @@ async function open(d) {
     if (e && e.legacy) { try { await d.close(); } catch (x) { } current = null; connecting = false; showConnect(t); legacyUpdate({ now: e.legacy }); return; }
     // only one program or tab can use the PadBox at a time
     showConnect(/unable to claim|access denied|busy/i.test(t)
-      ? 'The PadBox is busy: another browser tab or program is using it (another PadBox Configurator tab, the public site, or the PadBox Suite). Close it, then click CONNECT again.'
+      ? $t('The PadBox is busy: another browser tab or program is using it (another PadBox Configurator tab, the public site, or the PadBox Suite). Close it, then click CONNECT again.')
       : t);
     try { await d.close(); } catch (x) { }
   }
@@ -203,7 +212,7 @@ async function run(dev, start, opts) {
   current.app = await start(shell, dev, opts || {});
 }
 
-navigator.usb && navigator.usb.addEventListener('disconnect', e => { if (current && current.dev.dev === e.device) disconnect('The PadBox was unplugged.'); });
+navigator.usb && navigator.usb.addEventListener('disconnect', e => { if (current && current.dev.dev === e.device) disconnect($t('The PadBox was unplugged.')); });
 navigator.usb && navigator.usb.addEventListener('connect', e => { if ((isGp(e.device) || isHoja(e.device)) && !current) open(e.device); });
 navigator.serial && navigator.serial.addEventListener('connect', e => { if (!current && !connecting) openSerial(e.target); });
 addEventListener('beforeunload', e => { if (current && current.app && current.app.dirty && current.app.dirty()) { e.preventDefault(); e.returnValue = ''; } });

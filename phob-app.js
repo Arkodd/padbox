@@ -10,6 +10,7 @@ import { el, pickColor, hex, clamp, confirmBox } from './js/ui.js';
 import { firmwareUpdate } from './js/update.js';
 import { buildDrawing } from './drawing.js';
 import { dicon } from './icons.js';
+import { $t, $tn } from './js/i18n.js';
 import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, readout, backupPage, toast, updateNotice } from './parts.js';
 
 const BA = 1, BB = 2, BX = 4, BY = 8, BZ = 16, BL = 32, BR = 64, BS = 128;
@@ -47,21 +48,21 @@ export async function startPhob(shell, dev, opts) {
   shell.header('PhobGCC', 'PadBoxPlatform');
   shell.status(true);
   const say = (t, c) => shell.footer(t, c);
-  say('Waiting for the controller...');
+  say($t('Waiting for the controller...'));
 
   // ---------------------------------------------------------------- header buttons (the design's icon buttons)
   const iconBtn = (cls, ic, title, onclick) => { const b = el('button.act.' + cls, { type: 'button', title, html: dicon(ic) }); b.addEventListener('click', onclick); return b; };
-  const btnUpdate = iconBtn('outline', 'hdr-download', 'Update firmware', () => firmwareUpdate({ board: boardName, current: 'PhobGCC',
+  const btnUpdate = iconBtn('outline', 'hdr-download', $t('Update firmware'), () => firmwareUpdate({ board: boardName, current: 'PhobGCC',
     enter: async noDrive => { await saveAll(); await new Promise(r => setTimeout(r, 300)); alive = false; await dev.send(noDrive ? 'BOOTSEL NODRIVE' : 'BOOTSEL'); await new Promise(r => setTimeout(r, 3500)); } }));
-  const btnSave = iconBtn('save', 'hdr-save', 'Save to the controller', saveAll); btnSave.disabled = true;
+  const btnSave = iconBtn('save', 'hdr-save', $t('Save to the controller'), saveAll); btnSave.disabled = true;
   // Disconnect: the power button (PhobGCC works as a controller again once it's unplugged and plugged back in)
-  const btnPower = iconBtn('light', 'hdr-power', 'Disconnect', async () => {
-    if (isDirty() && !await confirmBox('Unsaved changes', 'Your button map, settings or axis flips aren\'t saved yet: they\'ll be lost. Disconnect anyway?', 'DISCONNECT')) return;
+  const btnPower = iconBtn('light', 'hdr-power', $t('Disconnect'), async () => {
+    if (isDirty() && !await confirmBox($t('Unsaved changes'), $t('Your button map, settings or axis flips aren\'t saved yet: they\'ll be lost. Disconnect anyway?'), $t('DISCONNECT'))) return;
     shell.lost(null);
   });
   shell.actions([btnUpdate, btnSave, btnPower]);
   const isDirty = () => !!(pending.map || pending.settings || pending.inv >= 0);
-  function staged() { btnSave.disabled = false; say('Unsaved changes - click Save to send them to the controller.', 'var(--warn)'); }
+  function staged() { btnSave.disabled = false; say($t('Unsaved changes - click Save to send them to the controller.'), 'var(--warn)'); }
   async function saveAll() {
     if (!isDirty()) return;
     btnSave.disabled = true;
@@ -69,7 +70,7 @@ export async function startPhob(shell, dev, opts) {
     if (pending.settings) { wanted.settings = pending.settings; pending.settings = null; await dev.send('S ' + wanted.settings.join(' ')); }
     if (pending.inv >= 0) { wanted.inv = pending.inv; pending.inv = -1; await dev.send('I ' + wanted.inv); }
     wanted.at = performance.now(); wanted.tries = 1;
-    say('Saving...', 'var(--warn)');
+    say($t('Saving...'), 'var(--warn)');
   }
   const zoomOf = () => parseFloat(getComputedStyle(document.getElementById('stage')).zoom) || 1;
 
@@ -81,7 +82,7 @@ export async function startPhob(shell, dev, opts) {
   const curMap = () => map || DEF;
   const drawing = buildDrawing(pin => select(BIT[pin]), pin => {
     const b = BIT[pin], m = curMap();
-    return nameOf(b) + '  →  ' + (b >= C_UP ? 'the C-stick' : m[b] >= 0 && m[b] < 12 ? OUTPUTS[m[b]] : 'nothing');
+    return $tn(nameOf(b)) + '  →  ' + (b >= C_UP ? $t('the C-stick') : m[b] >= 0 && m[b] < 12 ? $tn(OUTPUTS[m[b]]) : $t('nothing'));
   }, pin => {
     const b = BIT[pin]; if (b == null) return '';
     if (b >= C_UP) return C_SHORT[b];
@@ -93,14 +94,14 @@ export async function startPhob(shell, dev, opts) {
 
   const empty = el('div.panel.empty', {}, [
     el('div.click-icon', { html: dicon('click') }),
-    el('div.empty-t', { text: 'No button selected' }),
-    el('div.empty-d', { text: 'Click a button on the controller or press\nit on the device to configure its function\nand LED lighting' }),
+    el('div.empty-t', { text: $t('No button selected') }),
+    el('div.empty-d', { text: $t('Click a button on the controller or press\nit on the device to configure its function\nand LED lighting') }),
   ]);
   const fn = el('select.field.mono');
-  OUTPUTS.forEach((o, i) => fn.append(el('option', { value: i, text: o })));
-  const fnC = el('option', { value: 99, text: 'C-stick (can\'t be remapped)' });
+  OUTPUTS.forEach((o, i) => fn.append(el('option', { value: i, text: $tn(o) })));
+  const fnC = el('option', { value: 99, text: $t('C-stick (can\'t be remapped)') });
   fn.addEventListener('change', () => { if (sel < 0 || sel >= C_UP || !map) return; const m = map.slice(); m[sel] = +fn.value; setMap(m); });
-  const amount = dslider('Analog amount (as L or R)', 1, 100, v => v + '%', v => { if (sel < 0 || sel >= C_UP || !map) return; const m = map.slice(); m[21 + sel] = v; setMap(m); });
+  const amount = dslider($t('Analog amount (as L or R)'), 1, 100, v => v + '%', v => { if (sel < 0 || sel >= C_UP || !map) return; const m = map.slice(); m[21 + sel] = v; setMap(m); });
   const ledDot = el('i.dot'), ledTxt = el('span');
   const ledFieldBtn = el('button.field.color', { type: 'button' }, [ledDot, ledTxt]);
   ledFieldBtn.addEventListener('click', () => {
@@ -108,27 +109,27 @@ export async function startPhob(shell, dev, opts) {
     pickColor(ledRgbRaw(li), c => { setLed(li, c); sendLed(); });
   });
   const ledBlock = el('div.led-block', {}, [
-    el('div.lbl', { text: 'LED color' }),
+    el('div.lbl', { text: $t('LED color') }),
     el('div.two.one', {}, [ledFieldBtn]),
-    el('div.noled-note', { text: 'This button has no LED' }),
+    el('div.noled-note', { text: $t('This button has no LED') }),
   ]);
-  const btnResetOne = el('button.pbtn.primary', { type: 'button', html: dicon('sync') + '<span>Reset this button</span>' });
+  const btnResetOne = el('button.pbtn.primary', { type: 'button', html: dicon('sync') + '<span>' + $t('Reset this button') + '</span>' });
   btnResetOne.addEventListener('click', () => { if (sel < 0 || sel >= C_UP || !map) return; const m = map.slice(); m[sel] = DEF[sel]; m[21 + sel] = DEF[21 + sel]; setMap(m); });
-  const btnResetAll = el('button.pbtn.outline', { type: 'button', html: dicon('sync') + '<span>Reset all buttons</span>' });
+  const btnResetAll = el('button.pbtn.outline', { type: 'button', html: dicon('sync') + '<span>' + $t('Reset all buttons') + '</span>' });
   btnResetAll.addEventListener('click', () => { if (map) setMap(DEF.slice()); });
   const settingsPanel = el('div.panel.hidden', {}, [
-    el('div.ptitle', { text: 'BUTTON SETTINGS' }),
-    el('div.lbl', { text: 'Function' }), fn,
+    el('div.ptitle', { text: $t('BUTTON SETTINGS') }),
+    el('div.lbl', { text: $t('Function') }), fn,
     amount.el,
     ledBlock,
     btnResetOne, btnResetAll,
-    el('p.hint', { html: 'Click <b>Save</b> to apply your changes to the controller' }),
+    el('p.hint', { html: $t('Click <b>Save</b> to apply your changes to the controller') }),
   ]);
 
   // GLOBAL LED SETTINGS: one color for every button, and the brightness
   let allColor = 0x0000ff;
   const wheelDot = el('i.wheel-in'), wheelKnob = el('i.wheel-knob');
-  const wheel = el('div.wheel', { title: 'Pick a color for every button' }, [wheelDot, wheelKnob]);
+  const wheel = el('div.wheel', { title: $t('Pick a color for every button') }, [wheelDot, wheelKnob]);
   const rgbTxt = el('span'), hexTxt = el('span');
   const hsvHue = c => { const r = ((c >> 16) & 255) / 255, g = ((c >> 8) & 255) / 255, b = (c & 255) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return 0; let h = mx === r ? (g - b) / d % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; return h < 0 ? h + 360 : h; };
   const hueColor = h => { const f = n => { const k = (n + h / 60) % 6; return Math.round(255 * (1 - Math.max(0, Math.min(k, 4 - k, 1)))); }; return (f(5) << 16) | (f(3) << 8) | f(1); };
@@ -147,16 +148,16 @@ export async function startPhob(shell, dev, opts) {
     setAll(hueColor(h));
   });
   const swatches = el('div.sw', {}, [0xe02b2b, 0xe09c06, 0x0634e0, 0xeb2fdb].map(c => { const b = el('button', { type: 'button', title: hex(c) }); b.style.background = hex(c); b.addEventListener('click', () => setAll(c)); return b; }));
-  const plus = el('button.plus', { type: 'button', title: 'Another color...', html: dicon('plus') });
+  const plus = el('button.plus', { type: 'button', title: $t('Another color...'), html: dicon('plus') });
   plus.addEventListener('click', () => pickColor(allColor, setAll));
   swatches.append(plus);
-  const bright = dslider('Brightness', 0, 100, v => v + '%', v => { if (!led) return; led[N_LEDS * 3] = v; sendLed(); });
+  const bright = dslider($t('Brightness'), 0, 100, v => v + '%', v => { if (!led) return; led[N_LEDS * 3] = v; sendLed(); });
   const ledPanel = el('div.panel', {}, [
-    el('div.ptitle', { text: 'GLOBAL LED SETTINGS' }),
-    el('div.lbl', { text: 'LED color' }),
+    el('div.ptitle', { text: $t('GLOBAL LED SETTINGS') }),
+    el('div.lbl', { text: $t('LED color') }),
     el('div.colorrow', {}, [wheel, el('div', {}, [el('div.readout', {}, [rgbTxt, hexTxt]), swatches])]),
     bright.el,
-    el('p.hint.wrap', { text: 'LED colors apply and save right away.' }),
+    el('p.hint.wrap', { text: $t('LED colors apply and save right away.') }),
   ]);
   const column = el('div.side-col', {}, [empty, settingsPanel, ledPanel]);
   const page0 = el('div.page.controller', {}, [drawing.svg, column]);
@@ -206,55 +207,55 @@ export async function startPhob(shell, dev, opts) {
   // READY, CAPTURE THE CROSS, LINE THE NOTCH UP WITH YOUR GATE) with its buttons, and Calibrate.
   const view = makeView();
   view.octagon = true;   // octagonal by default, like a GameCube stick's gate
-  const gateSeg = segmented(['Round Gate', 'Octagonal Gate'], v => { view.octagon = v === 1; });
+  const gateSeg = segmented([$t('Round Gate'), $t('Octagonal Gate')], v => { view.octagon = v === 1; });
   gateSeg.value = 1;
   // flips: bit 0 left X, 1 left Y ("I <mask>"). Sent right away: the firmware applies and saves a flip as soon as it gets
   // it. It mirrors the finished output, so the calibration stays valid (onFrame confirms it)
-  const flips = [dtoggle('Flip X axis', flipChanged), dtoggle('Flip Y axis', flipChanged)];
+  const flips = [dtoggle($t('Flip X axis'), flipChanged), dtoggle($t('Flip Y axis'), flipChanged)];
   let invOther = 0;   // the C-stick's flip bits, kept as they are
   function flipChanged() {
     pending.inv = -1;
     wanted.inv = invOther | (flips[0].checked ? 1 : 0) | (flips[1].checked ? 2 : 0); wanted.at = performance.now(); wanted.tries = 1;
     dev.send('I ' + wanted.inv);
-    say('Flipping the axis...', 'var(--warn)');
+    say($t('Flipping the axis...'), 'var(--warn)');
   }
   const tag = badge(); tag.el.classList.add('hidden');   // shown once a calibration starts here (the firmware doesn't say)
   const rd1 = el('div.rd1');
-  const legend = el('div.rd2.legend', { html: '<i class="lg-dot"></i>Output<b class="lg-x">✕</b>Target' });
+  const legend = el('div.rd2.legend', { html: '<i class="lg-dot"></i>' + $t('Output') + '<b class="lg-x">✕</b>' + $t('Target') });
   // the current step: its title, what to do, how it's going, and its buttons
   const macroBtn = (text, key, steps, primary) => { const b = pbtn(text, '', primary, () => { macro = steps.slice(); macroUntil = 0; }); if (key) b.prepend(el('i.key', { text: key })); return b; };
   // m: the button it holds, or a function giving it at the moment it's pressed
   const holdBtn = (cls, title, m) => { const b = el('button.hold.' + cls, { type: 'button', title, html: dicon(cls === 'ccw' ? 'minus' : 'plus') }); let held = 0; b.addEventListener('pointerdown', () => { held = typeof m === 'function' ? m() : m; holdMask |= held; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { holdMask &= ~held; held = 0; }); return b; };
   const oneFlip = () => view.inv === 1 || view.inv === 2;   // exactly one axis flipped: turning directions are mirrored
   const stepT = el('div.cal-t'), stepD = el('div.cal-d'), stepS = el('div.cal-s'), prog = el('div.phob-prog', {}, [el('i')]);
-  const bUndo = macroBtn('Undo', 'Z', [[BZ, 200]], false), bSkip = macroBtn('Skip', 'START', [[BS, 200]], false), bAdv = macroBtn('Advance', 'A', [[BA, 200]], true);
+  const bUndo = macroBtn($t('Undo'), 'Z', [[BZ, 200]], false), bSkip = macroBtn($t('Skip'), 'START', [[BS, 200]], false), bAdv = macroBtn($t('Advance'), 'A', [[BA, 200]], true);
   // while lining a notch up: back to the angle it was captured at (B)
-  const bResetNotch = macroBtn('Reset notch', 'B', [[BB, 200]], false);
-  bResetNotch.title = 'Put this notch back to the angle it was captured at';
-  const angleRow = el('div.angle-off', {}, [holdBtn('ccw', 'Rotate counter-clockwise (hold)', () => oneFlip() ? BX : BY), el('span', { text: 'Angle offset' }), holdBtn('cw', 'Rotate clockwise (hold)', () => oneFlip() ? BY : BX)]);
+  const bResetNotch = macroBtn($t('Reset notch'), 'B', [[BB, 200]], false);
+  bResetNotch.title = $t('Put this notch back to the angle it was captured at');
+  const angleRow = el('div.angle-off', {}, [holdBtn('ccw', $t('Rotate counter-clockwise (hold)'), () => oneFlip() ? BX : BY), el('span', { text: $t('Angle offset') }), holdBtn('cw', $t('Rotate clockwise (hold)'), () => oneFlip() ? BY : BX)]);
   const calBox = el('div.cal-box.hidden', {}, [el('div.cal-head', {}, [stepT, angleRow]), stepD, stepS, prog, el('div.btnrow.cal-btns', {}, [bUndo, bResetNotch, bSkip, bAdv])]);
-  const bCal = pbtn('Calibrate', 'target', true, () => {
+  const bCal = pbtn($t('Calibrate'), 'target', true, () => {
     if (!frame || frame.step >= 0) return;
     // a locked controller (PhobGCC's safe mode) is unlocked first: 1K+1P+2P+Start held (sent as A+X+Y+Start), then 1K+1P+2P+4K (A+X+Y+L) starts the calibration
     macro = frame.locked ? [[BA | BX | BY | BS, 1300], [0, 2200], [BA | BX | BY | BL, 300]] : [[BA | BX | BY | BL, 300]];
     macroUntil = 0; cal.starting = performance.now() + (frame.locked ? 3800 : 300);
   });
-  bCal.title = 'PhobGCC\'s own step-by-step calibration: 16 notches, then fine-tuning each notch\'s angle';
+  bCal.title = $t('PhobGCC\'s own step-by-step calibration: 16 notches, then fine-tuning each notch\'s angle');
   // PhobGCC's safe mode: locked, its calibration and settings combos do nothing (1K + 1P + 2P + Start held about a second
   // unlocks, a short press locks). The button says what a click does; the state is on the title row.
-  const bLock = pbtn('Unlock', '', false, () => {
+  const bLock = pbtn($t('Unlock'), '', false, () => {
     if (!frame || frame.step >= 0) return;
     macro = frame.locked ? [[BA | BX | BY | BS, 1300]] : [[BA | BX | BY | BS, 250]]; macroUntil = 0;
   });
   const lockTag = el('span.lock-tag');
   // the notch visualizer (as in SmashScope): roll the stick around the gate and its outline is traced, so each notch
   // shows as a dip or a bump
-  const vizToggle = dtoggle('Notch visualizer', on => { view.viz = on; vizRow.classList.toggle('on', on); });
-  const bClear = pbtn('Clear', '', false, () => view.trace.fill(null));
-  bClear.title = 'Start the outline over';
+  const vizToggle = dtoggle($t('Notch visualizer'), on => { view.viz = on; vizRow.classList.toggle('on', on); });
+  const bClear = pbtn($t('Clear'), '', false, () => view.trace.fill(null));
+  bClear.title = $t('Start the outline over');
   const meleeRd = el('div.melee-rd');
   const vizRow = el('div.notchviz', {}, [el('div.notchviz-top', {}, [vizToggle.el, bClear]), meleeRd]);
-  const stickPanel = panel('STICK', [el('div.phob-body', {}, [
+  const stickPanel = panel($t('STICK'), [el('div.phob-body', {}, [
     el('div.phob-left', {}, [el('div.gate-wrap', {}, [view.canvas]), el('div.rd', {}, [rd1, legend])]),
     el('div.phob-right', {}, [el('div.two.flips', {}, [flips[0].el, flips[1].el]), gateSeg.el, calBox, el('div.btnrow.cal-main', {}, [bLock, bCal]), vizRow]),
   ])], 'phob-wide');
@@ -328,43 +329,43 @@ export async function startPhob(shell, dev, opts) {
     if (view.inv & 2) n = (16 - n) % 16;
     return notchLabel(n);
   }
-  function notchLabel(n) { return { 0: 'right', 2: 'up-right', 4: 'up', 6: 'up-left', 8: 'left', 10: 'down-left', 12: 'down', 14: 'down-right' }[n] || 'in-between'; }
+  function notchLabel(n) { return $tn({ 0: 'right', 2: 'up-right', 4: 'up', 6: 'up-left', 8: 'left', 10: 'down-left', 12: 'down', 14: 'down-right' }[n] || 'in-between'); }
   // the calibration box, from each frame: getting ready, the 32 capture steps (16 notches, each centre then edge), the
   // 12 notch adjustments, saving
   function showStep(f) {
     // locked / unlocked: on the title row, and what the lock button does
-    lockTag.textContent = f.locked ? 'Locked' : 'Unlocked'; lockTag.className = 'lock-tag ' + (f.locked ? 'locked' : 'open');
-    setPbtn(bLock, f.locked ? 'Unlock' : 'Lock', ''); bLock.disabled = f.step >= 0;
-    bLock.title = f.locked ? 'Unlock the controller: hold 1K + 1P + 2P + Start for about a second (this button does it for you). Needed before calibrating or changing its settings'
-      : 'Lock the controller: press 1K + 1P + 2P + Start (this button does it for you). Its calibration combos then can\'t be pressed by accident';
+    lockTag.textContent = f.locked ? $t('Locked') : $t('Unlocked'); lockTag.className = 'lock-tag ' + (f.locked ? 'locked' : 'open');
+    setPbtn(bLock, f.locked ? $t('Unlock') : $t('Lock'), ''); bLock.disabled = f.step >= 0;
+    bLock.title = f.locked ? $t('Unlock the controller: hold 1K + 1P + 2P + Start for about a second (this button does it for you). Needed before calibrating or changing its settings')
+      : $t('Lock the controller: press 1K + 1P + 2P + Start (this button does it for you). Its calibration combos then can\'t be pressed by accident');
     const now = performance.now();
     const ready = f.step < 0 && cal.starting && now < cal.starting + 4000;   // clicked Calibrate, the firmware hasn't started yet
     const on = f.step >= 0 || ready;
     calBox.classList.toggle('hidden', !on); bCal.disabled = on;
     if (f.step >= 0) cal.starting = 0;
     if (on) { tag.el.classList.remove('hidden'); tag.set('busy'); }
-    if (cal.was >= 0 && f.step < 0) { tag.set('ok'); toast('Calibration complete', 'Your stick is calibrated and saved in the controller.'); view.reset(true); }
+    if (cal.was >= 0 && f.step < 0) { tag.set('ok'); toast($t('Calibration complete'), $t('Your stick is calibrated and saved in the controller.')); view.reset(true); }
     cal.was = f.step;
     if (!on) return;
     let title, text, sub = '', p = 0, buttons = [bUndo, bAdv], angle = false;
     if (ready) {
-      title = 'GETTING READY'; text = 'Let go of the stick';
-      sub = f.locked ? 'Unlocking the controller...' : 'Reading the resting center...';
+      title = $t('GETTING READY'); text = $t('Let go of the stick');
+      sub = f.locked ? $t('Unlocking the controller...') : $t('Reading the resting center...');
       buttons = [];
     } else if (f.step < 32) {
       const e = CAL_ORDER[f.step], notch = e >> 1, n = (f.step >> 1) + 1;
-      title = 'CAPTURE THE CROSS (' + n + '/16)'; p = f.step / 44;
-      if (!(e & 1)) text = 'Let go of the stick so it rests in the middle, then press Advance (A)';
-      else if (notch % 2 === 0) text = 'Push the stick all the way to the edge, in its ' + notchName(notch) + ' notch (toward the yellow cross), hold it there and press Advance (A)';
-      else text = 'In-between notch: if your gate has none here, leave the stick in the middle, then press Advance (A)';
-      if (view.active && !isNaN(view.aim)) { let err = view.ang - view.aim; while (err > 180) err -= 360; while (err < -180) err += 360; sub = `aim ${Math.round(view.aim)}°   now ${Math.round(view.ang)}° (${err >= 0 ? '+' : ''}${Math.round(err)}°)   ${Math.round(view.pct)}% out`; }
-      else if (view.active && view.aimCenter) sub = `now ${Math.round(view.pct)}% out of the middle`;
+      title = $t('CAPTURE THE CROSS ({0}/16)', n); p = f.step / 44;
+      if (!(e & 1)) text = $t('Let go of the stick so it rests in the middle, then press Advance (A)');
+      else if (notch % 2 === 0) text = $t('Push the stick all the way to the edge, in its {0} notch (toward the yellow cross), hold it there and press Advance (A)', notchName(notch));
+      else text = $t('In-between notch: if your gate has none here, leave the stick in the middle, then press Advance (A)');
+      if (view.active && !isNaN(view.aim)) { let err = view.ang - view.aim; while (err > 180) err -= 360; while (err < -180) err += 360; sub = $t('aim {0}°   now {1}° ({2}°)   {3}% out', Math.round(view.aim), Math.round(view.ang), (err >= 0 ? '+' : '') + Math.round(err), Math.round(view.pct)); }
+      else if (view.active && view.aimCenter) sub = $t('now {0}% out of the middle', Math.round(view.pct));
     } else if (f.step - 32 < ADJ_ORDER.length) {
       const i = f.step - 32;
-      title = 'LINE THE NOTCH UP WITH YOUR GATE (' + (i + 1) + '/' + ADJ_ORDER.length + ')'; p = f.step / 44;
-      text = 'Rotate the ' + notchName(ADJ_ORDER[i]) + ' notch\'s angle with the − / + buttons (hold), then press Advance (A)';
+      title = $t('LINE THE NOTCH UP WITH YOUR GATE ({0}/{1})', i + 1, ADJ_ORDER.length); p = f.step / 44;
+      text = $t('Rotate the {0} notch\'s angle with the − / + buttons (hold), then press Advance (A)', notchName(ADJ_ORDER[i]));
       buttons = [bUndo, bResetNotch, bSkip, bAdv]; angle = true;
-    } else { title = 'SAVING'; text = 'Finishing and saving the calibration...'; buttons = []; p = 1; }
+    } else { title = $t('SAVING'); text = $t('Finishing and saving the calibration...'); buttons = []; p = 1; }
     stepT.textContent = title; stepD.textContent = text; stepS.textContent = sub;
     prog.firstChild.style.width = (p * 100) + '%'; prog.classList.toggle('hidden', ready);
     angleRow.classList.toggle('hidden', !angle);
@@ -383,16 +384,16 @@ export async function startPhob(shell, dev, opts) {
   const sliders = [];
   const box = (title, text, list) => { sliders.push(...list); return panel(title, [el('p.setdesc', { text }), el('div.setsl' + (list.length > 1 ? '.two' : ''), {}, list.map(x => x.el))], 'setbox'); };
   const page2 = el('div.page.hidden.dpage.settings.phobset', {}, [
-    box('SNAPBACK FILTER', 'Ignores the false input that appears when the stick bounces past the centre on release',
-      [SL('Horizontal (X)', -10, 10, signed, 4), SL('Vertical (Y)', -10, 10, signed, 5)]),
-    box('CARDINAL SNAPPING', 'Snaps inputs that are almost straight up, down, left or right to the exact direction',
-      [SL('Strength', -2, 6, plain, 0)]),
-    box('SMOOTHING', 'Reduces jitter at rest. Higher values are smoother but slightly slower to respond',
-      [SL('Horizontal (X)', 0, 18, plain, 6), SL('Vertical (Y)', 0, 18, plain, 7)]),
-    box('OUTPUT RANGE', 'Sets the maximum output at the gate edge, as a percentage of the calibrated range',
-      [SL('Strength', 90, 110, pctF, 2)]),
-    box('FAST-MOVEMENT RESPONSE', 'Changes how the stick responds during fast movements (waveshaping)',
-      [SL('Horizontal (X)', -24, 24, signed, 10), SL('Vertical (Y)', -24, 24, signed, 11)]),
+    box($t('SNAPBACK FILTER'), $t('Ignores the false input that appears when the stick bounces past the centre on release'),
+      [SL($t('Horizontal (X)'), -10, 10, signed, 4), SL($t('Vertical (Y)'), -10, 10, signed, 5)]),
+    box($t('CARDINAL SNAPPING'), $t('Snaps inputs that are almost straight up, down, left or right to the exact direction'),
+      [SL($t('Strength'), -2, 6, plain, 0)]),
+    box($t('SMOOTHING'), $t('Reduces jitter at rest. Higher values are smoother but slightly slower to respond'),
+      [SL($t('Horizontal (X)'), 0, 18, plain, 6), SL($t('Vertical (Y)'), 0, 18, plain, 7)]),
+    box($t('OUTPUT RANGE'), $t('Sets the maximum output at the gate edge, as a percentage of the calibrated range'),
+      [SL($t('Strength'), 90, 110, pctF, 2)]),
+    box($t('FAST-MOVEMENT RESPONSE'), $t('Changes how the stick responds during fast movements (waveshaping)'),
+      [SL($t('Horizontal (X)'), -24, 24, signed, 10), SL($t('Vertical (Y)'), -24, 24, signed, 11)]),
   ]);
   function showSettings(v) { for (let i = 0; i < 19; i++) vals[i] = v[i]; for (const s of sliders) s.value = vals[s.idx]; }
 
@@ -401,22 +402,22 @@ export async function startPhob(shell, dev, opts) {
   const backup = backupPage({
     controller: 'PhobGCC', board: boardName, firmware: '', mode: () => 'GameCube',
     exportData: async () => {
-      if (!map || !led || !settings || !frame) throw new Error('the controller hasn\'t sent all its settings yet. Wait a second and try again');
+      if (!map || !led || !settings || !frame) throw new Error($t('the controller hasn\'t sent all its settings yet. Wait a second and try again'));
       return { format: 'padbox-phob-backup', version: 1, board: boardName, created: new Date().toISOString(),
         map: (pending.map || map).slice(), led: led.slice(), settings: (pending.settings || vals).slice(), inv: pending.inv >= 0 ? pending.inv : frame.inv & 15 };
     },
     fileName: name => 'PadBox GS Platform - PhobGCC - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
-    check: d => !d || d.format !== 'padbox-phob-backup' ? 'This file isn\'t a PhobGCC configuration file. GP2040-CE and HOJA files only go back onto those firmwares.'
-      : d.board !== boardName ? 'This configuration is from a PadBox ' + d.board + ', not a PadBox ' + boardName + '.'
-      : !Array.isArray(d.map) || d.map.length !== 42 || !Array.isArray(d.led) || d.led.length !== N_LEDS * 3 + 1 || !Array.isArray(d.settings) || d.settings.length !== 19 ? 'This configuration is incomplete or damaged.'
-      : frame && frame.step >= 0 ? 'Finish the stick calibration first.' : '',
+    check: d => !d || d.format !== 'padbox-phob-backup' ? $t('This file isn\'t a PhobGCC configuration file. GP2040-CE and HOJA files only go back onto those firmwares.')
+      : d.board !== boardName ? $t('This configuration is from a PadBox {0}, not a PadBox {1}.', d.board, boardName)
+      : !Array.isArray(d.map) || d.map.length !== 42 || !Array.isArray(d.led) || d.led.length !== N_LEDS * 3 + 1 || !Array.isArray(d.settings) || d.settings.length !== 19 ? $t('This configuration is incomplete or damaged.')
+      : frame && frame.step >= 0 ? $t('Finish the stick calibration first.') : '',
     restore: async d => {
       led = d.led.slice(); sendLed(); showAllColor(ledRgbRaw(4));
       map = d.map.slice(); pending.map = map.slice();
       showSettings(d.settings); pending.settings = d.settings.slice();
       pending.inv = (invOther & 12) | (d.inv & 3);
       refreshSide(); await saveAll();
-      return 'Restored and saved in the controller. The stick calibration isn\'t part of a backup: it stays as it is.';
+      return $t('Restored and saved in the controller. The stick calibration isn\'t part of a backup: it stays as it is.');
     },
   });
   const page3 = backup.page;
@@ -426,7 +427,7 @@ export async function startPhob(shell, dev, opts) {
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   let curPage = page0;
   shell.tabs(['CONTROLLER', 'STICKS', 'SETTINGS', 'BACKUP & RESTORE'], i => { curPage = pages[i]; pages.forEach((p, k) => p.classList.toggle('hidden', k !== i)); },
-    { SETTINGS: 'Manage stick smoothing and other advanced stick settings' });
+    { SETTINGS: $t('Manage stick smoothing and other advanced stick settings') });
   refreshSide(); showAllColor(allColor);
 
   const ints = (line, n) => { const p = line.split(','); if (p.length !== n + 1) return null; const v = p.slice(1).map(Number); return v.some(isNaN) ? null : v; };
@@ -443,11 +444,11 @@ export async function startPhob(shell, dev, opts) {
       if (v.length < 15) return;
       frame = { step: v[0], stick: v[1], locked: v[2], ax: v[4], ay: v[5], cx: v[6], cy: v[7], la: v[8], buttons: v[10],
         rawAx: v[11] / 10000, rawAy: v[12] / 10000, inv: v.length > 15 ? v[15] : 0, phys: v.length > 16 ? v[16] : 0, saveState: v.length >= 25 ? v[24] : 0 };
-      if (!haveFrame) { haveFrame = true; view.setRaw(frame.rawAx, frame.rawAy); view.reset(true); say('Receiving data'); }
+      if (!haveFrame) { haveFrame = true; view.setRaw(frame.rawAx, frame.rawAy); view.reset(true); say($t('Receiving data')); }
       onFrame(frame);
     } else if (line.startsWith('M,')) {
       const m = ints(line, 42); if (!m) return;
-      if (wanted.map) { if (m.join() !== wanted.map.join()) return; wanted.map = null; say('Button mapping saved in the controller.', 'var(--good)'); }
+      if (wanted.map) { if (m.join() !== wanted.map.join()) return; wanted.map = null; say($t('Button mapping saved in the controller.'), 'var(--good)'); }
       if (!pending.map) { map = m; refreshSide(); }
     } else if (line.startsWith('LC,')) {
       let p = line.split(',').slice(1).map(Number);
@@ -456,7 +457,7 @@ export async function startPhob(shell, dev, opts) {
       if (performance.now() - ledSentAt > 500) { led = p; if (!colorShown) { colorShown = true; showAllColor(ledRgbRaw(4)); } refreshSide(); }
     } else if (line.startsWith('S,')) {
       const s = ints(line, 19); if (!s) return;
-      if (wanted.settings) { if (s.join() !== wanted.settings.join()) return; wanted.settings = null; say('Settings saved in the controller.', 'var(--good)'); }
+      if (wanted.settings) { if (s.join() !== wanted.settings.join()) return; wanted.settings = null; say($t('Settings saved in the controller.'), 'var(--good)'); }
       if (!settings0) settings0 = s.slice();
       if (!pending.settings) { settings = s; showSettings(s); }
     }
@@ -490,9 +491,9 @@ export async function startPhob(shell, dev, opts) {
     if (curPage === page1) { const r = readout(view.outX, view.outY); rd1.textContent = r.xy + (r.angle ? '     ' + r.angle : ''); }
     showStep(f);
     invOther = f.inv & 12;
-    if (wanted.inv >= 0 && f.inv === wanted.inv) { wanted.inv = -1; view.trace.fill(null); say('Axis flip saved in the controller. No need to recalibrate.', 'var(--good)'); view.reset(true); }
+    if (wanted.inv >= 0 && f.inv === wanted.inv) { wanted.inv = -1; view.trace.fill(null); say($t('Axis flip saved in the controller. No need to recalibrate.'), 'var(--good)'); view.reset(true); }
     else if (wanted.inv < 0 && pending.inv < 0) { flips[0].checked = (f.inv & 1) !== 0; flips[1].checked = (f.inv & 2) !== 0; }
-    if (f.saveState === 2) say('Warning: the controller couldn\'t save its settings.', 'var(--bad)');
+    if (f.saveState === 2) say($t('Warning: the controller couldn\'t save its settings.'), 'var(--bad)');
     // ask for what we don't know yet; resend what wasn't confirmed
     const now = performance.now();
     if (!led && now - asked.led > 1000) { asked.led = now; dev.send('L'); }
@@ -500,7 +501,7 @@ export async function startPhob(shell, dev, opts) {
     if (!settings && !wanted.settings && now - asked.settings > 1000) { asked.settings = now; dev.send('S'); }
     if ((wanted.map || wanted.settings || wanted.inv >= 0) && now - wanted.at > 800) {
       if (wanted.tries++ < 5) { wanted.at = now; if (wanted.map) dev.send('N ' + wanted.map.join(' ')); if (wanted.settings) dev.send('S ' + wanted.settings.join(' ')); if (wanted.inv >= 0) dev.send('I ' + wanted.inv); }
-      else { wanted.map = wanted.settings = null; wanted.inv = -1; say('The controller did not accept the changes. Try Save again.', 'var(--bad)'); btnSave.disabled = false; }
+      else { wanted.map = wanted.settings = null; wanted.inv = -1; say($t('The controller did not accept the changes. Try Save again.'), 'var(--bad)'); btnSave.disabled = false; }
     }
   }
   // virtual buttons: the macro steps and the held buttons, sent every 60 ms (the firmware releases them after 1 s of silence)
@@ -512,7 +513,7 @@ export async function startPhob(shell, dev, opts) {
   }, 60);
   const loop = () => { if (!alive) return; if (curPage === page1) view.paint(); requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
-  dev.onLost = () => { if (alive) { alive = false; shell.lost('Lost the connection to the PadBox.'); } };
+  dev.onLost = () => { if (alive) { alive = false; shell.lost($t('Lost the connection to the PadBox.')); } };
 
   return { stop() { alive = false; clearInterval(keep); clearInterval(drawTick); }, dirty: isDirty };
 }

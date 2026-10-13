@@ -4,6 +4,7 @@
 // live input report streams in the background. Exchanges are queued: one at a time, in order.
 
 import { sleep } from '../ui.js';
+import { $t } from '../i18n.js';
 
 export const Blk = { GAMEPAD: 0, HOVER: 1, ANALOG: 2, RGB: 3, TRIGGER: 4, IMU: 5, HAPTIC: 6, USER: 7, INPUT: 8, MAX: 9 };
 export const BlkSize = [64, 256, 1024, 256, 64, 32, 8, 64, 2048];
@@ -84,7 +85,7 @@ export class HojaUsb extends HojaProtocol {
     for (const itf of d.configuration.interfaces)
       for (const a of itf.alternates)
         if (a.interfaceClass === 0xff && a.interfaceSubclass === 0 && a.interfaceProtocol === 0 && a.endpoints.length === 2) found = { itf, a };
-    if (!found) throw new Error('This isn\'t a PadBox with the HOJA firmware (no HOJA configuration interface). If it runs GP2040-CE or PhobGCC, hold Start while plugging it in.');
+    if (!found) throw new Error($t('This isn\'t a PadBox with the HOJA firmware (no HOJA configuration interface). If it runs GP2040-CE or PhobGCC, hold Start while plugging it in.'));
     this.itfNum = found.itf.interfaceNumber;
     await d.claimInterface(this.itfNum);
     this.epIn = found.a.endpoints.find(e => e.direction === 'in').endpointNumber;

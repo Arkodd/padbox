@@ -857,3 +857,10 @@ dialog select.combo option { color: #222; background: #eee; }
 .sw-prev svg { width: 300px; height: auto; }
 .sw-prev svg .rim { fill: none; stroke: rgba(255, 255, 255, .4); stroke-width: 2.4; stroke-linejoin: round; }
 .sw-prev svg .edge { fill: none; stroke: rgba(0, 0, 0, .3); stroke-width: 4; }
+/* the language menu in the header (js/i18n.js): an outlined box like the guide button beside it, with the language's own name */
+select.act.lang { appearance: none; display: inline-block; flex: none; width: 96px; height: 32.7px; box-sizing: border-box; padding: 0 22px 0 9px; font: 400 12px "Poppins", sans-serif; color: #f0f0f0; cursor: pointer;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 6.7 4'%3E%3Cpath d='M.5 0h5.7a.5.5 0 0 1 .37.85L3.72 3.82a.55.55 0 0 1-.74 0L.13.85A.5.5 0 0 1 .5 0z' fill='%23f0f0f0'/%3E%3C/svg%3E") no-repeat right 8px center / 6.7px 4px; }
+select.act.lang:hover { background-color: rgba(255, 255, 255, .08); }
+select.act.lang option { background: #2b2b2b; color: #f0f0f0; }
+/* in another language the orange header button grows with its text instead of cutting it */
+html:not([lang="en"]) .act.primary { width: auto; min-width: 174.06px; padding-right: 9.81px; }
