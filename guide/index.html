@@ -7,6 +7,9 @@
 <link rel="icon" href="../assets/app.png">
 <title>PadBox GS Owner's Guide</title>
 
+<!-- another language than English (js/i18n.js, guide/i18n.js): the page stays hidden until its texts are swapped, so the English doesn't flash first -->
+<script>try { var l = new URLSearchParams(location.search).get('lang') || localStorage.getItem('padbox-lang') || navigator.language || 'en'; if (!/^en/i.test(l)) { document.documentElement.classList.add('i18n-wait'); setTimeout(function () { document.documentElement.classList.remove('i18n-wait'); }, 3000); } } catch (e) { }</script>
+<style>.i18n-wait body { visibility: hidden; }</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Poppins:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
@@ -46,7 +49,10 @@ body { background: var(--bg); color: var(--ink); font: 400 16px/1.7 var(--body);
 @media (max-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; } nav.toc { display: none; } }
 
 /* hero */
-header.hero { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 56px 40px; }
+header.hero { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 56px 40px; position: relative; }
+/* the language menu, top right (the same choice as the Configurator's) */
+select.lang { position: absolute; right: 20px; top: 20px; font: 500 14px/1 var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; cursor: pointer; }
+select.lang:hover, select.lang:focus-visible { border-color: var(--accent); outline: none; }
 .eyebrow { font: 600 13px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
 h1 { font: 700 clamp(38px, 6vw, 64px)/1.02 var(--display); letter-spacing: -.01em; margin: 14px 0 18px; text-wrap: balance; }
 .lede { font-size: 18px; color: var(--muted); max-width: 62ch; margin: 0; }
@@ -139,6 +145,7 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
 
 
 <header class="hero">
+  <select class="lang" id="lang" aria-label="Language"></select>
   <div class="eyebrow">Arkodd · PadBox GS</div>
   <h1>PadBox GS Owner's Guide</h1>
   <p class="lede">Everything you need to get playing: the buttons on your PadBox, the three firmwares it can run, how to pick a console mode, and how to remap, calibrate and update it with the PadBox Configurator in your browser.</p>
@@ -256,7 +263,7 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
   <figure><img src="img/connect.png" alt="The Configurator's connect screen with the CONNECT, CONNECT PHOBGCC and UPDATE AN OLDER PADBOX buttons" loading="lazy"><figcaption>The connect screen. Pick the button for your firmware.</figcaption></figure>
   <ol class="steps">
     <li><div>Open <a href="https://arkodd.github.io/padbox/">arkodd.github.io/padbox</a> in Chrome or Edge.</div></li>
-    <li><div>Plug the PadBox in with a <b>USB data cable</b>. Some cables only charge and carry no data; if nothing shows up, try another cable.
+    <li><div><span>Plug the PadBox in with a <b>USB data cable</b>. Some cables only charge and carry no data; if nothing shows up, try another cable.</span>
       <ul><li><b>HOJA</b>: just plug it in.</li><li><b>GP2040-CE</b>: hold <span class="k">Start</span> while plugging it in.</li><li><b>PhobGCC</b>: hold <span class="k">Start</span> while plugging it in.</li></ul></div></li>
     <li><div>Click <span class="ui">CONNECT</span> (HOJA and GP2040-CE) or <span class="ui">CONNECT PHOBGCC</span> (PhobGCC). A small list opens at the top of the browser: choose your PadBox and click <span class="ui">Connect</span>. For PhobGCC it's called "PadBox GS Configurator" (on older PhobGCC firmware: "PadBox GS Calibrator").</div></li>
     <li><div>The Configurator opens on the CONTROLLER page. The next time, it reconnects by itself as soon as you plug the PadBox in.</div></li>
@@ -461,7 +468,7 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
     <li><div><b>Your PadBox</b>: choose GS Essential or GS Platform. Pick carefully: in update mode the PadBox can't tell the page which one it is.</div></li>
     <li><div><b>The firmware on it now</b>: choose what your PadBox runs today.</div></li>
     <li><div><b>Install</b>: choose the firmware you want. It starts on the same one you have now; you can also switch to another one here.</div></li>
-    <li><div>Put the PadBox into update mode: <b>unplug it, hold the buttons for your old firmware, plug it back in while holding them, then let go and click <span class="ui">INSTALL</span>.</b>
+    <li><div><span>Put the PadBox into update mode: <b>unplug it, hold the buttons for your old firmware, plug it back in while holding them, then let go and click <span class="ui">INSTALL</span>.</b></span>
       <div class="tw"><table>
         <thead><tr><th>Firmware on it now</th><th>Buttons to hold</th></tr></thead>
         <tbody>
@@ -499,6 +506,7 @@ footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--line)
 
 </main>
 </div>
+<script type="module" src="i18n.js"></script>
 
 </body>
 </html>
