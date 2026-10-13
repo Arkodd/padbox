@@ -864,3 +864,9 @@ select.act.lang:hover { background-color: rgba(255, 255, 255, .08); }
 select.act.lang option { background: #2b2b2b; color: #f0f0f0; }
 /* in another language the orange header button grows with its text instead of cutting it */
 html:not([lang="en"]) .act.primary { width: auto; min-width: 174.06px; padding-right: 9.81px; }
+
+/* STICKS: the tall stick panels reached down to the status line ("Unsaved changes..."), which sat on their bottom edge.
+   The panels end a little higher (taken from the free space above their buttons) and the line sits a little lower. */
+.panel.stick:not(.wide), .dpage.sticks.hoja .panel.stick:not(.wide) { height: 477px; }
+body[data-page="sticks"] #msg { bottom: 4px; }
+.dpage.sticks.hoja .panel.stick:not(.wide) canvas.gate { width: 150px; height: 150px; }   /* gives the hint above the buttons its room back */
