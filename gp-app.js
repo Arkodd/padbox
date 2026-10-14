@@ -441,7 +441,9 @@ export async function startGp(shell, dev, opts) {
   const tabNames = ['CONTROLLER', 'STICKS', 'SETTINGS', 'BACKUP & RESTORE'], pages = [page0, page1, page2, page3];
   if (L.noSticks) { tabNames.splice(1, 1); pages.splice(1, 1); }   // the PadBox GS NS has no sticks: no STICKS page (it stays hidden)
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
-  shell.tabs(tabNames, i => pages.forEach((p, k) => p.classList.toggle('hidden', k !== i)));
+  shell.tabs(tabNames, i => {
+    pages.forEach((p, k) => p.classList.toggle('hidden', k !== i));
+  });
   refreshSide(); syncSettings(); sticks.forEach(s => s.sync && s.sync());
   // the demo: ?sel=<pin> opens with that button selected
   shell.footer('');
