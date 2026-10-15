@@ -370,7 +370,7 @@ export async function startPhob(shell, dev, opts) {
   const box = (title, text, list) => { sliders.push(...list); return panel(title, [el('p.setdesc', { text }), el('div.setsl' + (list.length > 1 ? '.two' : ''), {}, list.map(x => x.el))], 'setbox'); };
   const page2 = el('div.page.hidden.dpage.settings.phobset', {}, [
     box($t('SNAPBACK FILTER'), $t('Ignores the false input that appears when the stick bounces past the centre on release'),
-      [SL($t('Horizontal (X)'), -10, 10, signed, 4), SL($t('Vertical (Y)'), -10, 10, signed, 5)]),
+      [SL($t('Horizontal (X)'), -10, 12, signed, 4), SL($t('Vertical (Y)'), -10, 12, signed, 5)]),
     box($t('CARDINAL SNAPPING'), $t('Snaps inputs that are almost straight up, down, left or right to the exact direction'),
       [SL($t('Strength'), -2, 6, plain, 0)]),
     box($t('SMOOTHING'), $t('Reduces jitter at rest. Higher values are smoother but slightly slower to respond'),
