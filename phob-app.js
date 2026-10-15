@@ -446,6 +446,13 @@ export async function startPhob(shell, dev, opts) {
       if (!pending.settings) { settings = s; showSettings(s); }
     }
   };
+  // Melee's coordinates of a stick output (0-255, centre 127, the origin the firmware reports): clamped to a radius of 80,
+  // truncated, in 1/80ths (as PhobVision and SmashScope show them)
+  function meleeXY(ax, ay) {
+    const x = ax - 127, y = ay - 127, sc = Math.min(1, 80 / (Math.hypot(x, y) || 1));
+    const mc = n => { const t = Math.trunc(n * sc) / 80; return (t < 0 ? '-' : ' ') + Math.abs(t).toFixed(4); };
+    return 'X ' + mc(x) + '    Y ' + mc(y);
+  }
   function onFrame(f) {
     const freshPress = f.phys & ~phys;
     phys = f.phys;
@@ -458,17 +465,13 @@ export async function startPhob(shell, dev, opts) {
     view.outX = (f.ax - 127) / 100; view.outY = (f.ay - 127) / 100;
     if (f.step >= 0) { if (cal.was < 0) view.trace.fill(null); }   // a calibration: the outline starts over
     else if (view.viz) view.addTrace(view.outX, view.outY);
-    if (view.viz && curPage === page1) {
-      // Melee's coordinates: clamped to a radius of 80, truncated, in 1/80ths (as PhobVision and SmashScope show them)
-      const x = f.ax - 127, y = f.ay - 127, sc = Math.min(1, 80 / (Math.hypot(x, y) || 1));
-      const mc = n => { const t = Math.trunc(n * sc) / 80; return (t < 0 ? '-' : ' ') + Math.abs(t).toFixed(4); };
-      meleeRd.textContent = 'Melee X ' + mc(x) + '    Y ' + mc(y);
-    }
+    if (view.viz && curPage === page1) meleeRd.textContent = 'Melee ' + meleeXY(f.ax, f.ay);
     // while calibrating, the C-stick's output is the target
     view.hasTarget = view.active; view.tx = (f.cx - 127) / 100; view.ty = (f.cy - 127) / 100;
     // the aim help reads the output too
     { const m = Math.hypot(view.outX, view.outY); let a = Math.atan2(view.outY, view.outX) * 180 / Math.PI; if (a < 0) a += 360; view.ang = a; view.pct = Math.min(100, m * 100); }
-    if (curPage === page1) { const r = readout(view.outX, view.outY); rd1.textContent = r.xy + (r.angle ? '     ' + r.angle : ''); }
+    // the readout in Melee's units (0.7000 rather than 74 %), as SmashScope shows them: what players calibrate notches by
+    if (curPage === page1) { const r = readout(view.outX, view.outY); rd1.textContent = meleeXY(f.ax, f.ay) + (r.angle ? '     ' + r.angle : ''); }
     showStep(f);
     if (f.saveState === 2) say($t('Warning: the controller couldn\'t save its settings.'), 'var(--bad)');
     // ask for what we don't know yet; resend what wasn't confirmed
