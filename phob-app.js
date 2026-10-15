@@ -2,7 +2,7 @@
 // flow) - the same frame, drawing and panels as gp-app.js and hoja-app.js, with PhobGCC's settings (it started as a
 // copy of js/phob/app.js): CONTROLLER (what each button does as a GameCube button, LED colors), STICKS (PhobGCC's own
 // step-by-step notch calibration, driven through virtual button presses), SETTINGS (stick response) and BACKUP &
-// RESTORE. The button map, the settings and the axis flips wait for Save; LED colors apply (and save) right away.
+// RESTORE. The button map and the settings wait for Save; LED colors apply (and save) right away.
 // Not in this firmware, so not here (the design has them): a port / mode menu, LED effects, idle glow, animation time,
 // a "when pressed" color, switching the stick off, and restarting as a controller.
 
@@ -57,7 +57,7 @@ export async function startPhob(shell, dev, opts) {
   const btnSave = iconBtn('save', 'hdr-save', $t('Save to the controller'), saveAll); btnSave.disabled = true;
   // Disconnect: the power button (PhobGCC works as a controller again once it's unplugged and plugged back in)
   const btnPower = iconBtn('light', 'hdr-power', $t('Disconnect'), async () => {
-    if (isDirty() && !await confirmBox($t('Unsaved changes'), $t('Your button map, settings or axis flips aren\'t saved yet: they\'ll be lost. Disconnect anyway?'), $t('DISCONNECT'))) return;
+    if (isDirty() && !await confirmBox($t('Unsaved changes'), $t('Your button map or settings aren\'t saved yet: they\'ll be lost. Disconnect anyway?'), $t('DISCONNECT'))) return;
     shell.lost(null);
   });
   shell.actions([btnUpdate, btnSave, btnPower]);
@@ -198,7 +198,7 @@ export async function startPhob(shell, dev, opts) {
     if (!alive) return clearInterval(drawTick);
     drawing.set(pinOf(sel), pin => lit(BIT[pin]));
     drawing.setLeds(pin => { const li = ledOf(BIT[pin]); return li >= 0 && led ? hex(ledRgbRaw(li)) : null; });
-    try { drawing.setSticks([[view.outX, view.outY]]); } catch (e) { }   // the orange dot follows the stick (once the STICKS view exists)
+    try { drawing.setSticks([view.calibrated && !view.active ? [view.outX, view.outY] : [0, 0]]); } catch (e) { }   // the orange dot follows the stick once it is calibrated (once the STICKS view exists)
   }, 30);
 
   // ---------------------------------------------------------------- STICKS page
@@ -209,16 +209,6 @@ export async function startPhob(shell, dev, opts) {
   view.octagon = true;   // octagonal by default, like a GameCube stick's gate
   const gateSeg = segmented([$t('Round Gate'), $t('Octagonal Gate')], v => { view.octagon = v === 1; });
   gateSeg.value = 1;
-  // flips: bit 0 left X, 1 left Y ("I <mask>"). Sent right away: the firmware applies and saves a flip as soon as it gets
-  // it. It mirrors the finished output, so the calibration stays valid (onFrame confirms it)
-  const flips = [dtoggle($t('Flip X axis'), flipChanged), dtoggle($t('Flip Y axis'), flipChanged)];
-  let invOther = 0;   // the C-stick's flip bits, kept as they are
-  function flipChanged() {
-    pending.inv = -1;
-    wanted.inv = invOther | (flips[0].checked ? 1 : 0) | (flips[1].checked ? 2 : 0); wanted.at = performance.now(); wanted.tries = 1;
-    dev.send('I ' + wanted.inv);
-    say($t('Flipping the axis...'), 'var(--warn)');
-  }
   const tag = badge(); tag.el.classList.add('hidden');   // shown once a calibration starts here (the firmware doesn't say)
   const rd1 = el('div.rd1');
   const legend = el('div.rd2.legend', { html: '<i class="lg-dot"></i>' + $t('Output') + '<b class="lg-x">✕</b>' + $t('Target') });
@@ -226,13 +216,12 @@ export async function startPhob(shell, dev, opts) {
   const macroBtn = (text, key, steps, primary) => { const b = pbtn(text, '', primary, () => { macro = steps.slice(); macroUntil = 0; }); if (key) b.prepend(el('i.key', { text: key })); return b; };
   // m: the button it holds, or a function giving it at the moment it's pressed
   const holdBtn = (cls, title, m) => { const b = el('button.hold.' + cls, { type: 'button', title, html: dicon(cls === 'ccw' ? 'minus' : 'plus') }); let held = 0; b.addEventListener('pointerdown', () => { held = typeof m === 'function' ? m() : m; holdMask |= held; }); for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, () => { holdMask &= ~held; held = 0; }); return b; };
-  const oneFlip = () => view.inv === 1 || view.inv === 2;   // exactly one axis flipped: turning directions are mirrored
   const stepT = el('div.cal-t'), stepD = el('div.cal-d'), stepS = el('div.cal-s'), prog = el('div.phob-prog', {}, [el('i')]);
   const bUndo = macroBtn($t('Undo'), 'Z', [[BZ, 200]], false), bSkip = macroBtn($t('Skip'), 'START', [[BS, 200]], false), bAdv = macroBtn($t('Advance'), 'A', [[BA, 200]], true);
   // while lining a notch up: back to the angle it was captured at (B)
   const bResetNotch = macroBtn($t('Reset notch'), 'B', [[BB, 200]], false);
   bResetNotch.title = $t('Put this notch back to the angle it was captured at');
-  const angleRow = el('div.angle-off', {}, [holdBtn('ccw', $t('Rotate counter-clockwise (hold)'), () => oneFlip() ? BX : BY), el('span', { text: $t('Angle offset') }), holdBtn('cw', $t('Rotate clockwise (hold)'), () => oneFlip() ? BY : BX)]);
+  const angleRow = el('div.angle-off', {}, [holdBtn('ccw', $t('Rotate counter-clockwise (hold)'), BY), el('span', { text: $t('Angle offset') }), holdBtn('cw', $t('Rotate clockwise (hold)'), BX)]);
   const calBox = el('div.cal-box.hidden', {}, [el('div.cal-head', {}, [stepT, angleRow]), stepD, stepS, prog, el('div.btnrow.cal-btns', {}, [bUndo, bResetNotch, bSkip, bAdv])]);
   const bCal = pbtn($t('Calibrate'), 'target', true, () => {
     if (!frame || frame.step >= 0) return;
@@ -257,7 +246,7 @@ export async function startPhob(shell, dev, opts) {
   const vizRow = el('div.notchviz', {}, [el('div.notchviz-top', {}, [vizToggle.el, bClear]), meleeRd]);
   const stickPanel = panel($t('STICK'), [el('div.phob-body', {}, [
     el('div.phob-left', {}, [el('div.gate-wrap', {}, [view.canvas]), el('div.rd', {}, [rd1, legend])]),
-    el('div.phob-right', {}, [el('div.two.flips', {}, [flips[0].el, flips[1].el]), gateSeg.el, calBox, el('div.btnrow.cal-main', {}, [bLock, bCal]), vizRow]),
+    el('div.phob-right', {}, [gateSeg.el, calBox, el('div.btnrow.cal-main', {}, [bLock, bCal]), vizRow]),
   ])], 'phob-wide');
   stickPanel.firstChild.append(tag.el, lockTag);
   const page1 = el('div.page.hidden.dpage.phobsticks', {}, [stickPanel]);
@@ -265,7 +254,7 @@ export async function startPhob(shell, dev, opts) {
 
   function makeView() {
     const canvas = el('canvas.gate.phob-gate-cv');
-    const v = { canvas, octagon: false, active: false, outX: 0, outY: 0, hasTarget: false, tx: 0, ty: 0, aim: NaN, aimCenter: false, rawX: 0.5, rawY: 0.5, cx: NaN, cy: NaN, range: RAW_SPAN, trail: [], ang: 0, pct: 0, inv: 0,
+    const v = { canvas, octagon: false, active: false, outX: 0, outY: 0, hasTarget: false, tx: 0, ty: 0, aim: NaN, aimCenter: false, rawX: 0.5, rawY: 0.5, cx: NaN, cy: NaN, range: RAW_SPAN, trail: [], ang: 0, pct: 0, calibrated: false,
       viz: false, trace: new Array(720).fill(null) };   // trace: the furthest output point in each half-degree, or null
     // the notch visualizer's outline: keeps the furthest point the output reaches in each direction
     v.addTrace = (x, y) => {
@@ -314,7 +303,8 @@ export async function startPhob(shell, dev, opts) {
       }
       if (v.active && !isNaN(v.aim)) { const a = v.aim * Math.PI / 180; g.setLineDash([4, 4]); g.lineWidth = 1; g.strokeStyle = 'rgba(255,210,60,.6)'; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); g.setLineDash([]); }
       g.fillStyle = 'rgba(40,166,255,.5)';
-      g.beginPath(); g.arc(c + clamp(v.outX, -1.2, 1.2) * R, c - clamp(v.outY, -1.2, 1.2) * R, 4, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill();
+      // the output dot: only once the stick is calibrated (before that PhobGCC's output means nothing), and not while calibrating
+      if (v.calibrated && !v.active) { g.beginPath(); g.arc(c + clamp(v.outX, -1.2, 1.2) * R, c - clamp(v.outY, -1.2, 1.2) * R, 4, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill(); }
       // the target: where PhobGCC wants the stick for this step (it shows it on the C-stick's output while calibrating)
       if (v.hasTarget) {
         const tx = c + v.tx * R, ty = c - v.ty * R; g.lineWidth = 1.8; g.lineCap = 'round'; g.strokeStyle = '#ffd23c';
@@ -323,12 +313,7 @@ export async function startPhob(shell, dev, opts) {
     };
     return v;
   }
-  // the notch's name as the gate shows it: mirrored by the flips, like the output and the target
-  function notchName(n) {
-    if (view.inv & 1) n = (24 - n) % 16;
-    if (view.inv & 2) n = (16 - n) % 16;
-    return notchLabel(n);
-  }
+  function notchName(n) { return notchLabel(n); }
   function notchLabel(n) { return $tn({ 0: 'right', 2: 'up-right', 4: 'up', 6: 'up-left', 8: 'left', 10: 'down-left', 12: 'down', 14: 'down-right' }[n] || 'in-between'); }
   // the calibration box, from each frame: getting ready, the 32 capture steps (16 notches, each centre then edge), the
   // 12 notch adjustments, saving
@@ -398,13 +383,13 @@ export async function startPhob(shell, dev, opts) {
   function showSettings(v) { for (let i = 0; i < 19; i++) vals[i] = v[i]; for (const s of sliders) s.value = vals[s.idx]; }
 
   // ---------------------------------------------------------------- BACKUP & RESTORE (parts.js): the button map, the LED colors,
-  // the stick settings and the axis flips. The stick calibration stays in the controller: PhobGCC doesn't send it.
+  // and the stick settings. The stick calibration stays in the controller: PhobGCC doesn't send it.
   const backup = backupPage({
     controller: 'PhobGCC', board: boardName, firmware: '', mode: () => 'GameCube',
     exportData: async () => {
       if (!map || !led || !settings || !frame) throw new Error($t('the controller hasn\'t sent all its settings yet. Wait a second and try again'));
       return { format: 'padbox-phob-backup', version: 1, board: boardName, created: new Date().toISOString(),
-        map: (pending.map || map).slice(), led: led.slice(), settings: (pending.settings || vals).slice(), inv: pending.inv >= 0 ? pending.inv : frame.inv & 15 };
+        map: (pending.map || map).slice(), led: led.slice(), settings: (pending.settings || vals).slice() };
     },
     fileName: name => 'PadBox GS Platform - PhobGCC - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
     check: d => !d || d.format !== 'padbox-phob-backup' ? $t('This file isn\'t a PhobGCC configuration file. GP2040-CE and HOJA files only go back onto those firmwares.')
@@ -415,7 +400,6 @@ export async function startPhob(shell, dev, opts) {
       led = d.led.slice(); sendLed(); showAllColor(ledRgbRaw(4));
       map = d.map.slice(); pending.map = map.slice();
       showSettings(d.settings); pending.settings = d.settings.slice();
-      pending.inv = (invOther & 12) | (d.inv & 3);
       refreshSide(); await saveAll();
       return $t('Restored and saved in the controller. The stick calibration isn\'t part of a backup: it stays as it is.');
     },
@@ -443,7 +427,7 @@ export async function startPhob(shell, dev, opts) {
       const v = line.split(',').slice(1).map(Number);
       if (v.length < 15) return;
       frame = { step: v[0], stick: v[1], locked: v[2], ax: v[4], ay: v[5], cx: v[6], cy: v[7], la: v[8], buttons: v[10],
-        rawAx: v[11] / 10000, rawAy: v[12] / 10000, inv: v.length > 15 ? v[15] : 0, phys: v.length > 16 ? v[16] : 0, saveState: v.length >= 25 ? v[24] : 0 };
+        rawAx: v[11] / 10000, rawAy: v[12] / 10000, inv: v.length > 15 ? v[15] : 0, phys: v.length > 16 ? v[16] : 0, saveState: v.length >= 25 ? v[24] : 0, calibrated: v.length >= 29 ? v[28] === 1 : true };
       if (!haveFrame) { haveFrame = true; view.setRaw(frame.rawAx, frame.rawAy); view.reset(true); say($t('Receiving data')); }
       onFrame(frame);
     } else if (line.startsWith('M,')) {
@@ -466,7 +450,7 @@ export async function startPhob(shell, dev, opts) {
     const freshPress = f.phys & ~phys;
     phys = f.phys;
     if (freshPress && curPage === page0) { for (let b = 0; b < 21; b++) if (freshPress & (1 << b)) { if (pinOf(b) >= 0) select(b); break; } }   // pressing a button selects it
-    view.inv = f.inv & 3;
+    view.calibrated = f.calibrated;
     view.setRaw(f.rawAx, f.rawAy);
     view.active = f.step >= 0 && f.stick === 0;
     view.aim = NaN; view.aimCenter = false;
@@ -482,17 +466,10 @@ export async function startPhob(shell, dev, opts) {
     }
     // while calibrating, the C-stick's output is the target
     view.hasTarget = view.active; view.tx = (f.cx - 127) / 100; view.ty = (f.cy - 127) / 100;
-    // the flip is on the output, so the target (PhobGCC's, unflipped) is drawn flipped too: lining the output dot up with
-    // it then gives the same calibration whatever the flips, and the stick ends up where the dot showed
-    if (view.inv & 1) { view.tx = -view.tx; if (!isNaN(view.aim)) view.aim = (540 - view.aim) % 360; }
-    if (view.inv & 2) { view.ty = -view.ty; if (!isNaN(view.aim)) view.aim = (360 - view.aim) % 360; }
     // the aim help reads the output too
     { const m = Math.hypot(view.outX, view.outY); let a = Math.atan2(view.outY, view.outX) * 180 / Math.PI; if (a < 0) a += 360; view.ang = a; view.pct = Math.min(100, m * 100); }
     if (curPage === page1) { const r = readout(view.outX, view.outY); rd1.textContent = r.xy + (r.angle ? '     ' + r.angle : ''); }
     showStep(f);
-    invOther = f.inv & 12;
-    if (wanted.inv >= 0 && f.inv === wanted.inv) { wanted.inv = -1; view.trace.fill(null); say($t('Axis flip saved in the controller. No need to recalibrate.'), 'var(--good)'); view.reset(true); }
-    else if (wanted.inv < 0 && pending.inv < 0) { flips[0].checked = (f.inv & 1) !== 0; flips[1].checked = (f.inv & 2) !== 0; }
     if (f.saveState === 2) say($t('Warning: the controller couldn\'t save its settings.'), 'var(--bad)');
     // ask for what we don't know yet; resend what wasn't confirmed
     const now = performance.now();
