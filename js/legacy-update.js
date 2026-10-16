@@ -9,6 +9,7 @@
 import { el, dialog, button, setButtonText } from './ui.js';
 import { $t } from './i18n.js';
 import { BOOT_IDS, bootChip, uf2Chip, findBoot, picobootFlash, rememberPicoboot, famName } from './update.js';
+import { count } from './stats.js';
 
 const BOARDS = { 'GS Essential': ['HOJA2', 'GP2040-CE'], 'GS Platform': ['HOJA2', 'GP2040-CE', 'PhobGCC'] };
 // what's on it now -> the buttons that put it in update mode when held while plugging it in (the same steps for all
@@ -55,6 +56,9 @@ export function legacyUpdate(o = {}) {
     cap($t('Your PadBox')), boardSel, cap($t('The firmware on it now')), nowSel, cap($t('Install')), famSel, how, meter, status,
   ]);
   const d = dialog($t('Update an older PadBox'), $t('Firmware from before the PadBox Configurator'), 'download', body, [go, close]);
+  // usage counts (js/stats.js): "older-update/start/GS Platform/PhobGCC", then done, fallback or downloaded
+  const stat = what => count('older-update/' + what + '/' + boardSel.value + '/' + famSel.value);
+  count('older-update/open');
   const say = (t, c) => { status.textContent = t; status.style.color = c || 'var(--soft)'; };
   const progress = p => { meter.classList.remove('hidden'); meter.firstChild.style.width = p + '%'; };
   const lock = on => { for (const s of [boardSel, nowSel, famSel]) s.disabled = on; go.disabled = on; close.disabled = on; };
@@ -71,7 +75,7 @@ export function legacyUpdate(o = {}) {
       data = new Uint8Array(await r.arrayBuffer()); name = famSel.value;
       if (uf2Chip(data) !== 'RP2040') throw new Error($t('not RP2040 firmware'));
     } catch (e) { return say($t('Couldn\'t load the firmware file ({0}).', e.message), 'var(--bad)'); }
-    lock(true); progress(5);
+    lock(true); progress(5); stat('start');
     say($t('Looking for the PadBox in update mode...'));
     progress(10);
     if (!navigator.usb) return offerDownload($t('This browser can\'t install firmware by itself.'));
@@ -95,7 +99,7 @@ export function legacyUpdate(o = {}) {
     say($t('Installing {0}... don\'t unplug the PadBox.', name));
     try { await picobootFlash(dev, data, (i, n) => progress(10 + Math.round(88 * i / n))); }
     catch (e) { return offerDownload($t('The browser couldn\'t reach the PadBox in update mode ({0}).', e.message)); }
-    rememberPicoboot('RP2040');
+    rememberPicoboot('RP2040'); stat('done');
     progress(100); stage = 'done'; go.classList.add('hidden'); close.disabled = false; setButtonText(close, $t('CLOSE'), '');
     say($t('Done: the PadBox restarts on {0} by itself.', famName(name)) + '\n' + setUp(), 'var(--good)');
   }
@@ -105,12 +109,13 @@ export function legacyUpdate(o = {}) {
 
   function offerDownload(why) {
     stage = 'download'; lock(false); for (const s of [boardSel, nowSel, famSel]) s.disabled = true;
+    stat('fallback');
     setButtonText(go, $t('DOWNLOAD FIRMWARE'), 'download');
     say(why + '\n' + $t('Click DOWNLOAD FIRMWARE, then drag the file onto the "RPI-RP2" drive that appeared when the PadBox went into update mode: it restarts on the new firmware by itself.') +
       '\n' + $t('If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold the buttons above while plugging it back in.'), 'var(--warn)');
   }
   function download() {
-    const a = el('a', { href: URL.createObjectURL(new Blob([data])), download: 'PADBOX.UF2' }); a.click();
+    const a = el('a', { href: URL.createObjectURL(new Blob([data])), download: 'PADBOX.UF2' }); a.click(); stat('downloaded');
     progress(100);
     say($t('Downloaded. Drag PADBOX.UF2 onto the RPI-RP2 drive: the PadBox restarts on {0} by itself.', famName(name)) + '\n' + setUp(), 'var(--good)');
     setButtonText(close, $t('CLOSE'), '');

@@ -11,6 +11,7 @@
 
 import { el, icon, button, dialog, esc, sleep, setButtonText } from './ui.js';
 import { $t } from './i18n.js';
+import { count } from './stats.js';
 
 const FAMILIES = { 'GS Essential': ['HOJA2', 'GP2040-CE'], 'GS Platform': ['HOJA2', 'GP2040-CE', 'PhobGCC'], 'GS E2T': ['GP2040-CE'], 'GS NS': ['HOJA2', 'GP2040-CE'] };
 // The PadBox GS E2T (a GS Platform whose GP2040-CE locks three C-stick buttons off) only ever gets its own GP2040-CE: any
@@ -150,6 +151,8 @@ const BOOT_NAME = () => 'RP2 Boot';
 export function firmwareUpdate({ board, current, enter }) {
   const fams = FAMILIES[board] || [];
   const choice = el('select.combo', { style: { width: '100%' } });
+  // usage counts (js/stats.js): "update/start/GS Platform/PhobGCC", then done, fallback or downloaded
+  const stat = what => count('update/' + what + '/' + (board || 'PadBox') + '/' + (choice.value || 'own file'));
   for (const f of fams) choice.append(el('option', { value: f, text: famName(f) + (f === current ? $t('  (the one running now - reinstall / update)') : $t('  (switch to it)')) }));
   if (!LOCKED_FIRMWARE.has(board)) choice.append(el('option', { value: '', text: $t('Another .uf2 file...') }));
   choice.value = current;
@@ -198,6 +201,7 @@ export function firmwareUpdate({ board, current, enter }) {
     } catch (e) { data = null; return say($t('Couldn\'t load the firmware file ({0}).', e.message), 'var(--bad)'); }
     if (!uf2Chip(data)) { data = null; return say($t('That file isn\'t PadBox firmware (not a valid .uf2 for it). Nothing was changed.'), 'var(--bad)'); }
     stage = 'busy'; choice.disabled = true; close.disabled = true; go.disabled = true;
+    stat('start');
     progress(5); say($t('Restarting the PadBox into update mode...'));
     // the bootloader without its drive when this browser already knows it can reach it directly
     noDrive = useNoDrive(uf2Chip(data));
@@ -243,6 +247,7 @@ export function firmwareUpdate({ board, current, enter }) {
       return offerDownload($t('The browser couldn\'t reach the PadBox\'s bootloader ({0}).', e.message));
     }
     rememberPicoboot(devChip);   // next time: no drive, no window
+    stat('done');
     progress(100);
     say($t('Done: the PadBox restarts on {0} by itself.', name), 'var(--good)');
     stage = 'done'; go.classList.add('hidden');
@@ -261,6 +266,7 @@ export function firmwareUpdate({ board, current, enter }) {
       return say($t('That firmware is for a different chip ({0}) than the PadBox GS (RP2040). Nothing was changed.', uf2Chip(data)), 'var(--bad)');
     }
     stage = 'download'; go.disabled = false; close.disabled = false;
+    stat('fallback');
     setButtonText(go, $t('DOWNLOAD FIRMWARE'), 'download');
     try { localStorage.removeItem(PICOBOOT_KEY(uf2Chip(data))); } catch (e) { }   // it didn't work here: use the drive next time
     say(why + '\n' + (noDrive
@@ -271,6 +277,7 @@ export function firmwareUpdate({ board, current, enter }) {
 
   function download() {
     const a = el('a', { href: URL.createObjectURL(new Blob([data])), download: 'PADBOX.UF2' }); a.click();
+    stat('downloaded');
     progress(100);
     say($t('Downloaded. Drag PADBOX.UF2 onto the update drive ({0}): the PadBox restarts on {1} by itself.', UPDATE_DRIVE, name) + '\n' + reconnect, 'var(--good)');
     setButtonText(close, $t('CLOSE'), '');

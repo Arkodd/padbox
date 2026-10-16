@@ -25,6 +25,7 @@ const isGp = d => d.vendorId === 0xcafe;
 const isHoja = d => HOJA_FILTERS.some(f => f.vendorId === d.vendorId && f.productId === d.productId);
 import { dicon } from './icons.js';
 import { legacyUpdate } from './js/legacy-update.js';
+import { count } from './js/stats.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -207,9 +208,11 @@ async function open(d) {
   }
   connecting = false;
 }
+const FIRMWARE = new Map([[startGp, 'GP2040-CE'], [startHoja, 'HOJA2'], [startPhob, 'PhobGCC']]);
 async function run(dev, start, opts) {
   current = { dev, app: null };
   current.app = await start(shell, dev, opts || {});
+  count((opts && opts.demo ? 'demo/' : 'connect/') + FIRMWARE.get(start));   // usage counts (js/stats.js)
 }
 
 navigator.usb && navigator.usb.addEventListener('disconnect', e => { if (current && current.dev.dev === e.device) disconnect($t('The PadBox was unplugged.')); });
