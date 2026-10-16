@@ -198,7 +198,7 @@ export async function startPhob(shell, dev, opts) {
     if (!alive) return clearInterval(drawTick);
     drawing.set(pinOf(sel), pin => lit(BIT[pin]));
     drawing.setLeds(pin => { const li = ledOf(BIT[pin]); return li >= 0 && led ? hex(ledRgbRaw(li)) : null; });
-    try { drawing.setSticks([view.calibrated && !view.active ? [view.outX, view.outY] : [0, 0]]); } catch (e) { }   // the orange dot follows the stick once it is calibrated (once the STICKS view exists)
+    try { drawing.setSticks([view.showOut ? [view.outX, view.outY] : [0, 0]]); } catch (e) { }   // the orange dot follows the stick once it is calibrated (once the STICKS view exists)
   }, 30);
 
   // ---------------------------------------------------------------- STICKS page
@@ -304,7 +304,7 @@ export async function startPhob(shell, dev, opts) {
       if (v.active && !isNaN(v.aim)) { const a = v.aim * Math.PI / 180; g.setLineDash([4, 4]); g.lineWidth = 1; g.strokeStyle = 'rgba(255,210,60,.6)'; g.beginPath(); g.moveTo(c, c); g.lineTo(c + Math.cos(a) * R, c - Math.sin(a) * R); g.stroke(); g.setLineDash([]); }
       g.fillStyle = 'rgba(40,166,255,.5)';
       // the output dot: only once the stick is calibrated (before that PhobGCC's output means nothing), and not while calibrating
-      if (v.calibrated && !v.active) { g.beginPath(); g.arc(c + clamp(v.outX, -1.2, 1.2) * R, c - clamp(v.outY, -1.2, 1.2) * R, 4, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill(); }
+      if (v.showOut) { g.beginPath(); g.arc(c + clamp(v.outX, -1.2, 1.2) * R, c - clamp(v.outY, -1.2, 1.2) * R, 4, 0, Math.PI * 2); g.fillStyle = '#fe6805'; g.fill(); }
       // the target: where PhobGCC wants the stick for this step (it shows it on the C-stick's output while calibrating)
       if (v.hasTarget) {
         const tx = c + v.tx * R, ty = c - v.ty * R; g.lineWidth = 1.8; g.lineCap = 'round'; g.strokeStyle = '#ffd23c';
@@ -458,6 +458,9 @@ export async function startPhob(shell, dev, opts) {
     phys = f.phys;
     if (freshPress && curPage === page0) { for (let b = 0; b < 21; b++) if (freshPress & (1 << b)) { if (pinOf(b) >= 0) select(b); break; } }   // pressing a button selects it
     view.calibrated = f.calibrated;
+    // the output dot: once the stick is calibrated; during a calibration only from the notch line-up steps on (PhobGCC has
+    // computed the calibration by then, and lining a notch up means putting the dot on the cross)
+    view.showOut = view.active ? f.step >= 32 : f.calibrated;
     view.setRaw(f.rawAx, f.rawAy);
     view.active = f.step >= 0 && f.stick === 0;
     view.aim = NaN; view.aimCenter = false;
