@@ -75,46 +75,64 @@ function sectors(data, chip) {
   return [...out.entries()].sort((a, b) => a[0] - b[0]);
 }
 
+// A USB step that doesn't answer within ms fails instead of leaving the update window waiting forever (a PadBox that
+// stops responding, a browser that never settles a transfer).
+export function timed(promise, ms, what) {
+  let t;
+  return Promise.race([promise, new Promise((_, no) => { t = setTimeout(() => no(new Error(what + ': ' + $t('no answer'))), ms); })])
+    .finally(() => clearTimeout(t));
+}
+const STEP_MS = 5000;
+
 // PICOBOOT (pico-sdk boot/picoboot.h): 32-byte commands on the bulk OUT pipe, an optional data phase, then a
 // zero-length acknowledgement in the other direction.
+// The flash's first sector (the boot block) is erased first and written last: if the update is cut short, the chip finds
+// no firmware to start and opens its update drive by itself at the next plug-in, so the PadBox can always be recovered
+// without opening it.
 export async function picobootFlash(dev, data, progress) {
   const chip = bootChip(dev);
   const secs = sectors(data, chip);
   if (!secs.length) throw new Error($t('the file has nothing for this chip'));
-  await dev.open();
+  await timed(dev.open(), STEP_MS, 'open');
   try {
-    if (!dev.configuration) await dev.selectConfiguration(1);
+    if (!dev.configuration) await timed(dev.selectConfiguration(1), STEP_MS, 'configuration');
     const itf = dev.configuration.interfaces.find(i => i.alternates[0].interfaceClass === 0xff);
     if (!itf) throw new Error('no PICOBOOT interface');
     const alt = itf.alternates[0];
     const epIn = alt.endpoints.find(e => e.direction === 'in').endpointNumber;
     const epOut = alt.endpoints.find(e => e.direction === 'out').endpointNumber;
-    await dev.claimInterface(itf.interfaceNumber);
-    await dev.controlTransferOut({ requestType: 'vendor', recipient: 'interface', request: 0x41, value: 0, index: itf.interfaceNumber });   // IF_RESET
+    await timed(dev.claimInterface(itf.interfaceNumber), STEP_MS, 'claim');
+    await timed(dev.controlTransferOut({ requestType: 'vendor', recipient: 'interface', request: 0x41, value: 0, index: itf.interfaceNumber }), STEP_MS, 'reset');   // IF_RESET
     let token = 1;
     const cmd = async (id, args, xfer = 0, payload = null) => {
       const c = new Uint8Array(32), v = new DataView(c.buffer);
       v.setUint32(0, 0x431fd10b, true); v.setUint32(4, token++, true);
       c[8] = id; c[9] = args.length; v.setUint32(12, xfer, true); c.set(args, 16);
-      let r = await dev.transferOut(epOut, c);
+      let r = await timed(dev.transferOut(epOut, c), STEP_MS, 'command ' + id);
       if (r.status !== 'ok') throw new Error('command ' + id + ' refused');
-      if (xfer) { r = await dev.transferOut(epOut, payload); if (r.status !== 'ok') throw new Error('command ' + id + ' data refused'); }
-      r = await dev.transferIn(epIn, 64);
+      if (xfer) { r = await timed(dev.transferOut(epOut, payload), STEP_MS, 'command ' + id); if (r.status !== 'ok') throw new Error('command ' + id + ' data refused'); }
+      r = await timed(dev.transferIn(epIn, 64), STEP_MS, 'command ' + id);
       if (r.status !== 'ok') throw new Error('command ' + id + ' failed');
     };
     const u32 = (...n) => { const b = new Uint8Array(n.length * 4), v = new DataView(b.buffer); n.forEach((x, i) => v.setUint32(i * 4, x >>> 0, true)); return b; };
     await cmd(0x01, new Uint8Array([1]));   // exclusive access (the drive goes read-only meanwhile)
     await cmd(0x06, new Uint8Array(0));     // leave execute-in-place so the flash can be written
-    for (let i = 0; i < secs.length; i++) {
-      const [addr, bytes] = secs[i];
+    const boot = secs[0][0] === 0x10000000 ? secs[0] : null;
+    if (boot) await cmd(0x03, u32(boot[0], 4096));       // the boot block goes first: from here, a cut leaves no firmware to start
+    const rest = boot ? secs.slice(1) : secs;
+    for (let i = 0; i < rest.length; i++) {
+      const [addr, bytes] = rest[i];
       await cmd(0x03, u32(addr, 4096));                 // erase
       await cmd(0x05, u32(addr, 4096), 4096, bytes);    // write
       progress(i + 1, secs.length);
     }
-    // restart on the new firmware in half a second
-    await cmd(0x02, u32(0, 0x20042000, 500));
+    if (boot) { await cmd(0x05, u32(boot[0], 4096), 4096, boot[1]); progress(secs.length, secs.length); }   // ...and is written last
+    // restart on the new firmware in half a second (the firmware is all written: a missing answer here doesn't matter)
+    try {
+      await cmd(0x02, u32(0, 0x20042000, 500));
+    } catch (e) { }
   } finally {
-    try { await dev.close(); } catch (e) { }
+    try { await timed(dev.close(), 2000, 'close'); } catch (e) { }
   }
 }
 
@@ -183,7 +201,7 @@ export function firmwareUpdate({ board, current, enter }) {
     progress(5); say($t('Restarting the PadBox into update mode...'));
     // the bootloader without its drive when this browser already knows it can reach it directly
     noDrive = useNoDrive(uf2Chip(data));
-    try { if (enter) await enter(noDrive); } catch (e) { }
+    try { if (enter) await timed(enter(noDrive), 10000, 'restart'); } catch (e) { }
     await sleep(1500);
     progress(10);
     if (!navigator.usb) return offerDownload($t('This browser can\'t install firmware by itself.'));
@@ -247,7 +265,8 @@ export function firmwareUpdate({ board, current, enter }) {
     try { localStorage.removeItem(PICOBOOT_KEY(uf2Chip(data))); } catch (e) { }   // it didn't work here: use the drive next time
     say(why + '\n' + (noDrive
       ? $t('Click DOWNLOAD FIRMWARE, then drag the downloaded file onto the update drive ({0}): the PadBox restarts on the new firmware by itself. To get the drive: unplug the PadBox, hold Start + Select while plugging it back in.', UPDATE_DRIVE)
-      : $t('Click DOWNLOAD FIRMWARE, then drag the downloaded file onto the update drive that appeared ({0}): the PadBox restarts on the new firmware by itself.', UPDATE_DRIVE)), 'var(--warn)');
+      : $t('Click DOWNLOAD FIRMWARE, then drag the downloaded file onto the update drive that appeared ({0}): the PadBox restarts on the new firmware by itself.', UPDATE_DRIVE)) +
+      '\n' + $t('If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold Start + Select while plugging it back in.'), 'var(--warn)');
   }
 
   function download() {

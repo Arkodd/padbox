@@ -3,6 +3,9 @@
 // on purpose). {0}, {1}... stand for values put in by the app; keep them and the line breaks (\n).
 // node tools/i18n-check.js says what is missing or no longer used.
 export default {
+  'no answer': '无响应',
+  'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold Start + Select while plugging it back in.': '如果驱动器没有出现或无法放入文件：拔下 PadBox，然后按住 Start + Select 重新插入。',
+  'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold the buttons above while plugging it back in.': '如果驱动器没有出现或无法放入文件：拔下 PadBox，然后按住上面的按键重新插入。',
   'Assign functions to each button and configure LED lighting': '为每个按键分配功能并设置 LED 灯光',
   'Calibrate stick input and adjust deadzones and stick behavior': '校准摇杆并调整死区和摇杆特性',
   'Manage Turbo mode and other advanced controller settings': '管理连发模式和其他高级手柄设置',

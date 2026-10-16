@@ -106,7 +106,8 @@ export function legacyUpdate(o = {}) {
   function offerDownload(why) {
     stage = 'download'; lock(false); for (const s of [boardSel, nowSel, famSel]) s.disabled = true;
     setButtonText(go, $t('DOWNLOAD FIRMWARE'), 'download');
-    say(why + '\n' + $t('Click DOWNLOAD FIRMWARE, then drag the file onto the "RPI-RP2" drive that appeared when the PadBox went into update mode: it restarts on the new firmware by itself.'), 'var(--warn)');
+    say(why + '\n' + $t('Click DOWNLOAD FIRMWARE, then drag the file onto the "RPI-RP2" drive that appeared when the PadBox went into update mode: it restarts on the new firmware by itself.') +
+      '\n' + $t('If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold the buttons above while plugging it back in.'), 'var(--warn)');
   }
   function download() {
     const a = el('a', { href: URL.createObjectURL(new Blob([data])), download: 'PADBOX.UF2' }); a.click();

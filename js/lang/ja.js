@@ -3,6 +3,9 @@
 // on purpose). {0}, {1}... stand for values put in by the app; keep them and the line breaks (\n).
 // node tools/i18n-check.js says what is missing or no longer used.
 export default {
+  'no answer': '応答なし',
+  'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold Start + Select while plugging it back in.': 'ドライブが表示されない、またはファイルを受け付けない場合：PadBoxを抜き、Start + Selectを押したまま差し直してください。',
+  'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold the buttons above while plugging it back in.': 'ドライブが表示されない、またはファイルを受け付けない場合：PadBoxを抜き、上のボタンを押したまま差し直してください。',
   'Assign functions to each button and configure LED lighting': '各ボタンの機能とLEDライティングを設定します',
   'Calibrate stick input and adjust deadzones and stick behavior': 'スティックのキャリブレーション、デッドゾーン、挙動を調整します',
   'Manage Turbo mode and other advanced controller settings': '連射モードなどの詳細なコントローラー設定を管理します',

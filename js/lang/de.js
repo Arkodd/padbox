@@ -3,6 +3,9 @@
 // on purpose). {0}, {1}... stand for values put in by the app; keep them and the line breaks (\n).
 // node tools/i18n-check.js says what is missing or no longer used.
 export default {
+  'no answer': 'keine Antwort',
+  'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold Start + Select while plugging it back in.': 'Wenn das Laufwerk nicht erscheint oder die Datei nicht annimmt: Zieh den PadBox ab und halte Start + Select gedrückt, während du ihn wieder einsteckst.',
+  'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold the buttons above while plugging it back in.': 'Wenn das Laufwerk nicht erscheint oder die Datei nicht annimmt: Zieh den PadBox ab und halte die Tasten oben gedrückt, während du ihn wieder einsteckst.',
   'Assign functions to each button and configure LED lighting': 'Weise jeder Taste eine Funktion zu und stelle die LED-Beleuchtung ein',
   'Calibrate stick input and adjust deadzones and stick behavior': 'Kalibriere die Sticks und passe Totzonen und Stick-Verhalten an',
   'Manage Turbo mode and other advanced controller settings': 'Verwalte den Turbo-Modus und weitere erweiterte Controller-Einstellungen',
