@@ -5,10 +5,11 @@
 // idle glow, brightness, animation time). STICKS: calibration, ANGLE SET, deadzones, snapback and curve. BACKUP &
 // RESTORE. Changes apply to the PadBox right away (written into its RAM); Save keeps them.
 
-import { el, pickColor, hex, clamp, confirmBox, download, openFile } from './js/ui.js';
+import { el, pickColor, hex, clamp, confirmBox, download, openFile, dialog, button } from './js/ui.js';
 import { Blk, Rpt, DeviceInfo } from './js/hoja/device.js';
-import { Analog, Rgb, Gamepad, Input, IN, IN_TRIGGER, INPUTS, PROFILES, MODES, SWITCH_COLORS, profileOfMode, RGB_MODES, OUTPUTS, assign, defaultInputTypes, gsEssential, gsPlatform, gsNs, VERSIONS } from './js/hoja/model.js';
+import { Analog, Rgb, Gamepad, Input, IN, IN_TRIGGER, INPUTS, PROFILES, MODES, SWITCH_COLORS, profileOfMode, RGB_MODES, OUTPUTS, assign, defaultInputTypes, gsEssential, gsPlatform, gsNs, VERSIONS, Spring } from './js/hoja/model.js';
 import { firmwareUpdate } from './js/update.js';
+import { readRelease, fit as fitSpring, DEFAULTS as SPRING_DEFAULTS, PER_OCTANT } from './js/hoja/spring.js';
 import { buildDrawing } from './drawing.js';
 import { dicon } from './icons.js';
 import { $t, $tn, $tNodes } from './js/i18n.js';
@@ -104,6 +105,86 @@ export async function startHoja(shell, dev, opts) {
     if (dirty.size) { await save(); if (dirty.size) return; }
     alive = false; shell.lost($t('Saved. The PadBox is working as a controller: plug it back in or click CONNECT to set it up again.'));
   });
+  // SETTINGS PROFILES (HOJA's profiles.c, on firmware with the PadBox's profile store): four profiles, each with its own
+  // buttons, stick settings, lighting, motion and rumble; calibration, the mode, the Switch colors and the snapback
+  // tuning are shared. A dropdown above the CONTROLLER page's right-hand panels (where GP2040-CE's configurator has its
+  // profile) switches, renames and copies them. A switch stores the profile left (its
+  // unsaved changes too) before the new one goes live, so nothing is lost by switching.
+  const PROFILE_BLOCKS = [Blk.ANALOG, Blk.IMU, Blk.HAPTIC, Blk.RGB, Blk.INPUT];
+  let prof = null;   // { active, names[] } once the PadBox has profiles
+  {
+    const first = await dev.profile(0, 0);
+    if (first && first.ok && first.count) {
+      prof = { active: first.active, names: [first.name] };
+      for (let i = 1; i < first.count; i++) { const q = await dev.profile(0, i); prof.names.push(q ? q.name : ''); }
+    }
+  }
+  const profName = i => prof.names[i] || $t('Profile {0}', i + 1);
+  const profSel = el('select.field.profile-sel', { title: $t('Settings profile: buttons, sticks, lighting, motion and rumble. Calibration, the mode and the Switch colors are shared by all four.') });
+  function showProfiles() {
+    if (!prof) return;
+    profSel.innerHTML = '';
+    prof.names.forEach((_, i) => profSel.append(el('option', { value: 'p' + i, text: profName(i) })));
+    profSel.append(el('option', { disabled: true, text: '──────────' }), el('option', { value: 'rename', text: $t('Rename this profile...') }),
+      el('option', { value: 'copy', text: $t('Copy another profile here...') }));
+    profSel.value = 'p' + prof.active;
+  }
+  // after a switch or a copy into the active profile: its blocks read again and shown
+  async function reloadProfile() {
+    for (const b of PROFILE_BLOCKS) { const fresh = await dev.readBlock(b) || await dev.readBlock(b); if (fresh) B[b] = fresh; }
+    for (const b of PROFILE_BLOCKS) { dirty.delete(b); live.delete(b); }
+    sticks.forEach(s => s.start = null);   // Reset goes back to this profile as it is now
+    loadUi(); refreshSave();
+  }
+  async function profileAction(v) {
+    profSel.value = 'p' + prof.active;
+    if (calibrating) return say($t('Finish the calibration first.'), 'var(--warn)');
+    if (v === 'rename') return renameProfile();
+    if (v === 'copy') return copyProfile();
+    const n = +v.slice(1);
+    if (n === prof.active) return;
+    const left = profName(prof.active);
+    stopTuning(); clearTimeout(liveTimer); await pushLive();
+    profSel.disabled = true; say($t('Switching to {0}...', profName(n)), 'var(--warn)');
+    const q = await dev.profile(1, n);
+    if (!q || !q.ok) { profSel.disabled = false; return say($t('The PadBox didn\'t switch profiles. Try again.'), 'var(--bad)'); }
+    prof.active = q.active;
+    await reloadProfile();
+    profSel.disabled = false; showProfiles();
+    say($t('Now using {0}. The changes made in {1} were kept with it.', profName(prof.active), left), 'var(--good)');
+  }
+  function renameProfile() {
+    const input = el('input.name-in', { type: 'text', maxLength: 24, value: prof.names[prof.active] || '', placeholder: $t('Profile {0}', prof.active + 1) });
+    let d;
+    const ok = button($t('RENAME'), { primary: true, icon: '', onclick: async () => {
+      const name = input.value.trim();
+      if (new TextEncoder().encode(name).length > 24) return;
+      d.close();
+      const q = await dev.profile(2, prof.active, name);
+      if (!q || !q.ok) return say($t('The PadBox didn\'t rename the profile. Try again.'), 'var(--bad)');
+      prof.names[prof.active] = q.name; showProfiles(); say($t('Profile renamed.'), 'var(--good)');
+    } });
+    d = dialog($t('Rename profile'), $t('Up to 24 characters.'), 'info', input, [ok, button($t('CANCEL'), { icon: '', onclick: () => d.close() })]);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') ok.click(); });
+    input.focus(); input.select();
+  }
+  function copyProfile() {
+    const from = el('select.combo', { style: { width: '100%' } }, prof.names.map((_, i) => i === prof.active ? null : el('option', { value: String(i), text: profName(i) })).filter(Boolean));
+    let d;
+    const ok = button($t('COPY'), { primary: true, icon: '', onclick: async () => {
+      d.close();
+      const src = +from.value, into = prof.active;
+      stopTuning(); clearTimeout(liveTimer); await pushLive();
+      const q = await dev.profile(3, into, src);
+      if (!q || !q.ok) return say($t('The PadBox didn\'t copy the profile. Try again.'), 'var(--bad)');
+      await reloadProfile();
+      say($t('{0} now has the settings of {1}.', profName(into), profName(src)), 'var(--good)');
+    } });
+    d = dialog($t('Copy a profile'), $t('Replaces the settings of {0} with those of:', profName(prof.active)), 'info', from,
+      [ok, button($t('CANCEL'), { icon: '', onclick: () => d.close() })]);
+  }
+  profSel.addEventListener('change', () => profileAction(profSel.value));
+  showProfiles();
   shell.actions([btnUpdate, btnSave, btnPreview, btnPower, btnExit]);
   // a newer firmware on the site: say so (HOJA2's fw_version is its build time)
   if (!opts.demo || /[?&]update/.test(location.search)) updateNotice({ board: lay.board, family: 'HOJA2', build: fw, button: btnUpdate, open: () => btnUpdate.click() });
@@ -249,7 +330,7 @@ export async function startHoja(shell, dev, opts) {
     bright.el, speed.el,
   ]);
   const column = el('div.side-col', {}, [empty, settingsPanel, ledPanel]);
-  const page0 = el('div.page.controller.hoja', {}, [drawing.svg, column]);
+  const page0 = el('div.page.controller.hoja', {}, [drawing.svg, ...(prof ? [profSel] : []), column]);
 
   function refreshSide() {
     const rb = B[Blk.RGB];
@@ -334,6 +415,10 @@ export async function startHoja(shell, dev, opts) {
   const pageSnap = el('div.page.hidden.dpage.snappage' + (hasRight ? '' : '.one'), {}, shownSticks.map(s => s.snapCard));
   // a snapback capture goes to its stick's analyzer (LX / LY: the left stick, RX / RY: the right)
   dev.onSnap = (axis, samples) => { const s = sticks[axis >= 2 ? 1 : 0]; if (s.present) s.snap(axis, samples); };
+  // AUTO TUNING: one stick at a time records its releases (dev.onSpring) and has its spring fitted (js/hoja/spring.js)
+  let tuningStick = null;
+  dev.onSpring = (stick, c) => { if (tuningStick && tuningStick.right === (stick === 1)) tuningStick.onRelease(c); };
+  const stopTuning = () => { if (tuningStick) tuningStick.cancelTune(); };
   function refreshCal(msg, color) {
     for (const s of sticks) s.showCal(msg, color);
   }
@@ -359,7 +444,7 @@ export async function startHoja(shell, dev, opts) {
       B[Blk.ANALOG] = fresh;
       if (pending) sticks.forEach(s => s.apply && s.apply());
       markUnsaved(Blk.ANALOG); if (pending) pushLive();
-      const done = calSticks; calSticks = 0; refreshCal();
+      const done = calSticks; calSticks = 0; refreshCal(); sticks.forEach(s => s.showTune && s.showTune());
       for (const s of sticks) {
         if (!(done & (s.right ? 2 : 1)) || !s.present) continue;
         if (Analog.stickCalibrated(fresh, s.right)) s.showCal($t('Calibrated. Click Save to keep it after unplugging.'), 'var(--good)');
@@ -415,6 +500,60 @@ export async function startHoja(shell, dev, opts) {
         el('p.snap-hint', { text: $t('Push the stick all the way to one side and let it snap back: the plot shows what it does in the 31 ms after you let go.') }),
         snapStats, snapCv, snapHist]),
     ], 'snapback');
+    // AUTO TUNING (firmware with the spring model): PER_OCTANT releases in each of the 8 directions, then the fit;
+    // the compass lights the direction asked for next and fills in the ones done
+    const tuneState = el('span.snap-state'), tuneHint = el('p.snap-hint');
+    // the tuning works from the calibrated stick: an uncalibrated one can't be tuned (the note turns orange)
+    const tuneNote = el('p.snap-hint.tune-note', { text: $t('Calibrate this stick (STICKS page) before tuning the snapback.') });
+    const dirs = Array.from({ length: 8 }, (_, o) => { const d = el('i'); d.style.left = (50 + 40 * Math.cos(o * Math.PI / 4)) + '%'; d.style.top = (50 - 40 * Math.sin(o * Math.PI / 4)) + '%'; return d; });
+    const compass = el('div.tune-dirs', {}, dirs);
+    const bTune = pbtn($t('Tune Auto'), '', true, () => tune ? cancelTune($t('Tuning stopped.')) : startTune());
+    const bUntune = pbtn($t('Reset tuning'), '', false, () => {
+      Spring.write(A(), right, SPRING_DEFAULTS, false); changed(Blk.ANALOG); showTune($t('Tuning cleared: Auto works as before. Click Save to keep it.'), 'var(--warn)');
+    });
+    snapCard.querySelector('.snap-set').append(el('div.snap-tune', {}, [el('div.snap-head', {}, [el('div.lbl', { text: $t('Auto tuning') }), tuneState]),
+      el('div.tune-row', {}, [compass, tuneHint]), tuneNote, el('div.btnrow', {}, [bUntune, bTune])]));
+    let tune = null;   // while tuning: { caps, count[8] }
+    const nextDir = () => tune.count.findIndex(n => n < PER_OCTANT);
+    function showTune(msg, color) {
+      const ok = Spring.supported(A()), tuned = ok && Spring.tuned(A(), right);
+      tuneState.textContent = tune ? $t('Recording') : tuned ? $t('Tuned') : $t('Not tuned');
+      tuneState.classList.toggle('got', !tune && tuned); tuneState.classList.toggle('rec', !!tune);
+      setPbtn(bTune, tune ? $t('Cancel') : $t('Tune Auto'));
+      const cal = Analog.stickCalibrated(A(), right);
+      tuneNote.classList.toggle('warn', ok && !cal);
+      bTune.disabled = !ok || (!tune && !cal); bUntune.disabled = !ok || !!tune || !tuned;
+      const next = tune ? nextDir() : -1;
+      dirs.forEach((d, o) => { d.className = tune ? (o === next ? 'on' : tune.count[o] >= PER_OCTANT ? 'done' : '') : tuned ? 'done' : ''; });
+      tuneHint.style.color = color || '';
+      tuneHint.textContent = msg || (!ok ? $t('Update the firmware to tune Auto to this stick.')
+        : tune ? $t('Push the stick all the way towards the lit dot, then let it go completely. {0} of {1}', tune.caps.length, 8 * PER_OCTANT)
+        : $t('Fits Auto to this stick\'s own spring, so it holds back only the real rebound. 16 releases, about a minute.'));
+    }
+    function startTune() {
+      if (tuningStick && tuningStick !== st) tuningStick.cancelTune();
+      tune = { caps: [], count: new Array(8).fill(0) }; tuningStick = st;
+      dev.springCapture(right ? 1 : 0); showTune();
+    }
+    function cancelTune(msg) {
+      if (!tune) return;
+      tune = null; if (tuningStick === st) tuningStick = null;
+      dev.springCapture(0xff); showTune(msg);
+    }
+    const onRelease = c => {
+      if (!tune) return;
+      const r = readRelease(c);
+      if (!r.ok) return showTune({ edge: $t('Push it all the way to the edge before letting go.'), guided: $t('Let go completely: don\'t guide it back to the centre.'),
+        spring: $t('That one didn\'t swing back cleanly. Try again.') }[r.why], 'var(--warn)');
+      if (tune.count[r.octant] >= PER_OCTANT) return showTune($t('Already have that direction: push towards the lit dot.'), 'var(--warn)');
+      tune.caps.push(c); tune.count[r.octant]++;
+      if (nextDir() >= 0) return showTune();
+      // all 8 directions: the fit, on Auto, live at once (the firmware reloads the spring when the block is written)
+      const p = fitSpring(tune.caps);
+      tune = null; tuningStick = null; dev.springCapture(0xff);
+      Spring.write(A(), right, p, true); Analog.setSnapType(A(), right, 1); snapMode.value = 1; showMode(); changed(Blk.ANALOG);
+      showTune($t('Tuned to this stick: Auto now holds back only its rebound. Click Save to keep it.'), 'var(--good)');
+    };
     const controls = el('div.stick-ctl', {}, [settingsBox, infoL, el('div.btnrow.bottom', {}, [bReset, bCal])]);
     const absent = el('div.empty-d', { text: $t('The C-stick is made of buttons, so there\'s nothing to calibrate.'), style: { padding: '90px 0', textAlign: 'center' } });
     const body = el('div.stick-body', {}, [el('div.gate-wrap', {}, [cv]), el('div.rd', {}, [rd1, legend]), controls, offMsg]);
@@ -422,6 +561,7 @@ export async function startHoja(shell, dev, opts) {
     c.firstChild.append(tag.el, en.el);   // the badge and "Enabled" on the title row
     body.classList.toggle('hidden', !present); absent.classList.toggle('hidden', present); en.el.classList.toggle('hidden', !present); tag.el.classList.toggle('hidden', !present);
     const st = { card: c, snapCard, bCal, right, present, x: 0, y: 0, rx: 0, ry: 0, trail: [], start: null };
+    Object.assign(st, { cancelTune: () => cancelTune(), onRelease, showTune });
     // the analyzer: the latest capture drawn, its numbers, the last few to go back to
     const caps = [];
     let shown = null;
@@ -476,11 +616,11 @@ export async function startHoja(shell, dev, opts) {
       dead: clamp(Analog.deadzone(A(), right), 0, 400), outer: clamp(Analog.outer(A(), right), 0, 400), exp: clamp(Analog.exp(A(), right) + 49, 50, 300),
       // the mode as the firmware runs it (anything but 1 or 2 is low-pass there: snapback.c's default branch); the
       // cutoff as it's used (kept within 30..150 Hz)
-      mode: [1, 2].includes(Analog.snapType(A(), right)) ? Analog.snapType(A(), right) : 0, cut: clamp(Math.round(Analog.snap(A(), right) / 5), 60, 300) });
+      mode: Analog.snapType(A(), right) === 3 ? 1 : [1, 2].includes(Analog.snapType(A(), right)) ? Analog.snapType(A(), right) : 0, cut: clamp(Math.round(Analog.snap(A(), right) / 5), 60, 300) });
     st.load = v => {
       v = v || read(); if (!st.start) st.start = v;
       en.checked = v.on; fx.checked = v.fx; fy.checked = v.fy;
-      dead.value = v.dead; outer.value = v.outer; exp.value = v.exp; snapMode.value = v.mode; cutoff.value = v.cut; showMode();
+      dead.value = v.dead; outer.value = v.outer; exp.value = v.exp; snapMode.value = v.mode; cutoff.value = v.cut; showMode(); showTune();
       showOn();
     };
     st.apply = () => {
@@ -523,7 +663,7 @@ export async function startHoja(shell, dev, opts) {
       paintGate(cv, { round: gate.value === 0, din: dead.value / 2047, dout: 1 - outer.value / 2047, out: [st.x, st.y], raw: [st.rx, st.ry],
         trail: st.trail, gate: '#fe6805', ref: true, off: !en.checked });
       const r = readout(st.x, st.y);
-      rd1.textContent = r.xy + (r.angle ? '     ' + r.angle : '');
+      rd1.textContent = r.melee + (r.angle ? '     ' + r.angle : '');
     };
     return st;
   }
@@ -622,7 +762,7 @@ export async function startHoja(shell, dev, opts) {
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   let curTab = 0, curName = 'CONTROLLER';
   shell.tabs(tabNames, i => {
-    curTab = i; curName = tabNames[i]; pages.forEach((p, k) => p.classList.toggle('hidden', k !== i));
+    curTab = i; curName = tabNames[i]; if (curName !== 'SNAPBACK') stopTuning(); pages.forEach((p, k) => p.classList.toggle('hidden', k !== i));
     // the live report the open page needs: raw buttons for CONTROLLER (and the trigger), the sticks otherwise
     dev.reportMode(curName === 'CONTROLLER' || curName === 'TRIGGER' ? Rpt.INPUT_RAW : Rpt.INPUT_JOYSTICKS);
     pressed.fill(false);
@@ -653,7 +793,7 @@ export async function startHoja(shell, dev, opts) {
   dev.onSticks = (lxR, lyR, rxR, ryR, lxS, lyS, rxS, ryS) => {
     Object.assign(sticks[0], { rx: lxR, ry: lyR, x: lxS, y: lyS }); Object.assign(sticks[1], { rx: rxR, ry: ryR, x: rxS, y: ryS });
   };
-  dev.onLost = () => { if (alive) { alive = false; shell.lost($t('Lost the connection to the PadBox.')); } };
+  dev.onLost = () => { tuningStick = null; if (alive) { alive = false; shell.lost($t('Lost the connection to the PadBox.')); } };
   const frame = () => {
     if (!alive) return;
     sticks.forEach(s => s.paint());
@@ -661,5 +801,5 @@ export async function startHoja(shell, dev, opts) {
   const loop = () => { if (!alive) return; frame(); requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
 
-  return { stop() { alive = false; }, dirty: () => dirty.size > 0 };
+  return { stop() { alive = false; stopTuning(); }, dirty: () => dirty.size > 0 };
 }

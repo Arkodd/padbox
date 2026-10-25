@@ -50,6 +50,28 @@ export const Analog = {
   exp: (b, right) => b[right ? 697 : 696], setExp: (b, right, v) => { b[right ? 697 : 696] = v; },
   disabled: (b, right) => b[right ? 700 : 699] === 1, setDisabled: (b, right, v) => { b[right ? 700 : 699] = v ? 1 : 0; },
 };
+// snapbackSpringCfg_s (74 bytes): each stick's tuning for Auto snapback, l_spring at 701, r_spring at 775 (the PadBox
+// layout: 3 bytes later than HOJA's, after module_flip and the two "stick off" bytes). version 1 at [0], flags at [1]
+// (1 = fitted to this stick: Auto uses it), a1[8] and a2[8] (s32, Q16, per octant: 0 = +x, counting towards +y) at 2
+// and 34, then decide_step, grab_err, stiff_den, cross_speed (u16). Firmware with the spring model fills in its
+// defaults (version 1, not tuned) when it loads the block, so version 1 there also says the firmware has it.
+export const Spring = {
+  off: right => right ? 775 : 701,
+  supported: b => b[701] === 1,
+  tuned: (b, right) => b[Spring.off(right)] === 1 && (b[Spring.off(right) + 1] & 1) !== 0,
+  read(b, right) {
+    const o = Spring.off(right), dv = new DataView(b.buffer, b.byteOffset);
+    return { a1: Array.from({ length: 8 }, (_, i) => dv.getInt32(o + 2 + i * 4, true)), a2: Array.from({ length: 8 }, (_, i) => dv.getInt32(o + 34 + i * 4, true)),
+      decide_step: u16(b, o + 66), grab_err: u16(b, o + 68), stiff_den: u16(b, o + 70), cross_speed: u16(b, o + 72) };
+  },
+  // p: { a1[8], a2[8], decide_step, grab_err, stiff_den, cross_speed }; tuned: flag it as fitted to this stick
+  write(b, right, p, tuned) {
+    const o = Spring.off(right), dv = new DataView(b.buffer, b.byteOffset);
+    b[o] = 1; b[o + 1] = tuned ? 1 : 0;
+    for (let i = 0; i < 8; i++) { dv.setInt32(o + 2 + i * 4, p.a1[i], true); dv.setInt32(o + 34 + i * 4, p.a2[i], true); }
+    set16(b, o + 66, p.decide_step); set16(b, o + 68, p.grab_err); set16(b, o + 70, p.stiff_den); set16(b, o + 72, p.cross_speed);
+  },
+};
 // rgbConfig_s (256 bytes)
 export const Rgb = {
   mode: b => b[1], setMode: (b, v) => { b[1] = v; },

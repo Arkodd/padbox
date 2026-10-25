@@ -831,6 +831,18 @@ dialog select.combo option { color: #222; background: #eee; }
 .panel.snapback .snap-hist { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; min-height: 18px; }
 .panel.snapback .snap-cap { font: 400 7.5px/1 "Poppins", sans-serif; color: #cfcfcf; background: #2f2f2f; border: 1px solid #4a4a4a; border-radius: 9px; padding: 4px 7px; cursor: pointer; white-space: pre; }
 .panel.snapback .snap-cap.on { border-color: var(--orange); color: #fff; }
+/* AUTO TUNING (firmware with the spring model): a compass of the 8 directions to let the stick go from, its hint, the buttons */
+.panel.snapback .snap-tune { margin-top: 10px; padding-top: 8px; border-top: 1px solid #3a3a3a; }
+.panel.snapback .snap-state.rec::before { background: var(--orange); }
+.panel.snapback .tune-row { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+.panel.snapback .tune-row .snap-hint { flex: 1; margin: 0; }
+.panel.snapback .tune-dirs { position: relative; flex: none; width: 46px; height: 46px; border-radius: 50%; border: 1px dashed #4a4a4a; }
+.panel.snapback .tune-dirs i { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: #3a3a3a; }
+.panel.snapback .tune-dirs i.done { background: var(--good); }
+.panel.snapback .tune-dirs i.on { background: var(--orange); box-shadow: 0 0 0 3px rgba(254,104,5,.25); }
+.panel.snapback .snap-tune .tune-note { min-height: 0; margin-top: 6px; }
+.panel.snapback .snap-tune .tune-note.warn { color: var(--warn); }
+.panel.snapback .snap-tune .btnrow { margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end; }
 
 /* the connect page: centred in the frame (the title, the text and the buttons) */
 .connect2 { left: 50%; top: 50%; transform: translate(-50%, calc(-50% + 30px)); width: 700px; text-align: center; }
@@ -870,3 +882,12 @@ html:not([lang="en"]) .act.primary { width: auto; min-width: 174.06px; padding-r
 .panel.stick:not(.wide), .dpage.sticks.hoja .panel.stick:not(.wide) { height: 477px; }
 body[data-page="sticks"] #msg { bottom: 4px; }
 .dpage.sticks.hoja .panel.stick:not(.wide) canvas.gate { width: 150px; height: 150px; }   /* gives the hint above the buttons its room back */
+
+/* GP2040-CE STICKS, a stick with ANGLE SET: one line under the gate's shape (its hint on the left, the button on the
+   right), shown for an octagonal gate; the gate is drawn a little smaller so the panel keeps its height */
+.angle-line { display: flex; align-items: center; gap: 10px; margin-top: 9px; }
+.angle-line p { flex: 1; margin: 0; font-size: 8.17px; line-height: 11px; color: #9d9d9d; text-align: left; }
+.angle-line .pbtn.angle { flex: none; width: 99.7px; height: 26.15px; margin: 0; }
+.panel.stick.angled .gate-wrap { padding-top: 9px; }
+.panel.stick.angled canvas.gate { width: 184px; height: 184px; }
+.panel.stick.angled .two.flips { margin-top: 13px; }

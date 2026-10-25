@@ -347,7 +347,8 @@ export async function startGp(shell, dev, opts) {
         const rx = Math.min(w.maxX - w.cx, w.cx - w.minX), ry = Math.min(w.maxY - w.cy, w.cy - w.minY);
         if (rx < 250 || ry < 250) { say($t('Not enough movement: the stick has to reach the edge on all four sides (now {0} / {1} counts, need at least 250). Keep rolling it.', rx | 0, ry | 0), 'var(--warn)'); return; }
         const k = 's' + (idx + 1);
-        postCal({ [k + 'cal']: true, [k + 'cx']: Math.round(w.cx), [k + 'cy']: Math.round(w.cy), [k + 'minx']: w.minX | 0, [k + 'maxx']: w.maxX | 0, [k + 'miny']: w.minY | 0, [k + 'maxy']: w.maxY | 0 }, $t('Saved to the controller. Restart the controller to use it.'));
+        const calBody = { [k + 'cal']: true, [k + 'cx']: Math.round(w.cx), [k + 'cy']: Math.round(w.cy), [k + 'minx']: w.minX | 0, [k + 'maxx']: w.maxX | 0, [k + 'miny']: w.minY | 0, [k + 'maxy']: w.maxY | 0 };
+        postCal(calBody, $t('Saved to the controller. Restart the controller to use it.'));
       }
     }
     function end(msg, color) { st.state = 0; st.trail = []; refresh(); say(msg, color); }
@@ -382,10 +383,11 @@ export async function startGp(shell, dev, opts) {
       paintGate(cv, { round, din: (idx === 0 ? m.innerDeadzone : m.innerDeadzone2) / 100, dout: (idx === 0 ? m.outerDeadzone : m.outerDeadzone2) / 100,
         out: [px, py], trail: st.trail, gate: st.state ? '#ff6800' : '#666666', off: !en.checked });
       const r = readout(st.outX, st.outY);
-      rd1.textContent = r.xy; rd2.textContent = st.state && st.status ? st.status : r.centered ? $t('Centered') : r.angle;
+      rd1.textContent = r.melee; rd2.textContent = st.state && st.status ? st.status : r.centered ? $t('Centered') : r.angle;
     };
     return st;
   }
+
 
   // ---------------------------------------------------------------- SETTINGS page
   // INPUT BEHAVIOR and TURBO, each with Reset (back to GP2040-CE's defaults) and Save. TURBO's "Assigned Buttons" always

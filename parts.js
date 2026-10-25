@@ -92,9 +92,13 @@ export function paintGate(cv, o) {
   g.beginPath(); g.arc(ox, oy, 4, 0, Math.PI * 2); g.fillStyle = orange; g.fill();
 }
 // the reading under the gate: "x : 58%   y : 15%" and the angle, or "Centered"
+// melee: the position in Melee's units, as the Phob page shows it (PhobVision and SmashScope): full = 80 steps, clamped to
+// a radius of 80, truncated, in 1/80ths ("X  0.7000    Y -0.2500")
 export function readout(x, y) {
   const mag = Math.hypot(x, y); let a = Math.atan2(y, x) * 180 / Math.PI; if (a < 0) a += 360;
-  return { xy: `x : ${Math.round(x * 100)}%     y : ${Math.round(y * 100)}%`, angle: mag > 0.05 ? Math.round(a) + '°' : '', centered: mag <= 0.05 };
+  const sc = Math.min(1, 1 / (mag || 1)), mc = n => { const t = Math.trunc(n * sc * 80) / 80; return (t < 0 ? '-' : ' ') + Math.abs(t).toFixed(4); };
+  return { xy: `x : ${Math.round(x * 100)}%     y : ${Math.round(y * 100)}%`, melee: 'X ' + mc(x) + '    Y ' + mc(y),
+    angle: mag > 0.05 ? Math.round(a) + '°' : '', centered: mag <= 0.05 };
 }
 
 // A dropdown of check boxes ("Assigned Buttons"): items [{ value, text }]; shows the chosen ones, or the placeholder
