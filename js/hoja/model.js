@@ -84,7 +84,12 @@ export const Rgb = {
 // gamepadConfig_s: default_mode at 1; the colors the Switch draws the controller in (Switch Pro mode), 0xRRGGBB in a
 // u32 each: gamepad_color_body at 8, _buttons at 12, _grip_left at 16, _grip_right at 20. The firmware reads them when
 // it's plugged in.
+// [46] gamepad_defaults_split = 1 and [47] auto_order_version = 1: firmware with Auto (default mode 0xFE); [52]
+// auto_usb_computer: the mode Auto gives a computer over USB (a Switch always gets Switch Pro; 0 = Switch Pro every time)
+export const AUTO_MODE = 0xfe;
 export const Gamepad = { mode: b => b[1], setMode: (b, v) => { b[1] = v; },
+  hasAuto: b => b[46] === 1 && b[47] === 1,
+  autoUsb: b => b[52], setAutoUsb: (b, v) => { b[52] = v; },
   color: (b, i) => (b[8 + i * 4] | (b[9 + i * 4] << 8) | (b[10 + i * 4] << 16)) & 0xffffff,
   setColor(b, i, c) { b[8 + i * 4] = c & 255; b[9 + i * 4] = (c >> 8) & 255; b[10 + i * 4] = (c >> 16) & 255; b[11 + i * 4] = 0; } };
 // in the block's order, with the firmware's defaults (settings.c)

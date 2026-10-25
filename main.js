@@ -36,6 +36,7 @@ const PAGES = {
   'BACKUP & RESTORE': ['backup', 'nav-cloud', $t('Export your controller configuration or import a saved configuration file')],
   SNAPBACK: ['snapback', 'snap', $t('Tune the snapback filter and see how the stick settles when you let it go')],
   'SWITCH COLORS': ['swcolors', 'palette', $t('Choose the colors the Nintendo Switch shows for your controller')],
+  'GAMEPAD MODE': ['gpmode', 'nav-gear', $t('Choose the mode the PadBox starts in, and where Auto looks for a console or computer')],
   CALIBRATION: ['calibration', 'nav-stick', $t('Calibrate the stick notch by notch, with PhobGCC\'s own calibration')],
 };
 let current = null, connecting = false;

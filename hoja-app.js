@@ -7,7 +7,7 @@
 
 import { el, pickColor, hex, clamp, confirmBox, download, openFile, dialog, button } from './js/ui.js';
 import { Blk, Rpt, DeviceInfo } from './js/hoja/device.js';
-import { Analog, Rgb, Gamepad, Input, IN, IN_TRIGGER, INPUTS, PROFILES, MODES, SWITCH_COLORS, profileOfMode, RGB_MODES, OUTPUTS, assign, defaultInputTypes, gsEssential, gsPlatform, gsNs, VERSIONS, Spring } from './js/hoja/model.js';
+import { Analog, Rgb, Gamepad, Input, IN, IN_TRIGGER, INPUTS, PROFILES, MODES, SWITCH_COLORS, profileOfMode, RGB_MODES, OUTPUTS, assign, defaultInputTypes, gsEssential, gsPlatform, gsNs, VERSIONS, Spring, AUTO_MODE } from './js/hoja/model.js';
 import { firmwareUpdate } from './js/update.js';
 import { readRelease, fit as fitSpring, DEFAULTS as SPRING_DEFAULTS, PER_OCTANT } from './js/hoja/spring.js';
 import { buildDrawing } from './drawing.js';
@@ -222,7 +222,8 @@ export async function startHoja(shell, dev, opts) {
     const mm = MODE_MENU.find(x => x[0] === curMode) || MODE_MENU[0];
     shell.sub('CONTROLLER', el('span', {}, [$t('Assign functions to each button and configure LED lighting'), el('br'), ...$tNodes('in {0} mode', el('b.mode-name', { text: mm[1], style: { color: mm[2] } }))]));
   }
-  function setMode(v) { curMode = v; editProfile = profileOfMode(v); Gamepad.setMode(B[Blk.GAMEPAD], v); changed(Blk.GAMEPAD); showMode(); refreshSide(); }
+  // the mode whose buttons are shown and edited (the mode the PadBox starts in is GAMEPAD OPTIONS' startup mode)
+  function setMode(v) { curMode = v; editProfile = profileOfMode(v); showMode(); refreshSide(); }
   const modeMenu = () => MODE_MENU.map(([v, text]) => ({ text, sel: v === curMode, pick: () => { if (v !== curMode) setMode(v); } }));
 
   // the right-hand column: BUTTON SETTINGS (or "No button selected"), then GLOBAL LED SETTINGS
@@ -701,6 +702,66 @@ export async function startHoja(shell, dev, opts) {
   }
   const swReset = pbtn($t('Reset colors'), 'sync', false, () => { SWITCH_COLORS.forEach(([, c], i) => Gamepad.setColor(B[Blk.GAMEPAD], i, c)); setSw(0, SWITCH_COLORS[0][1]); });
   swReset.title = $t('Back to the default dark grey controller');
+  // ---------------------------------------------------------------- GAMEPAD MODE page
+  // Laid out like HOJA's own configurator (HOJA3's Gamepad page), in two cards that fit without scrolling:
+  //   DEFAULT MODE   a tile per mode, the one the PadBox starts in when plugged in marked; each tile shows the button that
+  //                  starts in that mode once if held while plugging in (boot.c), and the modes this app connects in
+  //   BOOT ORDER     what Auto checks for, in order, and what it gives a computer over USB (firmware with Auto only)
+  // The PadBox GS has the GameCube and N64 links.
+  const joybus = true;
+  const autoOk = Gamepad.hasAuto(B[Blk.GAMEPAD]);
+  // [value, name, the button held at plug-in, connects to this app, what it is]
+  const START_MODES = [
+    [AUTO_MODE, $t('Auto'), '', true, joybus ? $t('Finds what it is plugged into: a GameCube, N64 or SNES / NES console, a Nintendo Switch, or a computer.')
+      : $t('Finds what it is plugged into: an SNES / NES console, a Nintendo Switch, or a computer.')],
+    [6, 'Steam Input', '2K', true, $t('For Steam and SDL games on a computer. Works with this app.')],
+    [0, 'Switch Pro', '1K', true, $t('Nintendo Switch Pro Controller. Works with this app.')],
+    [1, 'XInput', '1P', false, $t('Xbox-style controller for Windows games.')],
+    ...(joybus ? [[3, 'GameCube', '→', false, $t('Native GameCube output, for a GameCube or Wii console.')], [4, 'N64', '↓', false, $t('Native Nintendo 64 output.')]] : []),
+    [5, 'SNES / NES', '←', false, $t('Native SNES / NES output.')],
+    [2, 'Slippi', '2P', false, $t('GameCube adapter for Slippi / Dolphin on a computer.')],
+  ].filter(m => m[0] !== AUTO_MODE || autoOk);
+  const tiles = START_MODES.map(([v, name, hold, app, about]) => {
+    const t = el('button.mode-tile', { type: 'button', title: about }, [
+      el('div.mt-top', {}, [el('span.mt-name', { text: name }), hold ? el('span.mt-key', { text: hold, title: hold.length > 1 ? '' : $t('D-pad') }) : el('i.mt-check')]),
+      app ? el('span.mt-app', { text: $t('Config app') }) : null]);
+    t.addEventListener('click', () => { Gamepad.setMode(B[Blk.GAMEPAD], v); changed(Blk.GAMEPAD); showStart(); });
+    t.mode = v;
+    return t;
+  });
+  const modeAbout = el('p.hint.wrap.mode-about');
+  const modeCard = panel($t('DEFAULT MODE'), [
+    el('p.sub', { text: $t('What the PadBox starts as when you plug it in.') }),
+    el('div.gp-warn', { html: dicon('help') + '<span>' + $t('Only Switch Pro and Steam Input modes connect to this app. After changing the default, hold <b>1K</b> or <b>2K</b> while plugging in to connect here.') + '</span>' }),
+    el('div.mode-tiles', {}, tiles), modeAbout,
+    el('p.hint.wrap', { text: $t('To start in another mode just once, hold its button while you plug in.') }),
+  ], 'gpcard');
+  modeCard.querySelector('.mode-tiles').style.gridTemplateColumns = 'repeat(' + tiles.length + ', 1fr)';   // all in one row
+  // BOOT ORDER: the steps Auto takes when plugged in; on USB a Switch gets Switch Pro, anything else the fallback chosen here
+  const USB_MODES = [[6, 'Steam Input'], [1, 'XInput'], [2, 'Slippi'], [0, 'Switch Pro']];
+  const fallback = segmented(USB_MODES.map(m => m[1]), i => { Gamepad.setAutoUsb(B[Blk.GAMEPAD], USB_MODES[i][0]); changed(Blk.GAMEPAD); showStart(); });
+  const fallbackHint = el('p.hint.wrap');
+  const steps = [...(joybus ? ['N64', 'SNES / NES', 'GameCube'] : ['SNES / NES'])];
+  const orderCard = panel($t('BOOT ORDER'), [
+    el('p.sub', { text: $t('Where Auto looks when the PadBox starts, and in which order.') }),
+    el('p.hint.wrap', { text: $t('In Auto mode, the PadBox checks for these in this order and uses the first it finds.') }),
+    el('ol.bo-steps', {}, [...steps, 'USB'].map((n, i) => el('li' + (n === 'USB' ? '.usb' : ''), {}, [el('span.bo-node', { text: String(i + 1) }), el('span.bo-name', { text: n })]))),
+    el('div.bo-usb', {}, [
+      el('div.bo-row', {}, [el('span.bo-lbl', { text: $t('Nintendo Switch found') + '  ›' }), el('span.bo-chip', { text: 'Switch Pro' })]),
+      el('div.bo-row', {}, [el('span.bo-lbl', { text: $t('Otherwise (fallback)') + '  ›' }), fallback.el]), fallbackHint]),
+  ], 'gpcard');
+  orderCard.classList.toggle('hidden', !autoOk);
+  function showStart() {
+    const v = Gamepad.mode(B[Blk.GAMEPAD]), m = START_MODES.find(x => x[0] === v) || START_MODES.find(x => x[0] === 0);
+    tiles.forEach(t => t.classList.toggle('on', t.mode === m[0]));
+    modeAbout.textContent = m[1] + ': ' + m[4];
+    const u = Math.max(0, USB_MODES.findIndex(x => x[0] === Gamepad.autoUsb(B[Blk.GAMEPAD])));
+    fallback.value = u;
+    fallbackHint.textContent = USB_MODES[u][0] === 0 ? $t('Switch Pro mode every time, whether a Switch is found or not.') : $t('Used when no Nintendo Switch is found, such as on a computer.');
+  }
+  const pageMode = el('div.page.hidden.dpage.gpopts', {}, [modeCard, orderCard]);
+
+  // ---------------------------------------------------------------- SWITCH COLORS page
   const pageSw = el('div.page.hidden.dpage.swcolors', {}, [
     panel($t('CONTROLLER COLORS'), [
       el('p.text', { text: $t('The colors your PadBox has on the Nintendo Switch, in Switch Pro mode.') }),
@@ -757,7 +818,7 @@ export async function startHoja(shell, dev, opts) {
 
 
   // ---------------------------------------------------------------- the side menu, load, live reports
-  const tabNames = ['CONTROLLER', 'STICKS', 'SNAPBACK', 'SWITCH COLORS', 'BACKUP & RESTORE'], pages = [page0, page1, pageSnap, pageSw, page2];
+  const tabNames = ['CONTROLLER', 'STICKS', 'SNAPBACK', 'GAMEPAD MODE', 'SWITCH COLORS', 'BACKUP & RESTORE'], pages = [page0, page1, pageSnap, pageMode, pageSw, page2];
   if (ns) { tabNames.splice(1, 2); pages.splice(1, 2); }   // the PadBox GS NS has no sticks: no STICKS and no SNAPBACK page (they stay hidden)
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   let curTab = 0, curName = 'CONTROLLER';
@@ -776,7 +837,7 @@ export async function startHoja(shell, dev, opts) {
     idle.checked = Rgb.idleGlow(B[Blk.RGB]) !== 0;
     showAllColor(Rgb.color(B[Blk.RGB], BOARD.led[10]));
     sticks.forEach(s => s.load());
-    refreshSide(); refreshCal(); showSw();
+    refreshSide(); refreshCal(); showSw(); showStart();
   }
   loadUi();
   say(mismatch ? $t('This firmware doesn\'t match this app. Update it (the download button, top right) before changing anything.') : '', mismatch ? 'var(--bad)' : '');

@@ -150,6 +150,7 @@ export class HojaDemo extends HojaProtocol {
     const B = this.blocks, u16 = (b, o, v) => { b[o] = v & 255; b[o + 1] = (v >> 8) & 255; };
     B[Blk.GAMEPAD][0] = 0x14; B[Blk.ANALOG][0] = 0x14; B[Blk.RGB][0] = 0x12; B[Blk.IMU][0] = 0x12; B[Blk.HAPTIC][0] = 0x11; B[Blk.HAPTIC][1] = 200; B[Blk.HAPTIC][2] = 1;
     B[Blk.GAMEPAD].set([0x2d, 0x2d, 0x2d, 0, 0xe6, 0xe6, 0xe6, 0, 0xff, 0xff, 0xff, 0, 0xff, 0xff, 0xff, 0], 8);   // the Switch colors' defaults
+    B[Blk.GAMEPAD][1] = 0xfe; B[Blk.GAMEPAD][46] = 1; B[Blk.GAMEPAD][47] = 1; B[Blk.GAMEPAD][52] = 6;   // Auto, as new firmware starts (Steam Input for a computer)
     B[Blk.IMU].fill(120, 14, 17); B[Blk.IMU].fill(100, 17, 20); B[Blk.INPUT][0] = 0x15;
     const an = B[Blk.ANALOG], dv = new DataView(an.buffer);
     an[701] = 1; an[775] = 1;   // the spring model's defaults, as firmware with it fills in (not tuned)
