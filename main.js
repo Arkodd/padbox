@@ -225,7 +225,7 @@ addEventListener('beforeunload', e => { if (current && current.app && current.ap
   const demo = params.get('demo');   // ?demo=gp, gp-platform, hoja-essential, hoja-platform or phob
   if (demo && demo.startsWith('phob')) { const d = new PhobDemo('GS Platform'); await d.open(); return run(d, startPhob, { demo: true }); }
   if (demo && demo.startsWith('hoja')) { const d = new HojaDemo(!demo.includes('essential'), true, demo === 'hoja-ns'); await d.open(); return run(d, startHoja, { demo: true }); }
-  if (demo) return run(new GpDemo(demo.includes('platform'), true, demo === 'gp-e2t', demo === 'gp-ns'), startGp, { demo: true });   // gp-e2t, gp-ns: the PadBox GS E2T and GS NS (unlisted)
+  if (demo) return run(new GpDemo(demo.includes('platform'), true, /^gp-e(2|130)t$/.test(demo) && demo.slice(3), demo === 'gp-ns'), startGp, { demo: true });   // gp-e2t, gp-e130t, gp-ns: the PadBox GS E2T, GS E130T and GS NS (unlisted)
   showConnect();
   try { const list = navigator.usb ? await navigator.usb.getDevices() : []; const d = list.find(x => isGp(x) || isHoja(x)); if (d) open(d); } catch (e) { }
   try { if (navigator.serial && !current && !connecting) { const ports = await navigator.serial.getPorts(); if (ports[0]) openSerial(ports[0]); } } catch (e) { }

@@ -19,7 +19,7 @@ const C = {
 const ARROW = 'M0 -.5L.46 -.04H.17V.5H-.17V-.04H-.46Z';
 const TURN = { Up: 0, Right: 90, Down: 180, Left: 270 };
 
-// Each board: its round buttons [pin, x, y] and their radius, its sticks [click pin or -1, x, y, size], and where the
+// Each board: its round buttons [pin, x, y] (or [pin, x, y, size against the others]) and their radius, its sticks [click pin or -1, x, y, size], and where the
 // Essential's shapes go (a transform for the body with grip and bumper, one for the menu buttons, a shift for the D-pad)
 const BOARDS = {
   essential: {
@@ -52,6 +52,13 @@ BOARDS.e2t = Object.assign({}, BOARDS.platform, {
   round: BOARDS.platform.round.filter(([pin]) => ![27, 26, 18].includes(pin)),
   sticks: [[-1, 244 + 162, 262 + 143, 56 / 58]],   // its only stick, below the D-pad as on the GS Essential; no click
   dpad: [166 - 175, 123 - 139],   // the D-pad in the top-left bulge, placed as on the GS Essential
+});
+// The PadBox GS E130T: the PadBox GS E2T without T2 (C-right, locked off by its firmware), and T1 a big thumb button,
+// 1.12 times the size of the others (the GS Essential's big buttons), where the E130T's CAD has it (fitted on the 8
+// face buttons: 752, 834).
+BOARDS.e130t = Object.assign({}, BOARDS.e2t, {
+  name: 'PadBox GS E130T',
+  round: BOARDS.e2t.round.filter(([pin]) => pin !== 19).map(b => (b[0] === 15 ? [15, 752, 834, 1.12] : b)),
 });
 // The PadBox GS NS (its tracing: assets/gs_ns_trace.png): the GS Essential without its two sticks
 BOARDS.ns = Object.assign({}, BOARDS.essential, { name: 'PadBox GS NS', css: 'essential', sticks: [] });
@@ -133,15 +140,15 @@ export function buildDrawing(onPick, tip, label, board) {
   // over about 8 px. The glows go under every button (neighbours' glows overlap), the bands on top of the outlines.
   // In drawing units (0.428 px each), for the Essential's buttons: band 76.5..81.3, fade to 100.6 (k times that for others).
   const leds = {};   // pin -> { stops, glow, band }
-  for (const [pin, x, y] of B.round) {
-    const grad = el('radialGradient', { id: 'led' + pin, gradientUnits: 'userSpaceOnUse', cx: x, cy: y, r: 100.6 * k }, defs);
+  for (const [pin, x, y, s = 1] of B.round) {
+    const grad = el('radialGradient', { id: 'led' + pin, gradientUnits: 'userSpaceOnUse', cx: x, cy: y, r: 100.6 * k * s }, defs);
     const stops = [el('stop', { offset: 0.808, 'stop-opacity': 1 }, grad), el('stop', { offset: 1, 'stop-opacity': 0 }, grad)];
-    const glow = el('circle', { cx: x, cy: y, r: 100.6 * k, fill: 'url(#led' + pin + ')', 'pointer-events': 'none', visibility: 'hidden' }, svg);
+    const glow = el('circle', { cx: x, cy: y, r: 100.6 * k * s, fill: 'url(#led' + pin + ')', 'pointer-events': 'none', visibility: 'hidden' }, svg);
     leds[pin] = { stops, glow, x, y };
   }
   // a thin dark edge on the face buttons, as in the redesign; a lit LED's band covers it
-  for (const [pin, x, y] of B.round) add(pin, el('circle', { cx: x, cy: y, r: B.R - 2 * k, fill: C.btn, stroke: C.edge, 'stroke-width': 4 * k }, svg));
-  for (const [pin, x, y] of B.round) leds[pin].band = el('circle', { cx: x, cy: y, r: 78.9 * k, fill: 'none', 'stroke-width': 4.8 * k, 'pointer-events': 'none', visibility: 'hidden' }, svg);
+  for (const [pin, x, y, s = 1] of B.round) add(pin, el('circle', { cx: x, cy: y, r: B.R * s - 2 * k, fill: C.btn, stroke: C.edge, 'stroke-width': 4 * k }, svg));
+  for (const [pin, x, y, s = 1] of B.round) leds[pin].band = el('circle', { cx: x, cy: y, r: 78.9 * k * s, fill: 'none', 'stroke-width': 4.8 * k, 'pointer-events': 'none', visibility: 'hidden' }, svg);
   // color(pin) = the LED's color as '#rrggbb', or null for none
   function setLeds(color) {
     for (const pin in leds) {

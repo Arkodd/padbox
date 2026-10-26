@@ -40,8 +40,8 @@ export async function startGp(shell, dev, opts) {
   if (!m.layout) throw new Error($t('This PadBox (board "{0}") isn\'t supported by this app.', m.board));
   const L = m.layout;
 
-  // the board as the design writes it: "PadBoxPlatform"; the PadBox GS E2T and GS NS in full: "PadBoxGSE2T", "PadBoxGSNS"
-  shell.header('GP2040-CE', /^GS (E2T|NS)$/.test(L.board) ? padboxName(L.board).replace(/ /g, '') : 'PadBox' + L.board.replace(/^GS /, '').replace(/ /g, ''));
+  // the board as the design writes it: "PadBoxPlatform"; the PadBox GS E2T, GS E130T and GS NS in full: "PadBoxGSE2T", "PadBoxGSNS"
+  shell.header('GP2040-CE', /^GS (E2T|E130T|NS)$/.test(L.board) ? padboxName(L.board).replace(/ /g, '') : 'PadBox' + L.board.replace(/^GS /, '').replace(/ /g, ''));
   shell.status(true);
 
   // ---------------------------------------------------------------- header buttons (the design's icon buttons)
@@ -81,7 +81,7 @@ export async function startGp(shell, dev, opts) {
     const a = act(actOf(pin));
     return (pin === TRIG ? $t('Analog trigger') : $tn(m.nameOfPin(pin))) + '  →  ' + (a && a.value === 40 ? $t('Custom combo: {0}', comboName(m.comboOf(pin)) || $t('nothing yet')) : a && a.value !== -10 ? fnName(a) : $t('nothing'));
   }, pin => { const a = act(actOf(pin)); return !a || a.value === -10 || quiet(pin) ? '' : a.value === 32 ? 'Turbo' : a.value === 40 ? (comboName(m.comboOf(pin)) || 'Combo') : a.value <= 4 ? a.key : a.short; },   // D-pad: Up/Down/Left/Right, drawn as arrows
-  { 'GS Platform': 'platform', 'GS E2T': 'e2t', 'GS NS': 'ns' }[L.board] || 'essential');
+  { 'GS Platform': 'platform', 'GS E2T': 'e2t', 'GS E130T': 'e130t', 'GS NS': 'ns' }[L.board] || 'essential');
 
   // the right-hand column: BUTTON SETTINGS (or "No button selected"), then GLOBAL LED SETTINGS
   const status = el('p.hint2');

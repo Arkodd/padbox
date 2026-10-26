@@ -13,12 +13,13 @@ import { el, icon, button, dialog, esc, sleep, setButtonText } from './ui.js';
 import { $t } from './i18n.js';
 import { count } from './stats.js';
 
-const FAMILIES = { 'GS Essential': ['HOJA2', 'GP2040-CE'], 'GS Platform': ['HOJA2', 'GP2040-CE', 'PhobGCC'], 'GS E2T': ['GP2040-CE'], 'GS NS': ['HOJA2', 'GP2040-CE'] };
+const FAMILIES = { 'GS Essential': ['HOJA2', 'GP2040-CE'], 'GS Platform': ['HOJA2', 'GP2040-CE', 'PhobGCC'], 'GS E2T': ['GP2040-CE'], 'GS E130T': ['GP2040-CE'], 'GS NS': ['HOJA2', 'GP2040-CE'] };
 // The PadBox GS E2T (a GS Platform whose GP2040-CE locks three C-stick buttons off) only ever gets its own GP2040-CE: any
 // other firmware would bring those buttons back, so its update window offers nothing else (no other family, no other file).
+// So does the PadBox GS E130T (a GS E2T with its T2 locked off too).
 // The same goes for the PadBox GS NS (a GS Essential without sticks), which only gets its own HOJA and GP2040-CE: any other
 // firmware would read sticks that aren't there.
-const LOCKED_FIRMWARE = new Set(['GS E2T', 'GS NS']);
+const LOCKED_FIRMWARE = new Set(['GS E2T', 'GS E130T', 'GS NS']);
 export const BOOT_IDS = [{ vendorId: 0x2e8a, productId: 0x0003 }];   // RP2040
 const CHIP_FAMILIES = { RP2040: [0xe48bff56] };
 

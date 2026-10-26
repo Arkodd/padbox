@@ -125,6 +125,21 @@ export function e2tGs() {
   });
 }
 
+// The PadBox GS E130T (configs/PadboxGSE130T): the PadBox GS E2T with T2 (C-right, GPIO19) locked off too, so all four
+// C-stick buttons are off. The one button left there is T1 (GPIO15, L3), a big thumb button: 1.12 times the size of the
+// others, where the E130T's CAD has it (752, 834; drawing.js BOARDS.e130t).
+export const E130T_LOCKED = [27, 26, 18, 19];
+export function e130tGs() {
+  const L = e2tGs(), off = new Set(E130T_LOCKED);
+  L.defaults[19] = -10;
+  return Object.assign(L, {
+    name: 'GS E130T', board: 'GS E130T',
+    phys: L.phys.filter(p => !off.has(p.pin)),
+    spots: L.spots.filter(s => !off.has(s.pin)).map(s => (s.pin === 15 ? Object.assign(s, { x: 752, y: 834, rx: s.rx * 1.12, ry: s.ry * 1.12 }) : s)),
+    locked: E130T_LOCKED,
+  });
+}
+
 // The PadBox GS NS (configs/PadboxGSNS): a GS Essential with no analog sticks. Its firmware turns the stick axes and the
 // stick clicks (GPIO18, GPIO19) off for good, so there are no sticks here: not drawn, no stick clicks, no STICKS page.
 export function gsNs() {
@@ -141,6 +156,7 @@ export function gsNs() {
 export function layoutFor(boardLabel) {
   const b = (boardLabel || '').toLowerCase();
   // before the GS checks: these labels have "PadboxGS" in them too
+  if (b.includes('padboxgse130t')) return e130tGs();
   if (b.includes('padboxgse2t') || b.includes('e2tpadboxgs')) return e2tGs();   // "E2TPadboxGS": its first firmware's label
   if (b.includes('padboxgsns')) return gsNs();
   if (b.includes('padboxgsplatform')) return gsPlatform();
