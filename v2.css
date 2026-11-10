@@ -924,3 +924,22 @@ body[data-page="sticks"] #msg { bottom: 4px; }
 .panel.stick.angled .gate-wrap { padding-top: 9px; }
 .panel.stick.angled canvas.gate { width: 184px; height: 184px; }
 .panel.stick.angled .two.flips { margin-top: 13px; }
+
+/* STICK TEST (scatter.js): the scatter plot on the left, its consistency numbers on the right */
+.dpage.scatter { display: grid; grid-template-columns: 349px 349px; gap: 18px; align-content: start; }
+.dpage.scatter .panel { display: flex; flex-direction: column; }
+.dpage.scatter .seg { margin: 6px 0 2px; }
+.sc-wrap { display: flex; justify-content: center; margin-top: 8px; }
+canvas.scatter-cv { width: 300px; height: 300px; border: 1px solid #3d424c; border-radius: 6px; background: #1b1d22; }
+.sc-count { margin-top: 8px; text-align: center; font-size: 10.5px; color: var(--soft); }
+.sc-legend { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 6px; font-size: 9.5px; color: var(--soft); }
+.sc-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.dpage.scatter p.sc-how { margin-top: 2px; }
+.sc-rate { margin-top: 8px; font-size: 9.5px; color: var(--muted); }
+.sc-rate.slow { color: var(--warn); cursor: help; }
+.sc-side { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; padding: 7px 9px; border: 1px solid var(--hairline); border-radius: 4px; font-size: 9.5px; line-height: 13px; color: var(--text); }
+.sc-side b { font-weight: 600; font-size: 10px; color: var(--orange); }
+.sc-side em { font-style: normal; color: var(--muted); }
+.sc-side .m { color: var(--muted); }
+.sc-state { min-height: 13px; margin-top: 6px; font-size: 9.5px; color: var(--warn); }
+.dpage.scatter .btnrow { margin-top: auto; padding-top: 10px; }

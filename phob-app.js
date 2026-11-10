@@ -12,6 +12,7 @@ import { buildDrawing } from './drawing.js';
 import { dicon } from './icons.js';
 import { $t, $tn } from './js/i18n.js';
 import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, readout, backupPage, toast, updateNotice } from './parts.js';
+import { scatterPage } from './scatter.js';
 
 const BA = 1, BB = 2, BX = 4, BY = 8, BZ = 16, BL = 32, BR = 64, BS = 128;
 // How far the raw reading moves from the centre with the stick pushed all the way (raw units, the ADC's 0..1). The raw
@@ -407,10 +408,12 @@ export async function startPhob(shell, dev, opts) {
   const page3 = backup.page;
 
   // ---------------------------------------------------------------- the side menu, lines from the controller, timers
-  const pages = [page0, page1, page2, page3];
+  // STICK TEST: the stick's output (what the console gets, in Melee's 1/80 steps) as a scatter plot (scatter.js)
+  const scatter = scatterPage([$t('Stick')]);
+  const pages = [page0, page1, scatter.page, page2, page3];
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   let curPage = page0;
-  shell.tabs(['CONTROLLER', 'STICKS', 'SETTINGS', 'BACKUP & RESTORE'], i => { curPage = pages[i]; pages.forEach((p, k) => p.classList.toggle('hidden', k !== i)); },
+  shell.tabs(['CONTROLLER', 'STICKS', 'STICK TEST', 'SETTINGS', 'BACKUP & RESTORE'], i => { curPage = pages[i]; pages.forEach((p, k) => p.classList.toggle('hidden', k !== i)); },
     { SETTINGS: $t('Manage stick smoothing and other advanced stick settings') });
   refreshSide(); showAllColor(allColor);
 
@@ -430,6 +433,7 @@ export async function startPhob(shell, dev, opts) {
         rawAx: v[11] / 10000, rawAy: v[12] / 10000, inv: v.length > 15 ? v[15] : 0, phys: v.length > 16 ? v[16] : 0, saveState: v.length >= 25 ? v[24] : 0, calibrated: v.length >= 29 ? v[28] === 1 : true };
       if (!haveFrame) { haveFrame = true; view.setRaw(frame.rawAx, frame.rawAy); view.reset(true); say($t('Receiving data')); }
       onFrame(frame);
+      if (frame.step < 0) scatter.push(0, (frame.ax - 127) / 80, (frame.ay - 127) / 80);   // not while calibrating
     } else if (line.startsWith('M,')) {
       const m = ints(line, 42); if (!m) return;
       if (wanted.map) { if (m.join() !== wanted.map.join()) return; wanted.map = null; say($t('Button mapping saved in the controller.'), 'var(--good)'); }
@@ -494,7 +498,7 @@ export async function startPhob(shell, dev, opts) {
     if (now >= macroUntil) { const s = macro.shift(); if (s) { macroMask = s[0]; macroUntil = now + s[1]; } else macroMask = 0; }
     dev.send('B ' + (macroMask | holdMask));
   }, 60);
-  const loop = () => { if (!alive) return; if (curPage === page1) view.paint(); requestAnimationFrame(loop); };
+  const loop = () => { if (!alive) return; if (curPage === page1) view.paint(); if (curPage === scatter.page) scatter.paint(); requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
   dev.onLost = () => { if (alive) { alive = false; shell.lost($t('Lost the connection to the PadBox.')); } };
 

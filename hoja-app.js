@@ -14,6 +14,7 @@ import { buildDrawing } from './drawing.js';
 import { dicon } from './icons.js';
 import { $t, $tn, $tNodes } from './js/i18n.js';
 import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, paintGate, readout, backupPage, updateNotice } from './parts.js';
+import { scatterPage } from './scatter.js';
 
 // The drawing's buttons (named by their GP2040-CE GPIO, see drawing.js) -> HOJA2's input slots and LED numbers
 // (js/hoja/model.js gsEssential / gsPlatform)
@@ -818,8 +819,10 @@ export async function startHoja(shell, dev, opts) {
 
 
   // ---------------------------------------------------------------- the side menu, load, live reports
-  const tabNames = ['CONTROLLER', 'STICKS', 'SNAPBACK', 'GAMEPAD MODE', 'SWITCH COLORS', 'BACKUP & RESTORE'], pages = [page0, page1, pageSnap, pageMode, pageSw, page2];
-  if (ns) { tabNames.splice(1, 2); pages.splice(1, 2); }   // the PadBox GS NS has no sticks: no STICKS and no SNAPBACK page (they stay hidden)
+  // STICK TEST: the stick's output (what the console gets) as a scatter plot (scatter.js)
+  const scatter = scatterPage(hasRight ? [$t('Left stick'), $t('Right stick')] : [$t('Stick')]);
+  const tabNames = ['CONTROLLER', 'STICKS', 'STICK TEST', 'SNAPBACK', 'GAMEPAD MODE', 'SWITCH COLORS', 'BACKUP & RESTORE'], pages = [page0, page1, scatter.page, pageSnap, pageMode, pageSw, page2];
+  if (ns) { tabNames.splice(1, 3); pages.splice(1, 3); }   // the PadBox GS NS has no sticks: no STICKS, STICK TEST or SNAPBACK page (they stay hidden)
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   let curTab = 0, curName = 'CONTROLLER';
   shell.tabs(tabNames, i => {
@@ -853,11 +856,13 @@ export async function startHoja(shell, dev, opts) {
   };
   dev.onSticks = (lxR, lyR, rxR, ryR, lxS, lyS, rxS, ryS) => {
     Object.assign(sticks[0], { rx: lxR, ry: lyR, x: lxS, y: lyS }); Object.assign(sticks[1], { rx: rxR, ry: ryR, x: rxS, y: ryS });
+    scatter.push(0, lxS, lyS); scatter.push(1, rxS, ryS);
   };
   dev.onLost = () => { tuningStick = null; if (alive) { alive = false; shell.lost($t('Lost the connection to the PadBox.')); } };
   const frame = () => {
     if (!alive) return;
     sticks.forEach(s => s.paint());
+    if (curName === 'STICK TEST') scatter.paint();
   };
   const loop = () => { if (!alive) return; frame(); requestAnimationFrame(loop); };
   requestAnimationFrame(loop);

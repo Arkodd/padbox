@@ -7,6 +7,7 @@ import { Model, ACTS, act, COMBO_PARTS, comboName } from './js/gp/model.js';
 import { firmwareUpdate, padboxName } from './js/update.js';
 import { buildDrawing } from './drawing.js';
 import { panel, dtoggle, dslider, pbtn, setPbtn, segmented, badge, paintGate, readout, multiSelect, backupPage, updateNotice } from './parts.js';
+import { scatterPage } from './scatter.js';
 import { dicon } from './icons.js';
 import { $t, $tn } from './js/i18n.js';
 
@@ -440,8 +441,10 @@ export async function startGp(shell, dev, opts) {
   const page3 = backup.page;
 
   // ---------------------------------------------------------------- the side menu
-  const tabNames = ['CONTROLLER', 'STICKS', 'SETTINGS', 'BACKUP & RESTORE'], pages = [page0, page1, page2, page3];
-  if (L.noSticks) { tabNames.splice(1, 1); pages.splice(1, 1); }   // the PadBox GS NS has no sticks: no STICKS page (it stays hidden)
+  // STICK TEST: the stick's position as a scatter plot (scatter.js), from the readings the STICKS page gets
+  const scatter = scatterPage(L.noRightStick ? [$t('Stick')] : [$t('Left stick'), $t('Right stick')]);
+  const tabNames = ['CONTROLLER', 'STICKS', 'STICK TEST', 'SETTINGS', 'BACKUP & RESTORE'], pages = [page0, page1, scatter.page, page2, page3];
+  if (L.noSticks) { tabNames.splice(1, 2); pages.splice(1, 2); }   // the PadBox GS NS has no sticks: no STICKS or STICK TEST page (they stay hidden)
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   shell.tabs(tabNames, i => {
     pages.forEach((p, k) => p.classList.toggle('hidden', k !== i));
@@ -520,6 +523,8 @@ export async function startGp(shell, dev, opts) {
         sticks[0].feed(adc[0] ?? -1, adc[1] ?? -1);
         if (!L.noRightStick) sticks[1].feed(adc[2] ?? -1, adc[3] ?? -1);
         sticks.forEach(s => s.paint());
+        sticks.forEach((s, k) => { if (s.present && !s.state) scatter.push(k, s.outX, s.outY); });   // not while calibrating
+        scatter.paint();
         if (L.m) {   // 0..100% only as the left / right analog trigger; as any other button it's pressed past half
           const ta = actOf(TRIG), lv = trigLevel(adc[4]), analog = ta === 11 || ta === 12;
           drawing.setTrigger(ta === -10 ? 0 : analog ? lv : (lv >= 0.5 ? 1 : 0), analog);
