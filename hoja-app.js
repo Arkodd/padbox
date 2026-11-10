@@ -494,10 +494,13 @@ export async function startHoja(shell, dev, opts) {
     // the cutoff: 30..150 Hz in 0.5 Hz steps (the slider counts half-hertz; stored in tenths)
     const cutoff = dslider($t('Filter cutoff'), 60, 300, v => (v / 2).toFixed(1) + ' Hz', v => { Analog.setSnap(A(), right, v * 5); changed(Blk.ANALOG); });
     cutoff.el.title = $t('Lower removes more bounce but adds a touch of delay to fast flicks near the centre; higher feels snappier but lets more rebound through. Default 60 Hz');
-    const showMode = () => { const m = snapMode.value; cutoff.disabled = m !== 0; modeHint.textContent = MODE_TIP[m]; };
+    // the zone the low-pass works in: 50..98% of the radius (stored of 2048); past it the filter fades off, so the rim stays instant
+    const zone = dslider($t('Filter zone'), 1024, 2000, v => Math.round(v * 100 / 2048) + '%', v => { Analog.setLpfZone(A(), right, v); changed(Blk.ANALOG); });
+    zone.el.title = $t('How far out from the centre the filter works. Higher smooths more of the stick\'s travel; lower keeps more of it instant. Past it the stick is never filtered. Default 88%');
+    const showMode = () => { const m = snapMode.value; cutoff.disabled = m !== 0; zone.disabled = m !== 0; modeHint.textContent = MODE_TIP[m]; };
     const snapCv = el('canvas.snap-plot'), snapStats = el('div.snap-stats'), snapHist = el('div.snap-hist'), snapState = el('span.snap-state', { text: $t('Listening') });
     const snapCard = panel(right ? (hasRight ? $t('RIGHT STICK SNAPBACK') : $t('C-STICK SNAPBACK')) : (hasRight ? $t('LEFT STICK SNAPBACK') : $t('SNAPBACK')), [
-      el('div.snap-set', {}, [el('p.snap-sub', { text: $t('Stops the stick bouncing past the centre when you let it go. Changes apply right away: click Save to keep them.') }), el('div.lbl', { text: $t('Filter mode') }), snapMode.el, modeHint, cutoff.el]),
+      el('div.snap-set', {}, [el('p.snap-sub', { text: $t('Stops the stick bouncing past the centre when you let it go. Changes apply right away: click Save to keep them.') }), el('div.lbl', { text: $t('Filter mode') }), snapMode.el, modeHint, cutoff.el, zone.el]),
       el('div.snap-an', {}, [el('div.snap-head', {}, [el('div.lbl', { text: $t('Analyzer') }), snapState]),
         el('p.snap-hint', { text: $t('Push the stick all the way to one side and let it snap back: the plot shows what it does in the 31 ms after you let go.') }),
         snapStats, snapCv, snapHist]),
@@ -618,17 +621,17 @@ export async function startHoja(shell, dev, opts) {
       dead: clamp(Analog.deadzone(A(), right), 0, 400), outer: clamp(Analog.outer(A(), right), 0, 400), exp: clamp(Analog.exp(A(), right) + 49, 50, 300),
       // the mode as the firmware runs it (anything but 1 or 2 is low-pass there: snapback.c's default branch); the
       // cutoff as it's used (kept within 30..150 Hz)
-      mode: Analog.snapType(A(), right) === 3 ? 1 : [1, 2].includes(Analog.snapType(A(), right)) ? Analog.snapType(A(), right) : 0, cut: clamp(Math.round(Analog.snap(A(), right) / 5), 60, 300) });
+      mode: Analog.snapType(A(), right) === 3 ? 1 : [1, 2].includes(Analog.snapType(A(), right)) ? Analog.snapType(A(), right) : 0, cut: clamp(Math.round(Analog.snap(A(), right) / 5), 60, 300), zone: Analog.lpfZone(A(), right) });
     st.load = v => {
       v = v || read(); if (!st.start) st.start = v;
       en.checked = v.on; fx.checked = v.fx; fy.checked = v.fy;
-      dead.value = v.dead; outer.value = v.outer; exp.value = v.exp; snapMode.value = v.mode; cutoff.value = v.cut; showMode(); showTune();
+      dead.value = v.dead; outer.value = v.outer; exp.value = v.exp; snapMode.value = v.mode; cutoff.value = v.cut; zone.value = v.zone; showMode(); showTune();
       showOn();
     };
     st.apply = () => {
       Analog.setDisabled(A(), right, !en.checked);
       Analog.setInv(A(), right ? 6 : 2, fx.checked); Analog.setInv(A(), right ? 8 : 4, fy.checked);
-      Analog.setDeadzone(A(), right, dead.value); Analog.setOuter(A(), right, outer.value); Analog.setSnapType(A(), right, snapMode.value); Analog.setSnap(A(), right, cutoff.value * 5); Analog.setExp(A(), right, clamp(exp.value - 49, 1, 251));
+      Analog.setDeadzone(A(), right, dead.value); Analog.setOuter(A(), right, outer.value); Analog.setSnapType(A(), right, snapMode.value); Analog.setSnap(A(), right, cutoff.value * 5); Analog.setLpfZone(A(), right, zone.value); Analog.setExp(A(), right, clamp(exp.value - 49, 1, 251));
     };
     st.showCal = (msg, color) => {
       const mine = st.calibrated();

@@ -81,13 +81,10 @@ export async function startPhob(shell, dev, opts) {
   // ---------------------------------------------------------------- CALIBRATION page
   const views = [makeView('LEFT stick (main)', true), makeView(BD.digitalC ? 'C-stick (four buttons)' : 'RIGHT stick (C-stick)', !BD.digitalC)];
   const octL = toggle('Octagon gate', v => { views[0].octagon = v; }); octL.checked = true;
-  // flips: bit 0 left X, 1 left Y, 2 right X, 3 right Y ("I <mask>", saved in the controller, no need to recalibrate)
-  const flips = [toggle('Flip X axis', flipChanged), toggle('Flip Y axis', flipChanged), toggle('Flip X axis', flipChanged), toggle('Flip Y axis', flipChanged)];
   const clearL = button('Clear trace / set centre', { icon: '', onclick: () => views[0].reset(true) });
   const clearR = button('Clear trace / set centre', { icon: '', onclick: () => views[1].reset(true) });
-  const colL = el('div.card', { style: { display: 'flex', flexDirection: 'column', padding: '10px' } }, [views[0].canvas, el('div.row', { style: { marginTop: '6px' } }, [octL.el, flips[0].el, flips[1].el, el('div.grow'), clearL])]);
-  const colR = el('div.card', { style: { display: 'flex', flexDirection: 'column', padding: '10px' } }, [views[1].canvas, el('div.row', { style: { marginTop: '6px' } }, [flips[2].el, flips[3].el, el('div.grow'), BD.digitalC ? null : clearR])]);
-  function flipChanged() { pending.inv = flips.reduce((m, f, i) => m | (f.checked ? 1 << i : 0), 0); staged(); }
+  const colL = el('div.card', { style: { display: 'flex', flexDirection: 'column', padding: '10px' } }, [views[0].canvas, el('div.row', { style: { marginTop: '6px' } }, [octL.el, el('div.grow'), clearL])]);
+  const colR = el('div.card', { style: { display: 'flex', flexDirection: 'column', padding: '10px' } }, [views[1].canvas, el('div.row', { style: { marginTop: '6px' } }, [el('div.grow'), BD.digitalC ? null : clearR])]);
 
   const stepLbl = el('div', { style: { fontSize: '19px', fontWeight: 600 } });
   const prog = el('div.bar-meter', {}, [el('i')]);
@@ -110,7 +107,7 @@ export async function startPhob(shell, dev, opts) {
   function makeView(title, analog) {
     const canvas = el('canvas', { style: { width: '100%', flex: '1', minHeight: '300px', display: 'block' } });
     const v = { title, analog, canvas, octagon: title.startsWith('LEFT'), active: false, hideOut: false, outX: 0, outY: 0, hasTarget: false, tx: 0, ty: 0,
-      aim: NaN, aimCenter: false, rawX: 0.5, rawY: 0.5, cx: NaN, cy: NaN, range: 0.05, trail: [], ang: 0, pct: 0 };
+      aim: NaN, aimCenter: false, rawX: 0.5, rawY: 0.5, cx: NaN, cy: NaN, range: 0.05, trail: [], ang: 0, pct: 0, melee: '' };
     v.setRaw = (x, y) => {
       if (isNaN(v.cx)) { v.cx = x; v.cy = y; }
       v.rawX = x; v.rawY = y;
@@ -149,7 +146,8 @@ export async function startPhob(shell, dev, opts) {
         g.beginPath(); g.moveTo(tx - 10, ty - 10); g.lineTo(tx + 10, ty + 10); g.moveTo(tx - 10, ty + 10); g.lineTo(tx + 10, ty - 10); g.stroke();
         g.font = '12px Poppins'; g.fillStyle = '#ffd23c'; g.fillText('target', tx > cx + R * 0.55 ? tx - 52 : tx + 10, ty - 8);
       }
-      let txt = `stick now: ${Math.round(v.ang)}°   ${Math.round(v.pct)}% out`, col = '#c8c8c8';
+      // outside a calibration: the output in Melee's units (0.7000 rather than 74 %), as SmashScope shows them
+      let txt = v.melee || 'not calibrated yet: calibrate this stick', col = '#c8c8c8';
       if (v.active && !isNaN(v.aim)) {
         let err = v.ang - v.aim; while (err > 180) err -= 360; while (err < -180) err += 360;
         txt = `aim ${Math.round(v.aim)}°   now ${Math.round(v.ang)}°   (${err >= 0 ? '+' : ''}${Math.round(err)}°)   ${Math.round(v.pct)}% out`;
@@ -326,7 +324,7 @@ export async function startPhob(shell, dev, opts) {
   const signed = x => x > 0 ? '+' + x : String(x), plain = x => String(x), pctF = x => x + '%';
   const SL = (cap, min, max, f, idx) => { const s = slider(cap, min, max, f, v => { vals[idx] = v; sChanged(); }); s.idx = idx; return s; };
   const sliders = [
-    SL('Snapback X  (both sticks)', -10, 10, signed, 4), SL('Snapback Y  (both sticks)', -10, 10, signed, 5),
+    SL('Snapback X  (both sticks)', -14, 12, signed, 4), SL('Snapback Y  (both sticks)', -14, 12, signed, 5),
     SL('Left stick (main) X', 0, 18, plain, 6), SL('Left stick (main) Y', 0, 18, plain, 7), SL('Right stick (C-stick) X', 0, 18, plain, 8), SL('Right stick (C-stick) Y', 0, 18, plain, 9),
     SL('Left stick (main) X', -24, 24, signed, 10), SL('Left stick (main) Y', -24, 24, signed, 11), SL('Right stick (C-stick) X', -24, 24, signed, 12), SL('Right stick (C-stick) Y', -24, 24, signed, 13),
     SL('Left stick (main)', -2, 6, signed, 0), SL('Right stick (C-stick)', -2, 6, signed, 1),
@@ -359,7 +357,8 @@ export async function startPhob(shell, dev, opts) {
       const v = line.split(',').slice(1).map(Number);
       if (v.length < 15) return;
       frame = { step: v[0], stick: v[1], locked: v[2], ax: v[4], ay: v[5], cx: v[6], cy: v[7], la: v[8], buttons: v[10],
-        rawAx: v[11] / 10000, rawAy: v[12] / 10000, rawCx: v[13] / 10000, rawCy: v[14] / 10000, inv: v.length > 15 ? v[15] : 0, phys: v.length > 16 ? v[16] : 0,
+        rawAx: v[11] / 10000, rawAy: v[12] / 10000, rawCx: v[13] / 10000, rawCy: v[14] / 10000, phys: v.length > 16 ? v[16] : 0,
+        calA: v.length >= 29 ? v[28] === 1 : true, calC: v.length >= 30 ? v[29] === 1 : true,   // older firmware doesn't say: shown
         hasTrig: v.length >= 25, trigRaw: v[17], trigLevel: v[18], trigCal: v[19], trigRest: v[20], trigFull: v[21], trigSeq: v[22], trigCode: v[23], saveState: v.length >= 25 ? v[24] : 0,
         hasTrack: v.length >= 28, tracking: v[25], trigMax: v[26], trigRestNew: v[27] };
       if (!haveFrame) { haveFrame = true; views[0].setRaw(frame.rawAx, frame.rawAy); views[0].reset(true); views[1].setRaw(frame.rawCx, frame.rawCy); views[1].reset(true); say('Receiving data'); }
@@ -379,6 +378,14 @@ export async function startPhob(shell, dev, opts) {
       if (!pending.settings) { settings = s; showSettings(s); }
     }
   };
+  // Melee's coordinates of a stick output (0-255, centre 127, the origin the firmware reports): clamped to a radius of 80,
+  // truncated, in 1/80ths (as PhobVision and SmashScope show them)
+  function meleeXY(ax, ay) {
+    const x = ax - 127, y = ay - 127, sc = Math.min(1, 80 / (Math.hypot(x, y) || 1));
+    const mc = n => { const t = Math.trunc(n * sc) / 80; return (t < 0 ? '-' : ' ') + Math.abs(t).toFixed(4); };
+    let a = Math.atan2(y, x) * 180 / Math.PI; if (a < 0) a += 360;
+    return 'Melee X ' + mc(x) + '   Y ' + mc(y) + (Math.hypot(x, y) > 4 ? '   ' + Math.round(a) + '°' : '');
+  }
   function onFrame(f) {
     const freshPress = f.phys & ~phys;
     phys = f.phys;
@@ -391,7 +398,12 @@ export async function startPhob(shell, dev, opts) {
     views[0].outX = (f.ax - 127) / 100; views[0].outY = (f.ay - 127) / 100;
     views[1].outX = (f.cx - 127) / 100; views[1].outY = (f.cy - 127) / 100;
     // while one stick is calibrated, the other stick's output is the target drawn on it
-    views[0].hasTarget = calL; views[0].hideOut = calR; views[1].hasTarget = calR; views[1].hideOut = calL;
+    // the output only once that stick is calibrated (before that PhobGCC's output means nothing); while calibrating it,
+    // only from the notch line-up steps on (PhobGCC has computed the calibration by then, and lining a notch up means
+    // putting the output on the cross)
+    views[0].hasTarget = calL; views[0].hideOut = calR || (calL ? f.step < 32 : !f.calA);
+    views[1].hasTarget = calR; views[1].hideOut = calL || (calR ? f.step < 32 : !BD.digitalC && !f.calC);
+    views[0].melee = !views[0].hideOut ? meleeXY(f.ax, f.ay) : ''; views[1].melee = !views[1].hideOut ? meleeXY(f.cx, f.cy) : '';
     if (calL) { views[0].tx = views[1].outX; views[0].ty = views[1].outY; }
     if (calR) { views[1].tx = views[0].outX; views[1].ty = views[0].outY; }
     if (f.step < 0) { stepLbl.textContent = f.locked ? 'LOCKED' : 'READY'; stepLbl.style.color = f.locked ? '#ff6e6e' : '#6ee682'; prog.firstChild.style.width = '0%'; }
@@ -400,8 +412,6 @@ export async function startPhob(shell, dev, opts) {
     const names = BTN_NAMES.filter((_, i) => f.buttons & (1 << i));
     seen.textContent = 'buttons: ' + (names.length ? names.join(', ') : '-');
     trigL.textContent = 'L trigger: ' + f.la + ' / 255';
-    if (wanted.inv >= 0 && f.inv === wanted.inv) { wanted.inv = -1; say('Axis flip saved in the controller. No need to recalibrate.', 'var(--good)'); views.forEach(v => v.reset(true)); }
-    else if (wanted.inv < 0 && pending.inv < 0) flips.forEach((t, i) => { t.checked = (f.inv & (1 << i)) !== 0; });
     if (f.saveState === 2) say('Warning: the controller couldn\'t save its settings.', 'var(--bad)');
     // ask for what we don't know yet; resend what wasn't confirmed
     const now = performance.now();

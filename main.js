@@ -35,7 +35,7 @@ const PAGES = {
   SETTINGS: ['settings', 'nav-gear', $t('Manage Turbo mode and other advanced controller settings')],
   'BACKUP & RESTORE': ['backup', 'nav-cloud', $t('Export your controller configuration or import a saved configuration file')],
   'STICK TEST': ['sticktest', 'target', $t('Plot the stick\'s output while you play (a dashdance) to see how consistently it lands')],
-  SNAPBACK: ['snapback', 'snap', $t('Tune the snapback filter and see how the stick settles when you let it go')],
+  SNAPBACK: ['snapback', 'snap',$t('Tune the snapback filter and see how the stick settles when you let it go')],
   'SWITCH COLORS': ['swcolors', 'palette', $t('Choose the colors the Nintendo Switch shows for your controller')],
   'GAMEPAD MODE': ['gpmode', 'nav-gear', $t('Choose the mode the PadBox starts in, and where Auto looks for a console or computer')],
   CALIBRATION: ['calibration', 'nav-stick', $t('Calibrate the stick notch by notch, with PhobGCC\'s own calibration')],

@@ -45,7 +45,6 @@ export async function startPhob(shell, dev, opts) {
   const wanted = { map: null, settings: null, inv: -1, at: 0, tries: 0 };
   const asked = { map: 0, led: 0, settings: 0 };
   const boardName = 'GS Platform';
-
   shell.header('PhobGCC', 'PadBoxPlatform');
   shell.status(true);
   const say = (t, c) => shell.footer(t, c);
@@ -199,15 +198,18 @@ export async function startPhob(shell, dev, opts) {
     if (!alive) return clearInterval(drawTick);
     drawing.set(pinOf(sel), pin => lit(BIT[pin]));
     drawing.setLeds(pin => { const li = ledOf(BIT[pin]); return li >= 0 && led ? hex(ledRgbRaw(li)) : null; });
-    try { drawing.setSticks([view.showOut ? [view.outX, view.outY] : [0, 0]]); } catch (e) { }   // the orange dot follows the stick once it is calibrated (once the STICKS view exists)
+    try { drawing.setSticks(views.map(v => v.showOut ? [v.outX, v.outY] : [0, 0])); } catch (e) { }   // the orange dot follows each stick once it is calibrated (once the STICKS views exist)
   }, 30);
 
   // ---------------------------------------------------------------- STICKS page
   // The GS Platform design: one wide panel - the gate on the left (output, raw reading, PhobGCC's target as a yellow
   // cross) with Set center under it; on the right the axes, the gate's shape, the calibration's current step (GETTING
   // READY, CAPTURE THE CROSS, LINE THE NOTCH UP WITH YOUR GATE) with its buttons, and Calibrate.
-  const view = makeView();
-  view.octagon = true;   // octagonal by default, like a GameCube stick's gate
+  // the left stick, and a right stick on a board that has one (a C-stick of four buttons has nothing to show)
+  const views = [makeView(), makeView()];
+  for (const v of views) v.octagon = true;   // octagonal by default, like a GameCube stick's gate
+  let view = views[0];
+  const nSticks = 1;
   const gateSeg = segmented([$t('Round Gate'), $t('Octagonal Gate')], v => { view.octagon = v === 1; });
   gateSeg.value = 1;
   const tag = badge(); tag.el.classList.add('hidden');   // shown once a calibration starts here (the firmware doesn't say)
@@ -227,7 +229,8 @@ export async function startPhob(shell, dev, opts) {
   const bCal = pbtn($t('Calibrate'), 'target', true, () => {
     if (!frame || frame.step >= 0) return;
     // a locked controller (PhobGCC's safe mode) is unlocked first: 1K+1P+2P+Start held (sent as A+X+Y+Start), then 1K+1P+2P+4K (A+X+Y+L) starts the calibration
-    macro = frame.locked ? [[BA | BX | BY | BS, 1300], [0, 2200], [BA | BX | BY | BL, 300]] : [[BA | BX | BY | BL, 300]];
+    const go = BA | BX | BY | (view === views[1] ? BR : BL);   // + R: the right stick
+    macro = frame.locked ? [[BA | BX | BY | BS, 1300], [0, 2200], [go, 300]] : [[go, 300]];
     macroUntil = 0; cal.starting = performance.now() + (frame.locked ? 3800 : 300);
   });
   bCal.title = $t('PhobGCC\'s own step-by-step calibration: 16 notches, then fine-tuning each notch\'s angle');
@@ -240,13 +243,14 @@ export async function startPhob(shell, dev, opts) {
   const lockTag = el('span.lock-tag');
   // the notch visualizer (as in SmashScope): roll the stick around the gate and its outline is traced, so each notch
   // shows as a dip or a bump
-  const vizToggle = dtoggle($t('Notch visualizer'), on => { view.viz = on; vizRow.classList.toggle('on', on); });
+  const vizToggle = dtoggle($t('Notch visualizer'), on => { for (const v of views) v.viz = on; vizRow.classList.toggle('on', on); });
   const bClear = pbtn($t('Clear'), '', false, () => view.trace.fill(null));
   bClear.title = $t('Start the outline over');
   const meleeRd = el('div.melee-rd');
   const vizRow = el('div.notchviz', {}, [el('div.notchviz-top', {}, [vizToggle.el, bClear]), meleeRd]);
+  const gateWrap = el('div.gate-wrap', {}, [view.canvas]);
   const stickPanel = panel($t('STICK'), [el('div.phob-body', {}, [
-    el('div.phob-left', {}, [el('div.gate-wrap', {}, [view.canvas]), el('div.rd', {}, [rd1, legend])]),
+    el('div.phob-left', {}, [gateWrap, el('div.rd', {}, [rd1, legend])]),
     el('div.phob-right', {}, [gateSeg.el, calBox, el('div.btnrow.cal-main', {}, [bLock, bCal]), vizRow]),
   ])], 'phob-wide');
   stickPanel.firstChild.append(tag.el, lockTag);
@@ -365,7 +369,7 @@ export async function startPhob(shell, dev, opts) {
   let setTimer = 0;
   const sChanged = () => { clearTimeout(setTimer); setTimer = setTimeout(() => { pending.settings = vals.slice(); staged(); }, 200); };
   const signed = x => x > 0 ? '+' + x : String(x), plain = x => String(x), pctF = x => x + '%';
-  const SL = (cap, min, max, f, idx, tip) => { const s = dslider(cap, min, max, f, v => { vals[idx] = v; sChanged(); }); s.idx = idx; if (tip) s.el.title = tip; return s; };
+  const SL = (cap, min, max, f, idx, tip) => { const s = dslider(cap, min, max, f, v => { vals[idx] = v; sChanged(); }); s.idx = idx; s.args = [cap, min, max, f]; if (tip) s.el.title = tip; return s; };
   // the design's five boxes (GS Platform, Settings): a title, what it does, and its sliders (X and Y side by side)
   const sliders = [];
   const box = (title, text, list) => { sliders.push(...list); return panel(title, [el('p.setdesc', { text }), el('div.setsl' + (list.length > 1 ? '.two' : ''), {}, list.map(x => x.el))], 'setbox'); };
@@ -392,7 +396,7 @@ export async function startPhob(shell, dev, opts) {
       return { format: 'padbox-phob-backup', version: 1, board: boardName, created: new Date().toISOString(),
         map: (pending.map || map).slice(), led: led.slice(), settings: (pending.settings || vals).slice() };
     },
-    fileName: name => 'PadBox GS Platform - PhobGCC - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
+    fileName: name => 'PadBox ' + boardName + ' - PhobGCC - ' + name.replace(/[\\/:*?"<>|]/g, '_') + '.json',
     check: d => !d || d.format !== 'padbox-phob-backup' ? $t('This file isn\'t a PhobGCC configuration file. GP2040-CE and HOJA files only go back onto those firmwares.')
       : d.board !== boardName ? $t('This configuration is from a PadBox {0}, not a PadBox {1}.', d.board, boardName)
       : !Array.isArray(d.map) || d.map.length !== 42 || !Array.isArray(d.led) || d.led.length !== N_LEDS * 3 + 1 || !Array.isArray(d.settings) || d.settings.length !== 19 ? $t('This configuration is incomplete or damaged.')
@@ -407,13 +411,14 @@ export async function startPhob(shell, dev, opts) {
   });
   const page3 = backup.page;
 
+
   // ---------------------------------------------------------------- the side menu, lines from the controller, timers
   // STICK TEST: the stick's output (what the console gets, in Melee's 1/80 steps) as a scatter plot (scatter.js)
-  const scatter = scatterPage([$t('Stick')]);
-  const pages = [page0, page1, scatter.page, page2, page3];
+  const scatter = scatterPage(nSticks > 1 ? [$t('Left stick'), $t('Right stick')] : [$t('Stick')]);
+  const pages = [page0, page1, scatter.page, page2, page3], tabNames = ['CONTROLLER', 'STICKS', 'STICK TEST', 'SETTINGS', 'BACKUP & RESTORE'];
   shell.content(el('div', { style: { position: 'absolute', inset: 0 } }, pages));
   let curPage = page0;
-  shell.tabs(['CONTROLLER', 'STICKS', 'STICK TEST', 'SETTINGS', 'BACKUP & RESTORE'], i => { curPage = pages[i]; pages.forEach((p, k) => p.classList.toggle('hidden', k !== i)); },
+  shell.tabs(tabNames, i => { curPage = pages[i]; pages.forEach((p, k) => p.classList.toggle('hidden', k !== i)); },
     { SETTINGS: $t('Manage stick smoothing and other advanced stick settings') });
   refreshSide(); showAllColor(allColor);
 
@@ -430,17 +435,20 @@ export async function startPhob(shell, dev, opts) {
       const v = line.split(',').slice(1).map(Number);
       if (v.length < 15) return;
       frame = { step: v[0], stick: v[1], locked: v[2], ax: v[4], ay: v[5], cx: v[6], cy: v[7], la: v[8], buttons: v[10],
-        rawAx: v[11] / 10000, rawAy: v[12] / 10000, inv: v.length > 15 ? v[15] : 0, phys: v.length > 16 ? v[16] : 0, saveState: v.length >= 25 ? v[24] : 0, calibrated: v.length >= 29 ? v[28] === 1 : true };
-      if (!haveFrame) { haveFrame = true; view.setRaw(frame.rawAx, frame.rawAy); view.reset(true); say($t('Receiving data')); }
+        rawAx: v[11] / 10000, rawAy: v[12] / 10000, rawCx: v[13] / 10000, rawCy: v[14] / 10000, inv: v.length > 15 ? v[15] : 0, phys: v.length > 16 ? v[16] : 0, saveState: v.length >= 25 ? v[24] : 0,
+        calibrated: v.length >= 29 ? v[28] === 1 : true, calibratedC: v.length >= 30 ? v[29] === 1 : true,
+        // an analog trigger (older firmware sends less): its reading, level, calibration and the last "T" command's result
+        hasTrig: v.length >= 25, trigRaw: v[17], trigLevel: v[18], trigCal: v[19], trigSeq: v[22], trigCode: v[23], hasTrack: v.length >= 28, tracking: v[25] };
+      if (!haveFrame) { haveFrame = true; views[0].setRaw(frame.rawAx, frame.rawAy); views[1].setRaw(frame.rawCx, frame.rawCy); for (const v of views) v.reset(true); say($t('Receiving data')); }
       onFrame(frame);
-      if (frame.step < 0) scatter.push(0, (frame.ax - 127) / 80, (frame.ay - 127) / 80);   // not while calibrating
+      if (frame.step < 0) { scatter.push(0, (frame.ax - 127) / 80, (frame.ay - 127) / 80); scatter.push(1, (frame.cx - 127) / 80, (frame.cy - 127) / 80); }   // not while calibrating
     } else if (line.startsWith('M,')) {
       const m = ints(line, 42); if (!m) return;
       if (wanted.map) { if (m.join() !== wanted.map.join()) return; wanted.map = null; say($t('Button mapping saved in the controller.'), 'var(--good)'); }
       if (!pending.map) { map = m; refreshSide(); }
     } else if (line.startsWith('LC,')) {
       let p = line.split(',').slice(1).map(Number);
-      if (p.length === 25) p = [...p.slice(0, 24), ...new Array(15).fill(0), p[24]];   // older firmware: 8 LEDs
+      if (N_LEDS === 13 && p.length === 25) p = [...p.slice(0, 24), ...new Array(15).fill(0), p[24]];   // older GS firmware: 8 LEDs
       if (p.length !== N_LEDS * 3 + 1) return;
       if (performance.now() - ledSentAt > 500) { led = p; if (!colorShown) { colorShown = true; showAllColor(ledRgbRaw(4)); } refreshSide(); }
     } else if (line.startsWith('S,')) {
@@ -461,24 +469,29 @@ export async function startPhob(shell, dev, opts) {
     const freshPress = f.phys & ~phys;
     phys = f.phys;
     if (freshPress && curPage === page0) { for (let b = 0; b < 21; b++) if (freshPress & (1 << b)) { if (pinOf(b) >= 0) select(b); break; } }   // pressing a button selects it
-    view.calibrated = f.calibrated;
-    // the output dot: once the stick is calibrated; during a calibration only from the notch line-up steps on (PhobGCC has
-    // computed the calibration by then, and lining a notch up means putting the dot on the cross)
-    view.showOut = view.active ? f.step >= 32 : f.calibrated;
-    view.setRaw(f.rawAx, f.rawAy);
-    view.active = f.step >= 0 && f.stick === 0;
-    view.aim = NaN; view.aimCenter = false;
-    if (view.active && f.step < 32) { const e = CAL_ORDER[f.step]; if (!(e & 1)) view.aimCenter = true; else if ((e >> 1) % 2 === 0) view.aim = (e >> 1) * 22.5; }
-    view.outX = (f.ax - 127) / 100; view.outY = (f.ay - 127) / 100;
-    if (f.step >= 0) { if (cal.was < 0) view.trace.fill(null); }   // a calibration: the outline starts over
-    else if (view.viz) view.addTrace(view.outX, view.outY);
-    if (view.viz && curPage === page1) meleeRd.textContent = 'Melee ' + meleeXY(f.ax, f.ay);
-    // while calibrating, the C-stick's output is the target
-    view.hasTarget = view.active; view.tx = (f.cx - 127) / 100; view.ty = (f.cy - 127) / 100;
-    // the aim help reads the output too
-    { const m = Math.hypot(view.outX, view.outY); let a = Math.atan2(view.outY, view.outX) * 180 / Math.PI; if (a < 0) a += 360; view.ang = a; view.pct = Math.min(100, m * 100); }
+    // each stick: the left one's output is (ax, ay), the right one's (cx, cy); while one is calibrated, the other's output
+    // is PhobGCC's target for it
+    for (let k = 0; k < nSticks; k++) {
+      const v = views[k], o = k ? [f.cx, f.cy] : [f.ax, f.ay], t = k ? [f.ax, f.ay] : [f.cx, f.cy], done = k ? f.calibratedC : f.calibrated;
+      v.calibrated = done;
+      // the output dot: once the stick is calibrated; during a calibration only from the notch line-up steps on (PhobGCC
+      // has computed the calibration by then, and lining a notch up means putting the dot on the cross)
+      v.showOut = v.active ? f.step >= 32 : done;
+      v.setRaw(k ? f.rawCx : f.rawAx, k ? f.rawCy : f.rawAy);
+      v.active = f.step >= 0 && f.stick === k;
+      v.aim = NaN; v.aimCenter = false;
+      if (v.active && f.step < 32) { const e = CAL_ORDER[f.step]; if (!(e & 1)) v.aimCenter = true; else if ((e >> 1) % 2 === 0) v.aim = (e >> 1) * 22.5; }
+      v.outX = (o[0] - 127) / 100; v.outY = (o[1] - 127) / 100;
+      if (f.step >= 0) { if (cal.was < 0) v.trace.fill(null); }   // a calibration: the outline starts over
+      else if (v.viz) v.addTrace(v.outX, v.outY);
+      v.hasTarget = v.active; v.tx = (t[0] - 127) / 100; v.ty = (t[1] - 127) / 100;
+      // the aim help reads the output too
+      { const m = Math.hypot(v.outX, v.outY); let a = Math.atan2(v.outY, v.outX) * 180 / Math.PI; if (a < 0) a += 360; v.ang = a; v.pct = Math.min(100, m * 100); }
+    }
+    const vo = view === views[1] ? [f.cx, f.cy] : [f.ax, f.ay];
+    if (view.viz && curPage === page1) meleeRd.textContent = 'Melee ' + meleeXY(vo[0], vo[1]);
     // the readout in Melee's units (0.7000 rather than 74 %), as SmashScope shows them: what players calibrate notches by
-    if (curPage === page1) { const r = readout(view.outX, view.outY); rd1.textContent = meleeXY(f.ax, f.ay) + (r.angle ? '     ' + r.angle : ''); }
+    if (curPage === page1) { const r = readout(view.outX, view.outY); rd1.textContent = meleeXY(vo[0], vo[1]) + (r.angle ? '     ' + r.angle : ''); }
     showStep(f);
     if (f.saveState === 2) say($t('Warning: the controller couldn\'t save its settings.'), 'var(--bad)');
     // ask for what we don't know yet; resend what wasn't confirmed

@@ -153,6 +153,7 @@ export function gsNs() {
 }
 
 
+
 export function layoutFor(boardLabel) {
   const b = (boardLabel || '').toLowerCase();
   // before the GS checks: these labels have "PadboxGS" in them too
@@ -205,7 +206,7 @@ export class Model {
     this.mode = 0; this.effects = 5; this.brightness = 5; this.steps = 5;
     this.stick = [{}, {}];
     this.gamepadDoc = {}; this.addonDoc = {};
-    this.socdMode = 1; this.fourWayMode = false; this.debounceDelay = 5; this.profileNumber = 1;
+    this.socdMode = 1; this.debounceDelay = 5; this.profileNumber = 1;
     this.turboEnabled = false; this.turboShotCount = 5;
     this.stick1Enabled = true; this.stick2Enabled = true; this.rumbleEnabled = true;
     this.innerDeadzone = 0; this.outerDeadzone = 100; this.innerDeadzone2 = 0; this.outerDeadzone2 = 100;
@@ -247,7 +248,7 @@ export class Model {
     }
     const g = s.gamepad || {}, ad = s.addons || {};
     this.gamepadDoc = g; this.addonDoc = ad;
-    this.socdMode = I(g, 'socdMode', 1); this.fourWayMode = B(g, 'fourWayMode', false);
+    this.socdMode = I(g, 'socdMode', 1);
     this.debounceDelay = I(g, 'debounceDelay', 5); this.profileNumber = Math.max(1, I(g, 'profileNumber', 1));
     this.turboEnabled = B(ad, 'TurboInputEnabled', false); this.turboShotCount = I(ad, 'turboShotCount', 5);
     // the buttons that always repeat while turbo is on (the redesign's "Assigned Buttons"): GP2040-CE's SHMUP mode
@@ -285,7 +286,11 @@ export class Model {
     return ph.led;
   }
 
-  gamepadBody() { const d = copy(this.gamepadDoc); Object.assign(d, { socdMode: this.socdMode, fourWayMode: this.fourWayMode, debounceDelay: this.debounceDelay, profileNumber: this.profileNumber }); return d; }
+  gamepadBody() {
+    const d = copy(this.gamepadDoc); // 4-way mode has no setting any more: always sent off, so a controller that had it on can't stay stuck in it
+    Object.assign(d, { socdMode: this.socdMode, fourWayMode: false, debounceDelay: this.debounceDelay, profileNumber: this.profileNumber });
+    return d;
+  }
   addonBody() {
     const d = copy(this.addonDoc);
     Object.assign(d, { TurboInputEnabled: this.turboEnabled, turboShotCount: this.turboShotCount,

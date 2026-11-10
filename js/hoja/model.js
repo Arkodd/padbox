@@ -49,6 +49,10 @@ export const Analog = {
   snap: (b, right) => u16(b, right ? 694 : 692), setSnap: (b, right, v) => set16(b, right ? 694 : 692, v),
   exp: (b, right) => b[right ? 697 : 696], setExp: (b, right, v) => { b[right ? 697 : 696] = v; },
   disabled: (b, right) => b[right ? 700 : 699] === 1, setDisabled: (b, right, v) => { b[right ? 700 : 699] = v ? 1 : 0; },
+  // the low-pass filter's zone (l/r_lpf_zone, the distance from centre it works within, of 2048; past it the filter fades
+  // off so the rim stays instant): firmware from Nov 2026 reads it; 1024..2000, anything else = its default 1800
+  lpfZone: (b, right) => { const v = u16(b, right ? 851 : 849); return v >= 1024 && v <= 2000 ? v : 1800; },
+  setLpfZone: (b, right, v) => set16(b, right ? 851 : 849, v),
 };
 // snapbackSpringCfg_s (74 bytes): each stick's tuning for Auto snapback, l_spring at 701, r_spring at 775 (the PadBox
 // layout: 3 bytes later than HOJA's, after module_flip and the two "stick off" bytes). version 1 at [0], flags at [1]

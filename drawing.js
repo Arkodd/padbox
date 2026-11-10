@@ -103,7 +103,7 @@ export function buildDrawing(onPick, tip, label, board) {
   el('path', { d: plateEdge + ' L 364,1300 L 1700,1300 L 1700,-100 L 229,-100 Z', fill: C.body }, body);
 
   // bumper: the tab on top of the body (NB1). It's the button: the GS has no trigger, so no other shape for it.
-  add(22, svg.insertBefore(el('path', { d: SHAPES.bumperTab[0] + ' Z', fill: C.btn, stroke: C.callout, 'stroke-width': '4', 'stroke-linejoin': 'round', transform: B.body }), body));   // behind the body, which hides its bottom
+  if (!B.noBumper) add(22, svg.insertBefore(el('path', { d: SHAPES.bumperTab[0] + ' Z', fill: C.btn, stroke: C.callout, 'stroke-width': '4', 'stroke-linejoin': 'round', transform: B.body }), body));   // behind the body, which hides its bottom
 
   // D-pad: the four arms of the tracing
   const DP = { up: 2, down: 3, left: 5, right: 4 };
@@ -167,7 +167,7 @@ export function buildDrawing(onPick, tip, label, board) {
   };
   for (const [pin, x, y] of B.round) text(pin, x, y, 42 * k, C.label);
   for (const [pin, x, y] of dpadLabels) text(pin, x, y, 21, C.label);
-  text(22, B.bumperLabel[0], B.bumperLabel[1], 28, C.labelOnDark);   // above the bumper tab, which is mostly hidden behind the body
+  if (!B.noBumper && B.bumperLabel) text(22, B.bumperLabel[0], B.bumperLabel[1], 28, C.labelOnDark);   // above the bumper tab, which is mostly hidden behind the body
   for (const [pin, x, y, sz] of B.sticks) if (pin >= 0) text(pin, x, y + 83 * sz, 30, C.labelOnBody);
   if (trigBox) text(44, trigBox.x + trigBox.w / 2, trigBox.y + 33, 24, C.label);   // the trigger's function, above its percentage
   // a D-pad direction is drawn as an arrow, anything else as text

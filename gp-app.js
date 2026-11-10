@@ -395,7 +395,6 @@ export async function startGp(shell, dev, opts) {
   // repeat while held when turbo is on (GP2040-CE's SHMUP "always on" buttons); a button with the Turbo function can
   // still switch turbo on or off for any button while playing.
   const socd = dselect(SOCD, i => { m.socdMode = i; markDirty('settings'); });
-  const fourWay = dtoggle($t('4-way mode (No diagonals on the D-Pad / Left stick)'), v => { m.fourWayMode = v; markDirty('settings'); });
   const debounce = dslider($t('Debounce delay'), 0, 50, v => v === 0 ? $t('Off') : v + 'ms', v => { m.debounceDelay = v; markDirty('settings'); });
   const rumble = dtoggle($t('Rumble enabled'), v => { m.rumbleEnabled = v; markDirty('cal'); });
   const turbo = dtoggle($t('Enabled'), v => { m.turboEnabled = v; markDirty('settings'); syncTurbo(); }, $t('Disabled'));
@@ -403,9 +402,13 @@ export async function startGp(shell, dev, opts) {
   const TURBO_BTNS = COMBO_PARTS.filter(p => p.kind === 'b' && p.bit <= 128).map(p => { const a = ACTS.find(x => x.key === p.name); return { value: p.bit, text: a ? fnName(a) : p.name, short: p.name }; });
   const assigned = multiSelect($t('Select buttons to enable Turbo'), TURBO_BTNS, v => { m.turboMask = v.reduce((a, b) => a | b, 0); markDirty('settings'); });
   assigned.el.title = $t('These buttons repeat by themselves while held, whenever turbo is on');
-  const inputPanel = panel($t('INPUT BEHAVIOR'), [el('div.lbl', { text: $t('SOCD cleaning mode') }), socd, fourWay.el, debounce.el,
+  const inputItems = [el('div.lbl', { text: $t('SOCD cleaning mode') }), socd, debounce.el];
+  const inputPanel = panel($t('INPUT BEHAVIOR'), [...inputItems,
     el('div.btnrow.bottom', {}, [
-      pbtn($t('Reset'), 'sync', false, () => { m.socdMode = 1; m.fourWayMode = false; m.debounceDelay = 5; syncSettings(); markDirty('settings'); }),
+      pbtn($t('Reset'), 'sync', false, () => {
+        m.socdMode = 1; m.debounceDelay = 5;
+        syncSettings(); markDirty('settings');
+      }),
       pbtn($t('Save'), 'check', true, () => flush()),
     ])], 'stretch');
   const turboOn = el('div.turbo-on', {}, [shots.el, el('div.lbl', { text: $t('Assigned Buttons') }), assigned.el,
@@ -421,7 +424,7 @@ export async function startGp(shell, dev, opts) {
   function syncTurbo() { turboOn.classList.toggle('hidden', !turbo.checked); turboOff.classList.toggle('hidden', turbo.checked); }
   const page2 = el('div.page.hidden.dpage.settings', {}, [inputPanel, turboPanel]);
   function syncSettings() {
-    socd.value = String(clamp(m.socdMode, 0, 4)); fourWay.checked = m.fourWayMode; debounce.value = m.debounceDelay;
+    socd.value = String(clamp(m.socdMode, 0, 4)); debounce.value = m.debounceDelay;
     turbo.checked = m.turboEnabled; shots.value = m.turboShotCount; rumble.checked = m.rumbleEnabled;
     assigned.value = TURBO_BTNS.filter(t => (m.turboMask & t.value) !== 0).map(t => t.value); syncTurbo();
   }
