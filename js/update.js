@@ -22,6 +22,14 @@ const FAMILIES = { 'GS Essential': ['HOJA2', 'GP2040-CE'], 'GS Platform': ['HOJA
 const LOCKED_FIRMWARE = new Set(['GS E2T', 'GS E130T', 'GS NS']);
 export const BOOT_IDS = [{ vendorId: 0x2e8a, productId: 0x0003 }];   // RP2040
 const CHIP_FAMILIES = { RP2040: [0xe48bff56] };
+// HandHeldLegend's own update mode, the "HOJA bootloader": a PadBox GS that got HHL's "Padbox GS-C" firmware from HHL's
+// app (October 2026 on) has it, and Start + Select then opens it instead of the chip's RPI-RP2: a drive named after the
+// controller ("Padbox GS-C") that refuses every other firmware. It answers one extra PICOBOOT command, 0x21, by restarting
+// into the chip's own bootloader (RP2 Boot), so this page sends it there first. It has HOJA2's VID/PID; it's told apart
+// by its drive (a mass storage interface) and its bcdDevice, 0xB0xx.
+export const HOJA_BOOT_IDS = [{ vendorId: 0x2e8a, productId: 0x10c6 }];   // in update mode, the only device with these
+export const isHojaBoot = dev => dev.vendorId === 0x2e8a && dev.productId === 0x10c6 && (dev.deviceVersionMajor === 0xb0 ||
+  !!(dev.configuration && dev.configuration.interfaces.some(i => i.alternates.some(a => a.interfaceClass === 0x08))));
 
 // RP2040 / null, from the family ID in every 512-byte UF2 block.
 export function uf2Chip(data) {
@@ -52,15 +60,27 @@ function useNoDrive(chip) {
 }
 const isBoot = dev => BOOT_IDS.some(f => f.vendorId === dev.vendorId && f.productId === dev.productId);
 
-// The bootloader, if this site was already allowed to use it; waits up to ms for it to show up.
+// The bootloader, if this site was already allowed to use it; waits up to ms for it to show up. HHL's update mode, if
+// this site may use it, is sent on to the chip's own bootloader first (the time to wait starts again then).
 export async function findBoot(ms) {
   if (!navigator.usb) return null;
-  const end = performance.now() + ms;
+  let end = performance.now() + ms, sent = false;
   for (;;) {
-    try { const d = (await navigator.usb.getDevices()).find(isBoot); if (d) return d; } catch (e) { }
+    let list = [];
+    try { list = await navigator.usb.getDevices(); } catch (e) { }
+    const d = list.find(isBoot); if (d) return d;
+    const h = !sent && list.find(isHojaBoot);
+    if (h) { sent = true; try { await hojaBootToRom(h); } catch (e) { } end = performance.now() + Math.max(ms, 8000); }
     if (performance.now() > end) return null;
     await sleep(300);
   }
+}
+
+// HHL's update mode picked in the browser's list: sent on to the chip's own bootloader. Returns that one (RP2 Boot) if
+// this site may already use it, else null: one more click, choosing "RP2 Boot".
+export async function romFromHojaBoot(dev) {
+  try { await hojaBootToRom(dev); } catch (e) { }
+  return findBoot(8000);
 }
 
 // The UF2's flash contents as 4 KB sectors (address -> bytes), only the blocks meant for this chip.
@@ -85,6 +105,29 @@ export function timed(promise, ms, what) {
     .finally(() => clearTimeout(t));
 }
 const STEP_MS = 5000;
+
+// HHL's update mode -> the chip's own bootloader: its PICOBOOT command 0x21 (bootloader/boot_usb.c in HOJA-LIB-RP2040).
+// The chip restarts as RP2 Boot (and its RPI-RP2 drive) a moment later.
+export async function hojaBootToRom(dev) {
+  await timed(dev.open(), STEP_MS, 'open');
+  try {
+    if (!dev.configuration) await timed(dev.selectConfiguration(1), STEP_MS, 'configuration');
+    const itf = dev.configuration.interfaces.find(i => i.alternates[0].interfaceClass === 0xff);
+    if (!itf) throw new Error('no PICOBOOT interface');
+    const alt = itf.alternates[0];
+    const epIn = alt.endpoints.find(e => e.direction === 'in').endpointNumber;
+    const epOut = alt.endpoints.find(e => e.direction === 'out').endpointNumber;
+    await timed(dev.claimInterface(itf.interfaceNumber), STEP_MS, 'claim');
+    await timed(dev.controlTransferOut({ requestType: 'vendor', recipient: 'interface', request: 0x41, value: 0, index: itf.interfaceNumber }), STEP_MS, 'reset');   // IF_RESET
+    const c = new Uint8Array(32), v = new DataView(c.buffer);
+    v.setUint32(0, 0x431fd10b, true); v.setUint32(4, 1, true); c[8] = 0x21;
+    const r = await timed(dev.transferOut(epOut, c), STEP_MS, 'command 33');
+    if (r.status !== 'ok') throw new Error('command 33 refused');
+    try { await timed(dev.transferIn(epIn, 64), 2000, 'command 33'); } catch (e) { }   // it may be gone before the answer
+  } finally {
+    try { await timed(dev.close(), 2000, 'close'); } catch (e) { }
+  }
+}
 
 // PICOBOOT (pico-sdk boot/picoboot.h): 32-byte commands on the bulk OUT pipe, an optional data phase, then a
 // zero-length acknowledgement in the other direction.
@@ -137,6 +180,9 @@ export async function picobootFlash(dev, data, progress) {
     try { await timed(dev.close(), 2000, 'close'); } catch (e) { }
   }
 }
+
+// after HHL's update mode was sent on to the chip's own one, which this site may not use yet
+export const HOJA_BOOT_AGAIN = () => $t('The PadBox is now in the chip\'s own update mode. Click INSTALL once more and choose "RP2 Boot" in the list.');
 
 // a firmware family as customers see it: "HOJA", not the internal 'HOJA2' (its files and versions keep that name)
 export const famName = f => f === 'HOJA2' ? 'HOJA' : f;
@@ -228,8 +274,14 @@ export function firmwareUpdate({ board, current, enter }) {
 
   async function pickAndInstall() {
     let dev;
-    try { dev = await navigator.usb.requestDevice({ filters: BOOT_IDS }); }
+    try { dev = await navigator.usb.requestDevice({ filters: [...BOOT_IDS, ...HOJA_BOOT_IDS] }); }
     catch (e) { return; }   // cancelled
+    if (isHojaBoot(dev)) {
+      go.disabled = true; say($t('Switching the PadBox to the chip\'s own update mode...'));
+      dev = await romFromHojaBoot(dev);
+      go.disabled = false;
+      if (!dev) return say(HOJA_BOOT_AGAIN(), 'var(--warn)');
+    }
     install(dev);
   }
 

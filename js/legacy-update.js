@@ -8,7 +8,7 @@
 
 import { el, dialog, button, setButtonText } from './ui.js';
 import { $t } from './i18n.js';
-import { BOOT_IDS, bootChip, uf2Chip, findBoot, picobootFlash, rememberPicoboot, famName } from './update.js';
+import { BOOT_IDS, HOJA_BOOT_IDS, isHojaBoot, romFromHojaBoot, HOJA_BOOT_AGAIN, bootChip, uf2Chip, findBoot, picobootFlash, rememberPicoboot, famName } from './update.js';
 import { count } from './stats.js';
 
 const BOARDS = { 'GS Essential': ['HOJA2', 'GP2040-CE'], 'GS Platform': ['HOJA2', 'GP2040-CE', 'PhobGCC'] };
@@ -84,12 +84,20 @@ export function legacyUpdate(o = {}) {
     // first time on this computer: one click to allow the bootloader
     lock(false); for (const s of [boardSel, nowSel, famSel]) s.disabled = true;
     stage = 'pick'; setButtonText(go, $t('INSTALL'), 'download');
-    say($t('Click INSTALL and choose "RP2 Boot" in the list.\nIf it isn\'t listed, the PadBox isn\'t in update mode yet: {0}', NOW[nowSel.value].how), 'var(--warn)');
+    say($t('Click INSTALL and choose "RP2 Boot" in the list.\nIf it isn\'t listed, the PadBox isn\'t in update mode yet: {0}', NOW[nowSel.value].how) + '\n' +
+      $t('If the list shows "Padbox GS-C Update" instead (a "Padbox GS-C" drive opened, not RPI-RP2), choose it: the PadBox switches to "RP2 Boot" by itself.'), 'var(--warn)');
   });
 
   async function pick() {
     let dev;
-    try { dev = await navigator.usb.requestDevice({ filters: BOOT_IDS }); } catch (e) { return; }
+    try { dev = await navigator.usb.requestDevice({ filters: [...BOOT_IDS, ...HOJA_BOOT_IDS] }); } catch (e) { return; }
+    // HHL's update mode ("Padbox GS-C Update" in the list, a "Padbox GS-C" drive): on to the chip's own first
+    if (isHojaBoot(dev)) {
+      go.disabled = true; say($t('Switching the PadBox to the chip\'s own update mode...'));
+      dev = await romFromHojaBoot(dev);
+      go.disabled = false;
+      if (!dev) return say(HOJA_BOOT_AGAIN(), 'var(--warn)');
+    }
     install(dev);
   }
 
@@ -112,7 +120,8 @@ export function legacyUpdate(o = {}) {
     stat('fallback');
     setButtonText(go, $t('DOWNLOAD FIRMWARE'), 'download');
     say(why + '\n' + $t('Click DOWNLOAD FIRMWARE, then drag the file onto the "RPI-RP2" drive that appeared when the PadBox went into update mode: it restarts on the new firmware by itself.') +
-      '\n' + $t('If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold the buttons above while plugging it back in.'), 'var(--warn)');
+      '\n' + $t('If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold the buttons above while plugging it back in.') +
+      '\n' + $t('A drive named "Padbox GS-C" instead of RPI-RP2 won\'t take this file: install from Chrome or Edge instead, which switches it to RPI-RP2 first.'), 'var(--warn)');
   }
   function download() {
     const a = el('a', { href: URL.createObjectURL(new Blob([data])), download: 'PADBOX.UF2' }); a.click(); stat('downloaded');

@@ -3,6 +3,10 @@
 // on purpose). {0}, {1}... stand for values put in by the app; keep them and the line breaks (\n).
 // node tools/i18n-check.js says what is missing or no longer used.
 export default {
+  'Switching the PadBox to the chip\'s own update mode...': 'Passage du PadBox au mode mise à jour de la puce...',
+  'The PadBox is now in the chip\'s own update mode. Click INSTALL once more and choose "RP2 Boot" in the list.': 'Le PadBox est maintenant dans le mode mise à jour de la puce. Cliquez encore une fois sur INSTALLER et choisissez « RP2 Boot » dans la liste.',
+  'If the list shows "Padbox GS-C Update" instead (a "Padbox GS-C" drive opened, not RPI-RP2), choose it: the PadBox switches to "RP2 Boot" by itself.': 'Si la liste affiche plutôt « Padbox GS-C Update » (un lecteur « Padbox GS-C » s\'est ouvert, pas RPI-RP2), choisissez-le : le PadBox passe tout seul en « RP2 Boot ».',
+  'A drive named "Padbox GS-C" instead of RPI-RP2 won\'t take this file: install from Chrome or Edge instead, which switches it to RPI-RP2 first.': 'Un lecteur nommé « Padbox GS-C » au lieu de RPI-RP2 n\'accepte pas ce fichier : installez plutôt depuis Chrome ou Edge, qui le fait d\'abord passer en RPI-RP2.',
   'no answer': 'pas de réponse',
   'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold Start + Select while plugging it back in.': 'Si le lecteur n\'apparaît pas ou refuse le fichier : débranchez la PadBox, puis maintenez Start + Select en la rebranchant.',
   'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold the buttons above while plugging it back in.': 'Si le lecteur n\'apparaît pas ou refuse le fichier : débranchez la PadBox, puis maintenez les boutons ci-dessus en la rebranchant.',

@@ -3,6 +3,10 @@
 // on purpose). {0}, {1}... stand for values put in by the app; keep them and the line breaks (\n).
 // node tools/i18n-check.js says what is missing or no longer used.
 export default {
+  'Switching the PadBox to the chip\'s own update mode...': 'PadBox를 칩 자체의 업데이트 모드로 전환하는 중...',
+  'The PadBox is now in the chip\'s own update mode. Click INSTALL once more and choose "RP2 Boot" in the list.': 'PadBox가 이제 칩 자체의 업데이트 모드입니다. "설치"를 한 번 더 클릭하고 목록에서 "RP2 Boot"를 선택하세요.',
+  'If the list shows "Padbox GS-C Update" instead (a "Padbox GS-C" drive opened, not RPI-RP2), choose it: the PadBox switches to "RP2 Boot" by itself.': '목록에 "Padbox GS-C Update"가 대신 표시되면(RPI-RP2가 아닌 "Padbox GS-C" 드라이브가 열린 경우) 그것을 선택하세요: PadBox가 자동으로 "RP2 Boot"로 전환됩니다.',
+  'A drive named "Padbox GS-C" instead of RPI-RP2 won\'t take this file: install from Chrome or Edge instead, which switches it to RPI-RP2 first.': 'RPI-RP2 대신 "Padbox GS-C"라는 이름의 드라이브는 이 파일을 받지 않습니다: Chrome 또는 Edge에서 설치하세요. 먼저 RPI-RP2로 전환해 줍니다.',
   'no answer': '응답 없음',
   'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold Start + Select while plugging it back in.': '드라이브가 나타나지 않거나 파일이 복사되지 않으면: PadBox를 뽑은 다음 Start + Select를 누른 채로 다시 연결하세요.',
   'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold the buttons above while plugging it back in.': '드라이브가 나타나지 않거나 파일이 복사되지 않으면: PadBox를 뽑은 다음 위의 버튼을 누른 채로 다시 연결하세요.',

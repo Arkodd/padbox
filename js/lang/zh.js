@@ -3,6 +3,10 @@
 // on purpose). {0}, {1}... stand for values put in by the app; keep them and the line breaks (\n).
 // node tools/i18n-check.js says what is missing or no longer used.
 export default {
+  'Switching the PadBox to the chip\'s own update mode...': '正在将 PadBox 切换到芯片自带的更新模式...',
+  'The PadBox is now in the chip\'s own update mode. Click INSTALL once more and choose "RP2 Boot" in the list.': 'PadBox 现已进入芯片自带的更新模式。请再点击一次“安装”，并在列表中选择“RP2 Boot”。',
+  'If the list shows "Padbox GS-C Update" instead (a "Padbox GS-C" drive opened, not RPI-RP2), choose it: the PadBox switches to "RP2 Boot" by itself.': '如果列表中显示的是“Padbox GS-C Update”（打开的是“Padbox GS-C”驱动器而不是 RPI-RP2），请选择它：PadBox 会自动切换到“RP2 Boot”。',
+  'A drive named "Padbox GS-C" instead of RPI-RP2 won\'t take this file: install from Chrome or Edge instead, which switches it to RPI-RP2 first.': '名为“Padbox GS-C”而不是 RPI-RP2 的驱动器不接受此文件：请改用 Chrome 或 Edge 安装，它会先切换到 RPI-RP2。',
   'no answer': '无响应',
   'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold Start + Select while plugging it back in.': '如果驱动器没有出现或无法放入文件：拔下 PadBox，然后按住 Start + Select 重新插入。',
   'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold the buttons above while plugging it back in.': '如果驱动器没有出现或无法放入文件：拔下 PadBox，然后按住上面的按键重新插入。',

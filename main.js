@@ -25,6 +25,7 @@ const isGp = d => d.vendorId === 0xcafe;
 const isHoja = d => HOJA_FILTERS.some(f => f.vendorId === d.vendorId && f.productId === d.productId);
 import { dicon } from './icons.js';
 import { legacyUpdate } from './js/legacy-update.js';
+import { isHojaBoot } from './js/update.js';
 import { count } from './js/stats.js';
 
 const $ = id => document.getElementById(id);
@@ -191,8 +192,11 @@ async function openSerial(p) {
   catch (e) { showConnect(/busy|in use|failed to open/i.test((e && e.message) || '') ? $t('The PadBox is busy: another program or browser tab is using its serial port (the PadBox Suite, or another PadBox Configurator tab). Close it, then click CONNECT PHOBGCC again.') : (e && e.message) || String(e)); }
   connecting = false;
 }
+let hojaBootShown = null;
 async function open(d) {
   if (connecting || current) return;
+  // HHL's update mode (same VID/PID as HOJA2): not a controller to set up but one to update, once per plug-in
+  if (isHojaBoot(d)) { if (hojaBootShown !== d) { hojaBootShown = d; showConnect(); legacyUpdate({ now: 'hoja' }); } return; }
   connecting = true;
   try {
     if (isGp(d)) { const dev = new GpUsb(d); await dev.open(); await run(dev, startGp); }

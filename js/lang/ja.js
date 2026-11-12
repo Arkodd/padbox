@@ -3,6 +3,10 @@
 // on purpose). {0}, {1}... stand for values put in by the app; keep them and the line breaks (\n).
 // node tools/i18n-check.js says what is missing or no longer used.
 export default {
+  'Switching the PadBox to the chip\'s own update mode...': 'PadBox をチップ本来のアップデートモードに切り替えています...',
+  'The PadBox is now in the chip\'s own update mode. Click INSTALL once more and choose "RP2 Boot" in the list.': 'PadBox はチップ本来のアップデートモードになりました。もう一度「インストール」をクリックし、一覧から「RP2 Boot」を選択してください。',
+  'If the list shows "Padbox GS-C Update" instead (a "Padbox GS-C" drive opened, not RPI-RP2), choose it: the PadBox switches to "RP2 Boot" by itself.': '一覧に「Padbox GS-C Update」が表示される場合（RPI-RP2 ではなく「Padbox GS-C」ドライブが開いた場合）は、それを選択してください：PadBox は自動的に「RP2 Boot」に切り替わります。',
+  'A drive named "Padbox GS-C" instead of RPI-RP2 won\'t take this file: install from Chrome or Edge instead, which switches it to RPI-RP2 first.': 'RPI-RP2 ではなく「Padbox GS-C」という名前のドライブはこのファイルを受け付けません：Chrome または Edge からインストールしてください。先に RPI-RP2 に切り替えます。',
   'no answer': '応答なし',
   'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold Start + Select while plugging it back in.': 'ドライブが表示されない、またはファイルを受け付けない場合：PadBoxを抜き、Start + Selectを押したまま差し直してください。',
   'If the drive isn\'t there or won\'t take the file: unplug the PadBox, then hold the buttons above while plugging it back in.': 'ドライブが表示されない、またはファイルを受け付けない場合：PadBoxを抜き、上のボタンを押したまま差し直してください。',
