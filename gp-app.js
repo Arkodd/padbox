@@ -48,22 +48,32 @@ export async function startGp(shell, dev, opts) {
   // ---------------------------------------------------------------- header buttons (the design's icon buttons)
   const iconBtn = (cls, ic, title, onclick) => { const b = el('button.act.' + cls, { type: 'button', title, html: dicon(ic) }); b.addEventListener('click', onclick); return b; };
   const btnUpdate = iconBtn('outline', 'hdr-download', $t('Update firmware'), () => firmwareUpdate({ board: L.board, current: 'GP2040-CE', enter: noDrive => reboot(noDrive ? 3 : 2, true) }));
-  const btnSave = iconBtn('save', 'hdr-save', $t('Save to the controller'), () => flush()); btnSave.disabled = true;
-  const btnPreview = iconBtn('light', 'hdr-beacon', $t('Restart to preview LED'), () => reboot(1));
+  const btnSave = iconBtn('save', 'hdr-save', $t('Save to the controller') + ' (Ctrl+S)', () => flush()); btnSave.disabled = true;
+  const btnPreview = iconBtn('light', 'hdr-beacon', $t('Restart to preview LED'), () => restart(1));
   // Disconnect: back to the connect screen; the PadBox stays in its configuration mode until it restarts
   const btnPower = iconBtn('light', 'hdr-power', $t('Disconnect'), async () => {
     if (Object.values(dirty).some(Boolean) && !await confirmBox($t('Unsaved changes'), $t('Your changes aren\'t saved on the controller yet. Disconnect anyway?'), $t('DISCONNECT'))) return;
     alive = false; shell.lost($t('Disconnected. The PadBox stays in configuration mode until you unplug it or restart it.'));
   });
-  const btnExit = el('button.act.primary', { type: 'button', html: dicon('hdr-gamepad') + '<span>' + $t('Restart as controller') + '</span>' }); btnExit.addEventListener('click', () => reboot(0));
+  const btnExit = el('button.act.primary', { type: 'button', title: $t('Restart the PadBox as a normal controller (unsaved changes are saved first)'), html: dicon('hdr-gamepad') + '<span>' + $t('Restart as controller') + '</span>' }); btnExit.addEventListener('click', () => restart(0));
   shell.actions([btnUpdate, btnSave, btnPreview, btnPower, btnExit]);
   // a newer firmware on the site: say so (the build is padboxBuild; firmware from before it had none)
   if (!opts.demo || /[?&]update/.test(location.search)) updateNotice({ board: L.board, family: 'GP2040-CE', build: +(s.ver && s.ver.padboxBuild) || 0, button: btnUpdate, open: () => btnUpdate.click() });
 
+  const extraSave = [];   // the SETTINGS page's own Save buttons: on only while something is unsaved, like the header's
+  function canSave(on) { btnSave.disabled = !on; for (const b of extraSave) b.disabled = !on; }
   function markDirty(k) {
-    dirty[k] = true; btnSave.disabled = false;
-    say($t('Unsaved changes - click Save to send them to the controller.'), 'var(--warn)');
+    dirty[k] = true; canSave(true);
+    say($t('Unsaved changes - click Save (the disk icon at the top, or Ctrl+S) to send them to the controller.'), 'var(--warn)');
   }
+  // Ctrl+S (Cmd+S on a Mac) saves, as in most programs; Esc unselects the button selected on the CONTROLLER page
+  const onKey = e => {
+    if (!alive) return removeEventListener('keydown', onKey);
+    if (document.querySelector('dialog[open], .dm-back')) return;
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') { e.preventDefault(); flush(); }
+    else if (e.key === 'Escape' && selPin >= 0 && !page0.classList.contains('hidden')) select(-1);
+  };
+  addEventListener('keydown', onKey);
   function say(text, color) { status.textContent = text; status.style.color = color || ''; shell.footer(text, color); }
 
   // ---------------------------------------------------------------- CONTROLLER page
@@ -93,14 +103,26 @@ export async function startGp(shell, dev, opts) {
   ]);
   const fn = el('select.field.mono');
   for (const a of ACTS) fn.append(el('option', { value: a.value, text: fnName(a) }));
+  // a long name ("Custom combo (several buttons at once)") would be cut off in the closed dropdown: there it shows
+  // without its explanation in brackets, which comes back as soon as the list opens
+  for (const o of fn.options) o.dataset.full = o.text;
+  const fnCtx = document.createElement('canvas').getContext('2d');
+  const fnFull = () => { for (const o of fn.options) o.text = o.dataset.full; };
+  function fnShort() {
+    const o = fn.options[fn.selectedIndex], cs = getComputedStyle(fn); if (!o) return;
+    const room = fn.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    fnCtx.font = cs.fontSize + ' ' + cs.fontFamily;
+    if (room > 0 && fnCtx.measureText(o.text).width > room) o.text = o.text.replace(/\s*[(（].*$/, '');
+  }
+  fn.addEventListener('mousedown', fnFull); fn.addEventListener('focus', fnFull); fn.addEventListener('blur', fnShort);
   fn.addEventListener('change', () => {
     if (selPin < 0) return;
     const a = +fn.value, was = actOf(selPin);
     setAction(selPin, a);
     if (a === 40 && was !== 40) {   // a new combo: start from the button it was, then choose the rest
-      const c = m.comboOf(selPin);
+      const c = m.comboOf(selPin), before = { ...c };
       if (!c.b && !c.d) { const p = COMBO_PARTS.find(x => x.name === (act(was) || {}).key); if (p) { if (p.kind === 'd') c.d = p.bit; else c.b = p.bit; m.setCombo(selPin, c); } }
-      editCombo();
+      editCombo({ action: was, combo: before });
     }
   });
   // "Custom combo": one physical button presses several controller buttons at once (GP2040-CE's customButtonMask /
@@ -110,14 +132,17 @@ export async function startGp(shell, dev, opts) {
   comboEdit.addEventListener('click', () => {
     if (selPin < 0) return;
     if (actOf(selPin) !== 40) {   // one function so far: turn it into a combo that starts with it
-      const was = actOf(selPin), c = m.comboOf(selPin), p = COMBO_PARTS.find(x => x.name === (act(was) || {}).key);
+      const was = actOf(selPin), c = m.comboOf(selPin), before = { ...c }, p = COMBO_PARTS.find(x => x.name === (act(was) || {}).key);
       c.b = 0; c.d = 0; if (p) { if (p.kind === 'd') c.d = p.bit; else c.b = p.bit; }
       m.setCombo(selPin, c); setAction(selPin, 40);
+      return editCombo({ action: was, combo: before });
     }
     editCombo();
   });
   const comboRow = el('div.amount-row.combo-row', {}, [el('span', { text: $t('Presses') }), comboTxt, comboEdit]);
-  function editCombo() {
+  // undo: when the button only just became a combo, what it was before - closing the window without OK (Cancel, Esc),
+  // or OK with nothing ticked, puts that back, so the button isn't left as a combo nobody chose
+  function editCombo(undo) {
     const pin = selPin; if (pin < 0) return;
     const c = m.comboOf(pin), boxes = [];
     const grid = el('div.combo-grid', {}, COMBO_PARTS.map(p => {
@@ -125,15 +150,17 @@ export async function startGp(shell, dev, opts) {
       boxes.push([p, input]);
       return el('label.combo-chip', {}, [input, el('span', { text: p.name })]);
     }));
-    let d;
+    let d, kept = false;
     const ok = button($t('OK'), { primary: true, icon: '', onclick: () => {
       const n = { b: 0, d: 0 };
       for (const [p, input] of boxes) if (input.checked) { if (p.kind === 'd') n.d |= p.bit; else n.b |= p.bit; }
-      m.setCombo(pin, n); markDirty('pins'); d.close(); refreshSide();
+      if (!undo || n.b || n.d) { kept = true; m.setCombo(pin, n); markDirty('pins'); }
+      d.close(); refreshSide();
     } });
     const cancel = button($t('CANCEL'), { icon: '', onclick: () => d.close() });
     d = dialog($t('Custom combo'), $t('{0}: the buttons it presses, all at once', $tn(m.nameOfPin(pin))), 'gamepad',
       [el('p', { text: $t('Tick every button and direction this button should press together.'), style: { margin: '0 0 12px', color: 'var(--soft)' } }), grid], [ok, cancel]);
+    d.addEventListener('close', () => { if (undo && !kept) { m.setCombo(pin, undo.combo); m.action[pin] = undo.action; markDirty('pins'); } refreshSide(); });
   }
   const ledField = pressedColor => {
     const dot = el('i.dot'), txt = el('span');
@@ -151,7 +178,9 @@ export async function startGp(shell, dev, opts) {
   const btnResetOne = el('button.pbtn.primary', { type: 'button', html: dicon('sync') + '<span>' + $t('Reset this button') + '</span>' });
   btnResetOne.addEventListener('click', () => { if (selPin === TRIG) setAction(TRIG, 11); else if (selPin in L.defaults) setAction(selPin, L.defaults[selPin]); });
   const btnResetAll = el('button.pbtn.outline', { type: 'button', html: dicon('sync') + '<span>' + $t('Reset all buttons') + '</span>' });
-  btnResetAll.addEventListener('click', () => { for (const k in L.defaults) m.action[k] = L.defaults[k]; if (L.m && m.taction !== 11) { m.taction = 11; markDirty('cal'); } markDirty('pins'); markDirty('led'); refreshSide(); });
+  btnResetAll.addEventListener('click', async () => {
+    if (!await confirmBox($t('Reset all buttons'), $t('Every button in this profile goes back to its default function. Nothing changes on the controller until you click Save.'), $t('RESET ALL'))) return;
+    for (const k in L.defaults) m.action[k] = L.defaults[k]; if (L.m && m.taction !== 11) { m.taction = 11; markDirty('cal'); } markDirty('pins'); markDirty('led'); refreshSide(); });
   const settingsPanel = el('div.panel.hidden', {}, [
     el('div.ptitle', { text: $t('BUTTON SETTINGS') }),
     el('div.lbl', { text: $t('Function') }), fn, comboRow,
@@ -163,7 +192,7 @@ export async function startGp(shell, dev, opts) {
   // GLOBAL LED SETTINGS: GP2040-CE's own effects; the color is set on every button (like "LED color for all buttons")
   const effect = el('select.field');
   EFFECTS.slice(0, m.effects).forEach((n, i) => effect.append(el('option', { value: i, text: n })));
-  effect.addEventListener('change', () => { m.mode = +effect.value; markDirty('led'); });
+  effect.addEventListener('change', () => { m.mode = +effect.value; markDirty('led'); refreshSide(); });
   let allColor = 0x28a6ff;
   const wheelDot = el('i.wheel-in'), wheelKnob = el('i.wheel-knob');
   const wheel = el('div.wheel', { title: $t('Pick a color for every button') }, [wheelDot, wheelKnob]);
@@ -178,28 +207,29 @@ export async function startGp(shell, dev, opts) {
   }
   wheel.addEventListener('click', e => {
     const r = wheel.getBoundingClientRect(), x = e.clientX - r.left - r.width / 2, y = e.clientY - r.top - r.height / 2;
-    if (Math.hypot(x, y) < r.width * 0.3) return pickColor(allColor, c => { showAllColor(c); setAllLeds(c); });   // the middle: any color
+    if (Math.hypot(x, y) < r.width * 0.3) return pickColor(allColor, c => { showAllColor(c); setAllLeds(c); }, true);   // the middle: any color
     let h = Math.atan2(y, x) * 180 / Math.PI + 90; if (h < 0) h += 360;
     const c = hueColor(h); showAllColor(c); setAllLeds(c);
   });
   const swatches = el('div.sw', {}, [0xe02b2b, 0xe09c06, 0x0634e0, 0xeb2fdb].map(c => { const b = el('button', { type: 'button', title: hex(c) }); b.style.background = hex(c); b.addEventListener('click', () => { showAllColor(c); setAllLeds(c); }); return b; }));
   const plus = el('button.plus', { type: 'button', title: $t('Another color...'), html: dicon('plus') });
-  plus.addEventListener('click', () => pickColor(allColor, c => { showAllColor(c); setAllLeds(c); }));
+  plus.addEventListener('click', () => pickColor(allColor, c => { showAllColor(c); setAllLeds(c); }, true));
   swatches.append(plus);
   const brightVal = el('span');
   const bright = el('input.range', { type: 'range', min: 0, max: 5, step: 1 });
   const paintBright = () => { const p = +bright.max ? +bright.value / +bright.max * 100 : 0; bright.style.setProperty('--p', p + '%'); brightVal.textContent = Math.round(p) + '%'; };
   bright.addEventListener('input', () => { m.brightness = +bright.value; paintBright(); markDirty('led'); });
-  // Idle Glow: in the design's panel, but GP2040-CE has no such setting, so it's shown switched off. (The design's
-  // Animation time is left out: GP2040-CE sets the animation speed itself.)
-  const idle = dtoggle($t('Idle Glow'), () => { }); idle.disabled = true;
-  idle.el.title = $t('Idle Glow is a HOJA setting: GP2040-CE does not have it');
+  // The design's Idle Glow and Animation time are left out: they are HOJA settings (GP2040-CE sets the animation speed itself).
+  // Under the effect, what it lights the buttons with (GP2040-CE's animationstation): the colors set here, only their
+  // "when pressed" colors, a rainbow, or colors built into the firmware (chosen on the controller, not here)
+  const effHint = el('p.eff-hint');
+  const colorRow = el('div.colorrow', {}, [wheel, el('div', {}, [el('div.readout', {}, [rgbTxt, hexTxt]), swatches])]);
   const colorLbl = el('span', { text: $t('Color') });
   const ledPanel = el('div.panel.ledp', {}, [
     el('div.ptitle', { text: $t('GLOBAL LED SETTINGS') }),
-    el('div.lbl', { text: $t('Lighting effect') }), effect,
-    el('div.lbl.idle-row', {}, [colorLbl, idle.el]),
-    el('div.colorrow', {}, [wheel, el('div', {}, [el('div.readout', {}, [rgbTxt, hexTxt]), swatches])]),
+    el('div.lbl', { text: $t('Lighting effect') }), effect, effHint,
+    el('div.lbl.idle-row', {}, [colorLbl]),
+    colorRow,
     el('div.dslider', {}, [el('div.lbl.split', {}, [el('span', { text: $t('Brightness') }), brightVal]), bright]),
     status,
   ]);
@@ -210,11 +240,17 @@ export async function startGp(shell, dev, opts) {
   const profileBar = el('select.field.profile-sel', { title: $t('The button profile in use (on the controller: hold Home + Touchpad and press 1P, 2P, 3P or 4P)') });
   for (let n = 1; n <= 4; n++) profileBar.append(el('option', { value: n, text: profileName(n) }));
   profileBar.addEventListener('change', () => { const n = +profileBar.value; m.profileNumber = n; m.editProfile = n; markDirty('settings'); refreshSide(); });
-  const page0 = el('div.page.controller', {}, [drawing.svg, profileBar, column]);
+  const page0 = el('div.page.controller.gpce', {}, [drawing.svg, profileBar, column]);
+  page0.addEventListener('click', e => { if (selPin >= 0 && !e.target.closest('.pad-btn, .side-col, .profile-sel')) select(-1); });
 
   function refreshSide() {
     bright.max = Math.max(1, m.steps); bright.value = clamp(m.brightness, 0, m.steps); paintBright();
     effect.value = String(clamp(m.mode, 0, Math.min(m.effects, EFFECTS.length) - 1));
+    const md = +effect.value, usesColor = [4, 5, 8, 9].includes(md), usesPressed = usesColor || md === 6 || md === 7;
+    effHint.textContent = usesColor ? $t('Uses the colors set here.') : usesPressed ? $t('Uses only the "When pressed" colors set here.')
+      : md === 1 || md === 2 ? $t('Rainbow colors: the colors set here aren\'t used. Choose Custom theme to use them.')
+      : $t('Colors built into the firmware: the colors set here aren\'t used. Choose Custom theme to use them.');
+    colorRow.classList.toggle('unused', !usesColor); ledU.f.classList.toggle('unused', !usesColor); ledD.f.classList.toggle('unused', !usesPressed);
     profileBar.value = String(clamp(m.editProfile, 1, 4));
     const none = selPin < 0;
     empty.classList.toggle('hidden', !none); settingsPanel.classList.toggle('hidden', none);
@@ -224,6 +260,7 @@ export async function startGp(shell, dev, opts) {
       const ph = selPin === TRIG ? null : m.phys(selPin);
       for (const o of fn.options) o.disabled = selPin === TRIG && !TRIG_OK.has(+o.value);   // what the trigger can do
       fn.value = String(actOf(selPin)); fn.disabled = !!(ph && ph.fixed);
+      fnFull(); if (document.activeElement !== fn) fnShort();
       const isCombo = actOf(selPin) === 40, one = act(actOf(selPin));
       // a combo can be any of the buttons and directions; not Turbo, Fn or the trigger
       const canCombo = selPin !== TRIG && !(ph && ph.fixed) && (isCombo || actOf(selPin) === -10 || !!(one && one.key));
@@ -241,7 +278,7 @@ export async function startGp(shell, dev, opts) {
   function pickLed(pressedColor) {
     const slot = m.ledSlot(m.phys(selPin));
     if (slot < 0) return;
-    pickColor(pressedColor ? m.ledD[slot] : m.ledU[slot], c => { if (pressedColor) m.ledD[slot] = c; else m.ledU[slot] = c; markDirty('led'); refreshSide(); });
+    pickColor(pressedColor ? m.ledD[slot] : m.ledU[slot], c => { if (pressedColor) m.ledD[slot] = c; else m.ledU[slot] = c; markDirty('led'); refreshSide(); }, true);
   }
   function setAction(pin, a) {
     if (pin === TRIG) { if (actOf(TRIG) !== a) { m.taction = a; markDirty('cal'); refreshSide(); } return; }
@@ -333,12 +370,13 @@ export async function startGp(shell, dev, opts) {
     function say(t, color) { if (st.state) { infoL.textContent = t || ''; infoL.style.color = color || ''; } else if (t) shell.footer(t, color); }
     const mean = q => q.reduce((a, b) => a + b, 0) / Math.max(1, q.length);
     const spread = q => q.length ? Math.max(...q) - Math.min(...q) : 0;
+    const reached = () => [w.maxX - w.cx, w.cx - w.minX, w.maxY - w.cy, w.cy - w.minY].filter(v => v >= 250).length;   // directions the stick has gone far enough in
     function begin() { st.state = 1; st.trail = []; st.msg = ''; say($t('Step 1 of 2: let go of the stick so it rests in the middle, then click Next.')); setPbtn(bNext, $t('Next')); refresh(); }
     function next() {
       if (st.state === 1) {
         if (st.hx.length < 8) { say($t('Not enough readings yet, wait a second and click Next again.'), 'var(--warn)'); return; }
         const wob = Math.max(spread(st.hx), spread(st.hy));
-        if (wob > 120) { say($t('The stick is still moving ({0} counts of wobble). Let it rest and click Next again.', wob), 'var(--warn)'); return; }
+        if (wob > 120) { say($t('The stick is still moving. Let go of it completely, wait a second, then click Next again.'), 'var(--warn)'); return; }
         const cx = mean(st.hx), cy = mean(st.hy);
         w = { cx, cy, minX: cx, maxX: cx, minY: cy, maxY: cy };
         st.state = 2; st.trail = [];
@@ -346,7 +384,7 @@ export async function startGp(shell, dev, opts) {
         setPbtn(bNext, $t('Finish'));
       } else if (st.state === 2) {
         const rx = Math.min(w.maxX - w.cx, w.cx - w.minX), ry = Math.min(w.maxY - w.cy, w.cy - w.minY);
-        if (rx < 250 || ry < 250) { say($t('Not enough movement: the stick has to reach the edge on all four sides (now {0} / {1} counts, need at least 250). Keep rolling it.', rx | 0, ry | 0), 'var(--warn)'); return; }
+        if (rx < 250 || ry < 250) { say($t('Not enough movement yet: move the stick to the edge in all four directions ({0} of 4 so far).', reached()), 'var(--warn)'); return; }
         const k = 's' + (idx + 1);
         const calBody = { [k + 'cal']: true, [k + 'cx']: Math.round(w.cx), [k + 'cy']: Math.round(w.cy), [k + 'minx']: w.minX | 0, [k + 'maxx']: w.maxX | 0, [k + 'miny']: w.minY | 0, [k + 'maxy']: w.maxY | 0 };
         postCal(calBody, $t('Saved to the controller. Restart the controller to use it.'));
@@ -373,8 +411,8 @@ export async function startGp(shell, dev, opts) {
       if (inv & 1) nx = -nx; if (inv & 2) ny = -ny;
       st.outX = nx; st.outY = ny;
       if (st.state === 2 && Math.hypot(nx, ny) > 0.55) { st.trail.push([nx, ny]); if (st.trail.length > 4000) st.trail.shift(); }
-      if (st.state === 1) st.status = $t('resting: {0} counts of wobble', Math.max(spread(st.hx), spread(st.hy)));
-      if (st.state === 2) { const rx = Math.min(w.maxX - w.cx, w.cx - w.minX), ry = Math.min(w.maxY - w.cy, w.cy - w.minY); st.status = $t('reach so far: X {0}  Y {1} counts', rx | 0, ry | 0); }
+      if (st.state === 1) st.status = Math.max(spread(st.hx), spread(st.hy)) > 120 ? $t('Still moving: let go of the stick') : $t('Resting: ready, click Next');
+      if (st.state === 2) st.status = $t('Directions covered: {0} of 4', reached());
     };
     // the gate (parts.js paintGate): a round gate stops the dot at the circle, as the firmware does
     st.paint = () => {
@@ -402,6 +440,7 @@ export async function startGp(shell, dev, opts) {
   const TURBO_BTNS = COMBO_PARTS.filter(p => p.kind === 'b' && p.bit <= 128).map(p => { const a = ACTS.find(x => x.key === p.name); return { value: p.bit, text: a ? fnName(a) : p.name, short: p.name }; });
   const assigned = multiSelect($t('Select buttons to enable Turbo'), TURBO_BTNS, v => { m.turboMask = v.reduce((a, b) => a | b, 0); markDirty('settings'); });
   assigned.el.title = $t('These buttons repeat by themselves while held, whenever turbo is on');
+  const saveBtn = () => { const b = pbtn($t('Save'), 'check', true, () => flush()); b.disabled = !Object.values(dirty).some(Boolean); extraSave.push(b); return b; };
   const inputItems = [el('div.lbl', { text: $t('SOCD cleaning mode') }), socd, debounce.el];
   const inputPanel = panel($t('INPUT BEHAVIOR'), [...inputItems,
     el('div.btnrow.bottom', {}, [
@@ -409,13 +448,13 @@ export async function startGp(shell, dev, opts) {
         m.socdMode = 1; m.debounceDelay = 5;
         syncSettings(); markDirty('settings');
       }),
-      pbtn($t('Save'), 'check', true, () => flush()),
+      saveBtn(),
     ])], 'stretch');
   const turboOn = el('div.turbo-on', {}, [shots.el, el('div.lbl', { text: $t('Assigned Buttons') }), assigned.el,
     el('p.hint.wrap', { text: $t('Turbo Mode automatically repeats the assigned button input while held, allowing faster repeated actions with less effort.') }),
     el('div.btnrow.bottom', {}, [
       pbtn($t('Reset'), 'sync', false, () => { m.turboShotCount = 5; m.turboMask = 0; syncSettings(); markDirty('settings'); }),
-      pbtn($t('Save'), 'check', true, () => flush()),
+      saveBtn(),
     ])]);
   const turboOff = el('div.panel-off', {}, [el('div.off-icon', { html: dicon('bolt') }), el('div.empty-t', { text: $t('Turbo mode disabled') }),
     el('div.empty-d', { text: $t('Enable Turbo Mode to repeat supported\nbutton inputs automatically while held') })]);
@@ -461,7 +500,7 @@ export async function startGp(shell, dev, opts) {
   async function flush() {
     if (!Object.values(dirty).some(Boolean)) return;
     const d = { ...dirty }; for (const k in dirty) dirty[k] = false;
-    btnSave.disabled = true; say($t('Saving...'), 'var(--warn)');
+    canSave(false); say($t('Saving...'), 'var(--warn)');
     try {
       if (d.pins) { await dev.post('/api/setPinMappings', m.pinsBody()); await dev.post('/api/setProfileOptions', m.profilesBody()); }
       if (d.led) {
@@ -484,11 +523,17 @@ export async function startGp(shell, dev, opts) {
       say($t('Saved and checked. Click Restart as controller to use the new buttons.'), 'var(--good)');
     } catch (e) {
       for (const k in d) if (d[k]) dirty[k] = true;
-      btnSave.disabled = false; say($t('Saving failed: {0}', e.message), 'var(--bad)');
+      canSave(true); say($t('Saving failed: {0}', e.message), 'var(--bad)');
     }
+  }
+  // Restart as controller, Restart to preview LED: unsaved changes are saved first, after asking
+  async function restart(mode) {
+    if (Object.values(dirty).some(Boolean) && !await confirmBox($t('Unsaved changes'), $t('Your changes will be saved to the controller before it restarts.'), $t('SAVE AND RESTART'))) return;
+    reboot(mode);
   }
   async function reboot(mode, quiet) {
     await flush();
+    if (!quiet && Object.values(dirty).some(Boolean)) return;   // the save failed: stay, with its error shown, rather than lose the changes
     alive = false;
     try { await dev.post('/api/reboot', { bootMode: mode }); } catch (e) { }
     if (!quiet) shell.lost(mode === 2 ? $t('The PadBox restarted into update mode.') : mode === 1 ? $t('The PadBox is restarting to preview its LEDs. Hold Start while plugging it in to configure it again.') : $t('The PadBox restarted as a controller. Hold Start while plugging it in to configure it again.'));

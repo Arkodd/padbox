@@ -119,8 +119,10 @@ export class GpDemo {
       case '/api/setConfig': return { success: true };
       case '/api/reboot': return { success: true };
       case '/api/getLiveState': {
-        const t = (performance.now() - this.t0) / 1000, a = t * 0.5;
-        return { gpio: 0, gpioHi: 0, adc: [Math.round(2048 + Math.sin(a) * 1400), Math.round(2048 - Math.cos(a) * 1400), this.platform ? -1 : 2048, this.platform ? -1 : 2048,
+        // the left stick rests in the middle for 4 s (with a little noise), then goes twice round the edge in 8 s, so the
+        // STICKS page can be calibrated in the demo
+        const t = (performance.now() - this.t0) / 1000, ph = t % 12, r = ph < 4 ? 0 : 1400, a = (ph - 4) * Math.PI / 2, n = () => Math.round((Math.random() - 0.5) * 16);
+        return { gpio: 0, gpioHi: 0, adc: [Math.round(2048 + Math.sin(a) * r) + n(), Math.round(2048 - Math.cos(a) * r) + n(), this.platform ? -1 : 2048, this.platform ? -1 : 2048,
           this.gs ? -1 : Math.round(2900 - (0.5 + 0.5 * Math.sin(t * 1.3)) * 1600)] };
       }
     }

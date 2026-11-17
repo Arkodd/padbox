@@ -161,10 +161,18 @@ export function swatchRow(colors, onpick, oncustom) {
 }
 
 // Opens the browser's color picker; calls back with 0xRRGGBB.
-export function pickColor(current, cb) {
-  const inp = el('input', { type: 'color', value: hex(current), style: { position: 'fixed', left: '-100px', top: '0' } });
+// The color picker opens where the pointer last went down (beside the wheel or swatch clicked), not in a corner.
+// live: cb also while the color is being chosen (at most every 80 ms), not only once the picker is closed.
+let lastPointer = null;
+addEventListener('pointerdown', e => { lastPointer = { x: e.clientX, y: e.clientY }; }, true);
+export function pickColor(current, cb, live) {
+  const p = lastPointer || { x: innerWidth / 2, y: innerHeight / 2 };
+  const inp = el('input', { type: 'color', value: hex(current), style: { position: 'fixed', left: p.x + 'px', top: p.y + 'px', width: '1px', height: '1px', padding: '0', border: '0', opacity: '0', pointerEvents: 'none' } });
   document.body.append(inp);
-  inp.addEventListener('change', () => { cb(parseInt(inp.value.slice(1), 16)); inp.remove(); });
+  let sent = hex(current), timer = 0;
+  const send = () => { timer = 0; if (inp.value !== sent) { sent = inp.value; cb(parseInt(inp.value.slice(1), 16)); } };
+  if (live) inp.addEventListener('input', () => { if (!timer) timer = setTimeout(send, 80); });
+  inp.addEventListener('change', () => { clearTimeout(timer); send(); inp.remove(); });
   inp.addEventListener('blur', () => setTimeout(() => inp.remove(), 500));
   inp.click();
 }

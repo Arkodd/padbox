@@ -51,6 +51,11 @@ let current = null, connecting = false;
 // (the visual viewport: on a phone, innerWidth can be the wider layout the browser falls back to, not the screen)
 function fit() { const v = window.visualViewport, w = v ? v.width * v.scale : innerWidth, h = v ? v.height * v.scale : innerHeight; document.documentElement.style.setProperty('--zoom', Math.min(w / 1046, h / 653)); }
 addEventListener('resize', fit); if (window.visualViewport) visualViewport.addEventListener('resize', fit); fit();
+// a phone held upright: the page would be too small to use, so it asks to be turned sideways (v2.css shows this only then)
+document.body.append(el('div#rotate', {}, [
+  el('div', { html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="17" rx="2"/><path d="M11 16h2M3 14a9 9 0 0 0 7 7M3 14l-1 3M3 14l3 1"/></svg>' }),
+  el('p', { text: $t('Turn your phone sideways to use the PadBox Configurator.') }),
+]));
 
 // Tooltips in the design ("Backup idea.png"): a light grey box with an arrow pointing at the element, below it (above
 // it near the bottom of the window). Any element with a title gets one; the title moves to data-tip so the browser

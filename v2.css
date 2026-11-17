@@ -84,7 +84,7 @@ body[data-page="controller"] #main { top: 0; }
 .lbl.split span:last-child { color: #bdbdbd; }
 .field { width: 100%; height: 26px; border-radius: 2px; border: 0; background: var(--field); color: #2b2b2b; font: 400 10.5px "Poppins", sans-serif; padding: 0 22px 0 6px; outline: none; cursor: pointer; }
 select.field { appearance: none; background: var(--field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='4'%3E%3Cpath d='M0 0h6L3 4z' fill='%23333'/%3E%3C/svg%3E") no-repeat right 10px center; }
-select.field.mono { font-family: "Consolas", "Roboto Mono", ui-monospace, monospace; font-size: 10.5px; letter-spacing: .02em; }
+select.field.mono { font-family: inherit; }
 select.field:disabled { color: #8a8a8a; cursor: default; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .field.color { display: flex; align-items: center; gap: 6px; text-align: left; font-family: "Poppins", sans-serif; }
@@ -545,7 +545,7 @@ body { background: radial-gradient(circle calc(513.2px * var(--zoom, 1)) at 50% 
 .lbl.split span:last-child { color: #9d9d9d; }
 .field { height: 26.15px; border-radius: 3.27px; background: #dfdfdf; color: #2a2a2a; font: 400 9.81px/26.15px "Poppins", sans-serif; padding: 0 22px 0 7.2px; box-shadow: 0 0 0 .8172px #dfdfdf; box-sizing: border-box; }
 select.field { background: #dfdfdf url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 6.7 4'%3E%3Cpath d='M.5 0h5.7a.5.5 0 0 1 .37.85L3.72 3.82a.55.55 0 0 1-.74 0L.13.85A.5.5 0 0 1 .5 0z' fill='%23212121'/%3E%3C/svg%3E") no-repeat right 9.56px top 13.07px / 5.48px 3.3px; }
-select.field.mono { font-size: 9.81px; letter-spacing: .06em; padding-left: 5.5px; }
+select.field.mono { font-size: 9.81px; letter-spacing: 0; }
 
 /* side column rows */
 .side-col .panel > .ptitle + .lbl, .side-col .panel > .ptitle + div > .lbl:first-child { margin-top: 14.22px; }
@@ -961,3 +961,21 @@ canvas.scatter-cv { width: 300px; height: 300px; border: 1px solid #3d424c; bord
 .connect2 p.guide { margin-top: 16px; }
 .connect2 p.demo { margin: 10px auto 0; font-size: 12px; color: #9d9d9d; display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 16px; }
 .connect2 p.demo b { font-weight: 400; }
+
+/* GP2040-CE's CONTROLLER page: the profile and the panels stay where they are whether a button is selected or not
+   (the empty panel as tall as BUTTON SETTINGS) */
+.page.controller.gpce .profile-sel, .page.controller.gpce.selected .profile-sel { top: 73.55px; }
+.page.controller.gpce .side-col { top: 108.69px; }
+.page.controller.gpce .side-col .panel.empty { height: 247.42px; }
+/* under the lighting effect: what it lights the buttons with; colors it doesn't use are dimmed (still settable) */
+.side-col .eff-hint { margin: 5px 0 0; font-size: 8.5px; line-height: 1.3; color: #9d9d9d; }
+.side-col .unused { opacity: .35; }
+/* the side menu's STICK TEST icon at the size of the others (its drawing fills its box; theirs fill 44% of it) */
+#nav button svg.ri-target { width: 23px; height: 23px; }
+/* a phone held upright: the page is laid out for a wide screen, so it asks to be turned */
+#rotate { display: none; }
+@media (orientation: portrait) and (max-width: 700px) {
+  #rotate { display: flex; position: fixed; inset: 0; z-index: 1000; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 32px; background: #232323; color: #e0e0e0; text-align: center; font-size: 17px; line-height: 1.5; }
+  #rotate svg { width: 72px; height: 72px; color: var(--orange); }
+  #rotate p { margin: 0; max-width: 300px; }
+}
