@@ -164,14 +164,33 @@ function showConnect(problem, good) {
   const serBtn = button($t('CONNECT PHOBGCC'), { cls: 'big', icon: 'serial', disabled: !navigator.serial, onclick: pickSerial });
   // a PadBox still on the firmware it shipped with (from before this app): install the latest without opening it
   const oldBtn = button($t('UPDATE AN OLDER PADBOX'), { cls: 'big', icon: 'download', onclick: () => legacyUpdate() });
+  // one box per way in, each with its own steps and its button
+  const steps = (...t) => el('ol', {}, t.map(x => el('li', { text: x })));
+  const card = (title, tag, body, b) => el('div.ccard', {}, [el('h2', {}, [title, tag ? el('small', { text: tag }) : null]), ...body, b]);
+  const demo = (fw, ...l) => el('span', {}, [fw + ': ', ...l.flatMap(([q, n], i) => [i ? ' · ' : null, el('a', { href: '?demo=' + q, text: n })])]);
   shell.content(el('div.connect2', {}, [
     el('h1', { text: $t('CONNECT') }),
-    el('p', { text: $t('Plug the PadBox GS in with a USB data cable (for GP2040-CE, hold Start while plugging it in), then click CONNECT and choose it in the list. PhobGCC (GS Platform): hold Start while plugging it in, then click CONNECT PHOBGCC and choose "PadBox GS Configurator" ("PadBox GS Calibrator" on older PhobGCC firmware).') }),
-    el('div.connect-btns', {}, [btn, serBtn, oldBtn]),
-    el('p.guide', {}, $tNodes('New to the PadBox? Read the {0}: the buttons, the console modes, and how to use this page.', el('a', { href: GUIDE, target: '_blank', rel: 'noopener', text: $t('PadBox GS owner\'s guide') }))),
-    el('p.old', { text: $t('Your PadBox won’t connect, or still has the firmware it came with (HOJA "Padbox GS-C", GP2040-CE 0.8 or the original PhobGCC)? Click UPDATE AN OLDER PADBOX: it installs the latest firmware without opening the controller.') }),
-    el('p.demo', { html: $t('No controller at hand? Try the demo: GP2040-CE on the <a href="?demo=gp">GS Essential</a> or <a href="?demo=gp-platform">GS Platform</a>, HOJA on the <a href="?demo=hoja-essential">GS Essential</a> or <a href="?demo=hoja-platform">GS Platform</a>, PhobGCC on the <a href="?demo=phob">GS Platform</a>') }),
+    el('p.lead', { text: $t('Plug your PadBox GS in with a USB data cable, then pick the box that matches its firmware.') }),
     problem ? el('p.problem' + (good ? '.good' : ''), { text: problem }) : null,   // after an update: in green
+    el('div.connect-cards', {}, [
+      card($t('HOJA or GP2040-CE'), null, [
+        el('ul', {}, [el('li', { text: $t('HOJA: just plug it in.') }), el('li', { text: $t('GP2040-CE: hold Start while plugging it in.') })]),
+        el('p', { text: $t('Click CONNECT and choose your PadBox in the list.') }),
+      ], btn),
+      card('PhobGCC', $t('GS Platform only'), [
+        steps($t('Hold Start while plugging it in.'), $t('Click CONNECT PHOBGCC and choose "PadBox GS Configurator".')),
+        el('p.fine', { text: $t('On older PhobGCC firmware it is named "PadBox GS Calibrator".') }),
+      ], serBtn),
+      card($t('Older PadBox'), null, [
+        el('p', { text: $t('Won’t connect, or still on the firmware it came with? This installs the latest firmware without opening the controller.') }),
+        el('p.fine', { text: $t('Firmware it came with: HOJA "Padbox GS-C", GP2040-CE 0.8 or the original PhobGCC.') }),
+      ], oldBtn),
+    ]),
+    el('p.guide', {}, $tNodes('New to the PadBox? Read the {0}: the buttons, the console modes, and how to use this page.', el('a', { href: GUIDE, target: '_blank', rel: 'noopener', text: $t('PadBox GS owner\'s guide') }))),
+    el('p.demo', {}, [el('b', { text: $t('No controller at hand? Try a demo:') }),
+      demo('GP2040-CE', ['gp', 'GS Essential'], ['gp-platform', 'GS Platform']),
+      demo('HOJA', ['hoja-essential', 'GS Essential'], ['hoja-platform', 'GS Platform']),
+      demo('PhobGCC', ['phob', 'GS Platform'])]),
   ]));
 }
 
